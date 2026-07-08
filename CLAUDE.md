@@ -23,6 +23,8 @@ npm run dev          # run src/index.ts directly via tsx
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run (unit tests, no network)
 npx vitest run tests/<file>.test.ts   # single test file
+python3 scripts/sweep.py   # full read-only tool sweep over stdio vs live API (needs .env;
+                           # VIRTUAL by default, --real to allow REAL; exit 0 = all expected)
 ```
 
 End-to-end smoke test without an MCP client (initialize → tools/list → tools/call):
