@@ -122,6 +122,8 @@ def main() -> int:
         ("get_stock_chart", {"stock_code": "005930", "period": "minute", "minute_scope": "5"}),
         ("get_orderbook", {"stock_code": "005930"}),
         ("get_market_index", {"market": "kospi"}),
+        ("get_sector_price", {"sector_code": "001"}),
+        ("get_sector_stocks", {"sector_code": "101", "limit": 5}),
         ("get_ranking", {"type": "volume", "top": 5}),
         ("get_market_movers", {"signal": "new_high", "top": 3}),
         ("get_market_movers", {"signal": "new_low", "top": 3}),

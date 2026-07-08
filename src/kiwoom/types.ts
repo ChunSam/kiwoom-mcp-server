@@ -256,6 +256,69 @@ export const allIndexResponseSchema = z.looseObject({
   all_inds_idex: z.array(indexItemSchema).default([]),
 });
 
+// ── ka20001: 업종현재가 (subset) ──
+
+/** 시간대별 행 (`*_n` suffix). tm_n "999999"/"888888"은 장마감 집계 센티널 — 표시 시 필터. */
+export const sectorTimeRowSchema = z.looseObject({
+  tm_n: str(),
+  cur_prc_n: str(),
+  pred_pre_n: str(),
+  flu_rt_n: str(),
+  acc_trde_qty_n: str(), // 누적 거래량 (천주)
+});
+
+export type SectorTimeRow = z.infer<typeof sectorTimeRowSchema>;
+
+export const sectorPriceResponseSchema = z.looseObject({
+  ...envelope,
+  cur_prc: str(), // 지수 (소수점, 부호 접두)
+  pred_pre: str(),
+  flu_rt: str(),
+  trde_qty: str(), // 천주 (ka20003과 동일 단위)
+  trde_prica: str(), // 백만원
+  trde_frmatn_stk_num: str(), // 거래형성 종목수
+  trde_frmatn_rt: str(), // 거래형성 비율(%), 부호 접두
+  open_pric: str(),
+  high_pric: str(),
+  low_pric: str(),
+  upl: str(), // 상한 종목수
+  rising: str(),
+  stdns: str(), // 보합
+  fall: str(),
+  lst: str(), // 하한 종목수
+  "52wk_hgst_pric": str(),
+  "52wk_hgst_pric_dt": str(), // yyyyMMdd
+  "52wk_hgst_pric_pre_rt": str(), // 현재가의 52주 최고 대비 등락률
+  "52wk_lwst_pric": str(),
+  "52wk_lwst_pric_dt": str(),
+  "52wk_lwst_pric_pre_rt": str(),
+  inds_cur_prc_tm: z.array(sectorTimeRowSchema).default([]),
+});
+
+export type SectorPriceResponse = z.infer<typeof sectorPriceResponseSchema>;
+
+// ── ka20002: 업종별주가 (subset) ──
+
+export const sectorStockItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre_sig: str(),
+  pred_pre: str(),
+  flu_rt: str(),
+  now_trde_qty: str(),
+  open_pric: str(),
+  high_pric: str(),
+  low_pric: str(),
+});
+
+export type SectorStockItem = z.infer<typeof sectorStockItemSchema>;
+
+export const sectorStocksResponseSchema = z.looseObject({
+  ...envelope,
+  inds_stkpc: z.array(sectorStockItemSchema).default([]),
+});
+
 // ── ka10059/ka10061: 종목별 투자자·기관 (13-field investor breakdown) ──
 // amt_qty_tp "1"=금액(백만원), "2"=수량(주) — cross-checked live against volume.
 
