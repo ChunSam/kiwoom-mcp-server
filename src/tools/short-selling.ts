@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import { fetchShortSelling } from "../kiwoom/api.js";
 import { normalizeStockCode, type ShortSellingItem } from "../kiwoom/types.js";
-import { formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
+import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, formatRatioPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
@@ -84,6 +84,7 @@ export function registerShortSellingTool(server: McpServer): void {
           fromDate: (from_date ?? kstDaysAgo(DEFAULT_LOOKBACK_DAYS)).replaceAll("-", ""),
           toDate: (to_date ?? todayInKst()).replaceAll("-", ""),
         };
+        assertDateRange(query.fromDate, query.toDate);
         const rows = await fetchShortSelling(client, query.stockCode, query.fromDate, query.toDate);
         return textResult(formatShortSelling(rows, query, config.modeLabel));
       }),

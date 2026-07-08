@@ -10,7 +10,7 @@ import { fetchAccountEvaluation, fetchRealizedPnlSummary, fetchTransactions } fr
 import type { KiwoomClient } from "../kiwoom/client.js";
 import { loadMasterList } from "../kiwoom/master-list.js";
 import { normalizeStockCode, type TransactionRow } from "../kiwoom/types.js";
-import { formatDateDashed, todayInKst } from "../utils/date.js";
+import { assertDateRange, formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatKRW, formatSignedKRW, parseKiwoomNumber } from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
@@ -211,7 +211,10 @@ export function registerIsaTaxStatusTool(server: McpServer): void {
         overrides: z
           .array(
             z.object({
-              stock_code: z.string().describe("6자리 종목코드"),
+              stock_code: z
+                .string()
+                .regex(/^\d{6}$/, "6자리 숫자 종목코드여야 합니다")
+                .describe("6자리 종목코드"),
               tax_type: z
                 .enum(["TAXABLE", "DOMESTIC_EQUITY"])
                 .describe("TAXABLE=과세대상(해외/채권형 등), DOMESTIC_EQUITY=국내주식형(매매차익 비과세)"),
@@ -233,6 +236,7 @@ export function registerIsaTaxStatusTool(server: McpServer): void {
           );
         }
         const toDate = todayInKst();
+        assertDateRange(fromDate, toDate);
 
         const overrideMap = new Map<string, TaxType>(
           (overrides ?? []).map((o) => [o.stock_code, o.tax_type]),
@@ -301,6 +305,19 @@ export function registerIsaTaxStatusTool(server: McpServer): void {
         });
 
         const warnings = [...reconstruction.warnings];
+        // 존재 검증: 실현·보유 어디에도 없는 종목의 override는 조용히 무시되므로
+        // (오타 가능성) 경고로 표면화한다.
+        const knownCodes = new Set([
+          ...realizedEntries.map((e) => e.code),
+          ...unrealizedEntries.map((e) => e.code),
+        ]);
+        const unusedOverrides = [...overrideMap.keys()].filter((code) => !knownCodes.has(code));
+        if (unusedOverrides.length > 0) {
+          warnings.push(
+            `overrides에 지정한 종목 ${unusedOverrides.join(", ")}이(가) 집계 기간의 실현손익·보유 ` +
+              `내역에 없어 반영되지 않았습니다 — 종목코드를 확인해 주세요.`,
+          );
+        }
         if (transactions.truncated) {
           warnings.push(
             "거래내역이 조회 상한에 도달해 일부 오래된 거래가 누락되었을 수 있습니다 — " +
