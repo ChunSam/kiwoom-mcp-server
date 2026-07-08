@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    // No source maps: dist/*.js.map would reference src/ (which the npm tarball does not
+    // ship, files:["dist"]), so they're useless to consumers and only leak source
+    // structure. Dev debugging uses `npm run dev` (tsx), not built dist. Keep this false.
+    "sourceMap": false
+  },
+  "include": ["src"]
+}

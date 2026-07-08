@@ -1,0 +1,55 @@
+{
+  "name": "kiwoom-mcp-server",
+  "version": "0.8.0",
+  "description": "Read-only MCP server exposing the Kiwoom Securities REST API (market data, account inquiry, ISA tax-allowance calculator) to Claude Desktop / Claude Code.",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "author": "ChunSam",
+  "homepage": "https://github.com/ChunSam/kiwoom-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChunSam/kiwoom-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ChunSam/kiwoom-mcp-server/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "kiwoom",
+    "kiwoom-securities",
+    "stock",
+    "korea-stock",
+    "isa",
+    "read-only"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "bin": {
+    "kiwoom-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  }
+}

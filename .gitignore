@@ -1,0 +1,16 @@
+# Secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Build / deps
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Misc
+*.log
+.DS_Store
+
+# Internal session handoffs — kept locally for continuity, not published
+plans/

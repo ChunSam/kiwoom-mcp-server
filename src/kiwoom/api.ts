@@ -1,0 +1,529 @@
+import { z } from "zod";
+
+import { sleep } from "../utils/sleep.js";
+import type { KiwoomClient } from "./client.js";
+import { KiwoomApiError } from "./errors.js";
+import {
+  accountEvaluationResponseSchema,
+  allIndexResponseSchema,
+  dailyChartItemSchema,
+  depositResponseSchema,
+  etfInfoResponseSchema,
+  foreignHoldingResponseSchema,
+  investorDailyItemSchema,
+  investorTotalItemSchema,
+  minuteChartItemSchema,
+  orderbookResponseSchema,
+  pendingOrdersResponseSchema,
+  priceChangeRankItemSchema,
+  realizedPnlResponseSchema,
+  shortSellingResponseSchema,
+  stockInfoResponseSchema,
+  stockListResponseSchema,
+  themeGroupsResponseSchema,
+  tradingJournalResponseSchema,
+  themeStocksResponseSchema,
+  transactionsResponseSchema,
+  valueRankItemSchema,
+  volumeRankItemSchema,
+  watchlistGroupDetailResponseSchema,
+  watchlistGroupsResponseSchema,
+  type AccountEvaluationResponse,
+  type DailyChartItem,
+  type DepositResponse,
+  type EtfInfoResponse,
+  type ForeignHoldingItem,
+  type IndexItem,
+  type InvestorDailyItem,
+  type InvestorTotalItem,
+  type MinuteChartItem,
+  type OrderbookResponse,
+  type PendingOrderItem,
+  type PriceChangeRankItem,
+  type RealizedPnlResponse,
+  type ShortSellingItem,
+  type StockInfoResponse,
+  type StockListItem,
+  type ThemeGroupItem,
+  type ThemeStocksResponse,
+  type TradingJournalResponse,
+  type TransactionRow,
+  type ValueRankItem,
+  type VolumeRankItem,
+  type WatchlistGroupItem,
+  type WatchlistStockItem,
+} from "./types.js";
+
+const STOCK_INFO_PATH = "/api/dostk/stkinfo";
+const ACCOUNT_PATH = "/api/dostk/acnt";
+const CHART_PATH = "/api/dostk/chart";
+const MRKCOND_PATH = "/api/dostk/mrkcond";
+const SECTOR_PATH = "/api/dostk/sect";
+const RANK_PATH = "/api/dostk/rkinfo";
+const ETF_PATH = "/api/dostk/etf";
+const WATCHLIST_PATH = "/api/dostk/watchlist";
+const THEME_PATH = "/api/dostk/thme";
+const SHORT_PATH = "/api/dostk/shsa";
+const FOREIGN_PATH = "/api/dostk/frgnistt";
+
+/** Pulls an array out of an already-envelope-checked response body. */
+function parseArray<T extends z.ZodType>(json: unknown, key: string, itemSchema: T): z.infer<T>[] {
+  const value = (json as Record<string, unknown>)[key];
+  return z.array(itemSchema).parse(Array.isArray(value) ? value : []);
+}
+
+/**
+ * Safety cap for cont-yn pagination. Bounds worst-case latency (each page is
+ * ~1.1s apart, so up to ~22s). A typical retail/ISA account never comes close,
+ * but a heavy account could — when the cap is hit, callers surface a
+ * "results may be truncated" warning instead of silently dropping data.
+ */
+const MAX_PAGES = 20;
+/** Per-TR rate limit is ~1 req/s — space out continuation pages. */
+const PAGE_INTERVAL_MS = 1_100;
+
+/** ka10001 주식기본정보요청 */
+export async function fetchStockInfo(client: KiwoomClient, stockCode: string): Promise<StockInfoResponse> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10001",
+    body: { stk_cd: stockCode },
+  });
+  const info = stockInfoResponseSchema.parse(res.json);
+  if (!info.stk_nm && !info.cur_prc) {
+    throw new KiwoomApiError(`종목코드 ${stockCode}에 대한 시세 정보가 없습니다. 코드를 확인해 주세요.`, {
+      apiId: "ka10001",
+    });
+  }
+  return info;
+}
+
+/** kt00001 예수금상세현황요청 (qry_tp: 3=추정조회, 2=일반조회) */
+export async function fetchDeposit(client: KiwoomClient, qryTp: "2" | "3" = "3"): Promise<DepositResponse> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "kt00001",
+    body: { qry_tp: qryTp },
+  });
+  return depositResponseSchema.parse(res.json);
+}
+
+/**
+ * kt00018 계좌평가잔고내역요청 (qry_tp: 1=합산, 2=개별).
+ * Follows cont-yn/next-key continuation headers and merges all holding rows.
+ */
+export async function fetchAccountEvaluation(
+  client: KiwoomClient,
+  qryTp: "1" | "2",
+): Promise<AccountEvaluationResponse & { truncated: boolean }> {
+  const body = { qry_tp: qryTp, dmst_stex_tp: "KRX" };
+
+  let res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00018", body });
+  const first = accountEvaluationResponseSchema.parse(res.json);
+  const holdings = [...first.acnt_evlt_remn_indv_tot];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00018", body, contYn: "Y", nextKey: res.nextKey });
+    const page = accountEvaluationResponseSchema.parse(res.json);
+    holdings.push(...page.acnt_evlt_remn_indv_tot);
+    pages += 1;
+  }
+
+  // 남은 페이지가 있는데 상한에서 멈췄으면 데이터가 잘렸다는 뜻.
+  return { ...first, acnt_evlt_remn_indv_tot: holdings, truncated: res.hasNext };
+}
+
+/**
+ * kt00015 위탁종합거래내역요청 — all transactions in [fromDate, toDate] (yyyyMMdd).
+ * NOTE (live-verified): only 매매 rows are returned for this account type; cash
+ * deposit rows never appeared under any tp/gds_tp combination. Dividend rows
+ * are therefore unverified — callers must handle their possible absence.
+ */
+export async function fetchTransactions(
+  client: KiwoomClient,
+  fromDate: string,
+  toDate: string,
+): Promise<{ rows: TransactionRow[]; truncated: boolean }> {
+  const body = { strt_dt: fromDate, end_dt: toDate, tp: "0", gds_tp: "0", dmst_stex_tp: "KRX" };
+
+  let res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00015", body });
+  const rows = [...transactionsResponseSchema.parse(res.json).trst_ovrl_trde_prps_array];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00015", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...transactionsResponseSchema.parse(res.json).trst_ovrl_trde_prps_array);
+    pages += 1;
+  }
+
+  // 남은 페이지가 있는데 상한에서 멈췄으면 오래된 거래가 잘렸다는 뜻.
+  return { rows, truncated: res.hasNext };
+}
+
+/** ka10074 일자별실현손익요청 — account-wide realized P&L summary for the period. */
+export async function fetchRealizedPnlSummary(
+  client: KiwoomClient,
+  fromDate: string,
+  toDate: string,
+): Promise<RealizedPnlResponse> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "ka10074",
+    body: { strt_dt: fromDate, end_dt: toDate },
+  });
+  return realizedPnlResponseSchema.parse(res.json);
+}
+
+/**
+ * ka10075 미체결요청 — currently open (unfilled) orders. Read-only.
+ * body: all_stk_tp "0"=전체/"1"=종목, trde_tp "0"=전체, stex_tp "0"=통합.
+ * Array key `oso` live-verified 2026-07-07 (empty — no open orders on the
+ * verification account); item fields are wrapper-sourced, not live-verified. Open orders are
+ * few by nature, so only the first page is fetched (no pagination).
+ */
+export async function fetchPendingOrders(
+  client: KiwoomClient,
+  stockCode?: string,
+): Promise<PendingOrderItem[]> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "ka10075",
+    body: {
+      all_stk_tp: stockCode ? "1" : "0",
+      trde_tp: "0",
+      stk_cd: stockCode ?? "",
+      stex_tp: "0",
+    },
+  });
+  return pendingOrdersResponseSchema.parse(res.json).oso;
+}
+
+/**
+ * ka10099 종목정보요약 — full instrument list for one market (stocks + ETF/ETN).
+ * mrkt_tp: "0"=코스피(거래소), "10"=코스닥. Single page (live-verified ~2500 rows).
+ */
+export async function fetchStockList(client: KiwoomClient, marketCode: "0" | "10"): Promise<StockListItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10099",
+    body: { mrkt_tp: marketCode },
+  });
+  return stockListResponseSchema.parse(res.json).list;
+}
+
+export type ChartPeriod = "day" | "week" | "month";
+
+const CHART_TRS: Record<ChartPeriod, { apiId: string; arrayKey: string }> = {
+  day: { apiId: "ka10081", arrayKey: "stk_dt_pole_chart_qry" },
+  week: { apiId: "ka10082", arrayKey: "stk_stk_pole_chart_qry" },
+  month: { apiId: "ka10083", arrayKey: "stk_mth_pole_chart_qry" },
+};
+
+/**
+ * ka10081/82/83 일·주·월봉 — newest first; first page (240~600 rows) only,
+ * which is plenty for LLM consumption and avoids pagination rate-limit cost.
+ * upd_stkpc_tp "1" = 수정주가 반영.
+ */
+export async function fetchDailyChart(
+  client: KiwoomClient,
+  stockCode: string,
+  period: ChartPeriod,
+  baseDate: string,
+): Promise<DailyChartItem[]> {
+  const { apiId, arrayKey } = CHART_TRS[period];
+  const res = await client.call({
+    path: CHART_PATH,
+    apiId,
+    body: { stk_cd: stockCode, base_dt: baseDate, upd_stkpc_tp: "1" },
+  });
+  return parseArray(res.json, arrayKey, dailyChartItemSchema);
+}
+
+/** ka10080 분봉 — tic_scope in minutes ("1"|"3"|"5"|"10"|"15"|"30"|"45"|"60"). */
+export async function fetchMinuteChart(
+  client: KiwoomClient,
+  stockCode: string,
+  ticScope: string,
+): Promise<MinuteChartItem[]> {
+  const res = await client.call({
+    path: CHART_PATH,
+    apiId: "ka10080",
+    body: { stk_cd: stockCode, tic_scope: ticScope, upd_stkpc_tp: "1" },
+  });
+  return parseArray(res.json, "stk_min_pole_chart_qry", minuteChartItemSchema);
+}
+
+/** ka10004 주식호가 — 10-level orderbook; levels 2-10 live in the loose passthrough. */
+export async function fetchOrderbook(client: KiwoomClient, stockCode: string): Promise<OrderbookResponse> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka10004",
+    body: { stk_cd: stockCode },
+  });
+  return orderbookResponseSchema.parse(res.json);
+}
+
+/** ka20003 전업종지수 — inds_cd "001"=코스피 그룹(31개), "101"=코스닥 그룹(34개). */
+export async function fetchAllIndices(client: KiwoomClient, indsCd: "001" | "101"): Promise<IndexItem[]> {
+  const res = await client.call({
+    path: SECTOR_PATH,
+    apiId: "ka20003",
+    body: { inds_cd: indsCd },
+  });
+  return allIndexResponseSchema.parse(res.json).all_inds_idex;
+}
+
+export type InvestorUnit = "amount" | "quantity";
+
+/** amt_qty_tp: "1"=금액(백만원), "2"=수량(주) — 순매수(trde_tp "0") 기준. */
+const INVESTOR_UNIT_CODES: Record<InvestorUnit, string> = { amount: "1", quantity: "2" };
+
+/** ka10061 종목별투자자기관종합 — investor net-buy totals over a date range. */
+export async function fetchInvestorTotal(
+  client: KiwoomClient,
+  stockCode: string,
+  fromDate: string,
+  toDate: string,
+  unit: InvestorUnit,
+): Promise<InvestorTotalItem | undefined> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10061",
+    body: {
+      stk_cd: stockCode,
+      strt_dt: fromDate,
+      end_dt: toDate,
+      amt_qty_tp: INVESTOR_UNIT_CODES[unit],
+      trde_tp: "0",
+      unit_tp: "1",
+    },
+  });
+  return parseArray(res.json, "stk_invsr_orgn_tot", investorTotalItemSchema)[0];
+}
+
+/** ka10059 종목별투자자기관 — daily investor net-buy rows, newest first from `date`. */
+export async function fetchInvestorDaily(
+  client: KiwoomClient,
+  stockCode: string,
+  date: string,
+  unit: InvestorUnit,
+): Promise<InvestorDailyItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10059",
+    body: {
+      dt: date,
+      stk_cd: stockCode,
+      amt_qty_tp: INVESTOR_UNIT_CODES[unit],
+      trde_tp: "0",
+      unit_tp: "1",
+    },
+  });
+  return parseArray(res.json, "stk_invsr_orgn", investorDailyItemSchema);
+}
+
+export type RankingMarket = "all" | "kospi" | "kosdaq";
+
+/** mrkt_tp codes shared by the rank TRs (live-verified 000/001; 101 per legacy convention). */
+const RANKING_MARKET_CODES: Record<RankingMarket, string> = {
+  all: "000",
+  kospi: "001",
+  kosdaq: "101",
+};
+
+/** ka10027 전일대비상위 — sort_tp "1"=상승률, "3"=하락률 (live-verified). */
+export async function fetchPriceChangeRanking(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: "rise" | "fall",
+): Promise<PriceChangeRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10027",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      sort_tp: direction === "rise" ? "1" : "3",
+      trde_qty_cnd: "0000",
+      stk_cnd: "0",
+      crd_cnd: "0",
+      updown_incls: "1",
+      pric_cnd: "0",
+      trde_prica_cnd: "0",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "pred_pre_flu_rt_upper", priceChangeRankItemSchema);
+}
+
+/** ka10030 당일거래량상위. */
+export async function fetchVolumeRanking(
+  client: KiwoomClient,
+  market: RankingMarket,
+): Promise<VolumeRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10030",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      sort_tp: "1",
+      mang_stk_incls: "0",
+      crd_tp: "0",
+      trde_qty_tp: "0",
+      pric_tp: "0",
+      trde_prica_tp: "0",
+      mrkt_open_tp: "0",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "tdy_trde_qty_upper", volumeRankItemSchema);
+}
+
+/** ka10032 거래대금상위. */
+export async function fetchValueRanking(
+  client: KiwoomClient,
+  market: RankingMarket,
+): Promise<ValueRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10032",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      mang_stk_incls: "0",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "trde_prica_upper", valueRankItemSchema);
+}
+
+/** ka40002 ETF종목정보 — 추적지수·과세유형 등 ETF 기본정보. */
+export async function fetchEtfInfo(client: KiwoomClient, stockCode: string): Promise<EtfInfoResponse> {
+  const res = await client.call({
+    path: ETF_PATH,
+    apiId: "ka40002",
+    body: { stk_cd: stockCode },
+  });
+  return etfInfoResponseSchema.parse(res.json);
+}
+
+/**
+ * ka01300 관심종목 그룹 리스트 조회 — HTS에 저장된 관심종목 그룹 목록 (읽기 전용).
+ * 응답 배열 키는 nofi. 편집(추가/삭제) TR은 키움 REST에 존재하지 않는다.
+ */
+export async function fetchWatchlistGroups(client: KiwoomClient): Promise<WatchlistGroupItem[]> {
+  const res = await client.call({ path: WATCHLIST_PATH, apiId: "ka01300", body: {} });
+  return watchlistGroupsResponseSchema.parse(res.json).nofi;
+}
+
+/**
+ * ka01301 관심종목 그룹 상세 조회 — 그룹(arn_grp_id = ka01300의 gcod) 내 종목 목록.
+ * 응답 배열 키는 nofj (종목코드 cod2 + 북마크 필드만 반환; 종목명/시세는 미포함).
+ */
+export async function fetchWatchlistGroupDetail(
+  client: KiwoomClient,
+  groupCode: string,
+): Promise<WatchlistStockItem[]> {
+  const res = await client.call({
+    path: WATCHLIST_PATH,
+    apiId: "ka01301",
+    body: { arn_grp_id: groupCode },
+  });
+  return watchlistGroupDetailResponseSchema.parse(res.json).nofj;
+}
+
+/**
+ * ka90001 테마그룹별요청 — theme groups (all fields live-verified 2026-07-07).
+ * `stockCode` set → qry_tp "2" (themes the stock belongs to); else qry_tp "0"
+ * (all themes, sorted by change rate). First page only (100/page); open-ended
+ * "all" mode paginates but page-1 top rows are what a caller wants.
+ * date_tp = 기간수익률 산정 일수, flu_pl_amt_tp "1" = 등락률 상위순, stex_tp "1" = KRX.
+ */
+export async function fetchThemeGroups(
+  client: KiwoomClient,
+  stockCode?: string,
+): Promise<ThemeGroupItem[]> {
+  const res = await client.call({
+    path: THEME_PATH,
+    apiId: "ka90001",
+    body: {
+      qry_tp: stockCode ? "2" : "0",
+      stk_cd: stockCode ?? "",
+      date_tp: "10",
+      flu_pl_amt_tp: "1",
+      stex_tp: "1",
+    },
+  });
+  return themeGroupsResponseSchema.parse(res.json).thema_grp;
+}
+
+/**
+ * ka90002 테마구성종목요청 — member stocks of one theme group (live-verified).
+ * Returns the full response so the theme's aggregate flu_rt/dt_prft_rt (top-level
+ * fields) are available to the caller. themeCode = ka90001 `thema_grp_cd`.
+ */
+export async function fetchThemeStocks(
+  client: KiwoomClient,
+  themeCode: string,
+): Promise<ThemeStocksResponse> {
+  const res = await client.call({
+    path: THEME_PATH,
+    apiId: "ka90002",
+    body: { date_tp: "2", thema_grp_cd: themeCode, stex_tp: "1" },
+  });
+  return themeStocksResponseSchema.parse(res.json);
+}
+
+/**
+ * ka10014 공매도추이요청 — per-stock daily short-selling trend over [fromDate, toDate].
+ * All fields live-verified 2026-07-07. tm_tp "1" = 일별. Rows newest-first.
+ */
+export async function fetchShortSelling(
+  client: KiwoomClient,
+  stockCode: string,
+  fromDate: string,
+  toDate: string,
+): Promise<ShortSellingItem[]> {
+  const res = await client.call({
+    path: SHORT_PATH,
+    apiId: "ka10014",
+    body: { stk_cd: stockCode, tm_tp: "1", strt_dt: fromDate, end_dt: toDate },
+  });
+  return shortSellingResponseSchema.parse(res.json).shrts_trnsn;
+}
+
+/**
+ * ka10008 주식외국인종목별매매동향 — per-stock daily foreign holding trend
+ * (보유주식수/보유비중/한도소진률). Live-verified 2026-07-07. Paginates (50/page,
+ * `hasNext`); first page only — recent days are what a caller wants.
+ */
+export async function fetchForeignHolding(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<ForeignHoldingItem[]> {
+  const res = await client.call({
+    path: FOREIGN_PATH,
+    apiId: "ka10008",
+    body: { stk_cd: stockCode },
+  });
+  return foreignHoldingResponseSchema.parse(res.json).stk_frgnr;
+}
+
+/**
+ * ka10170 당일매매일지요청 — the day's trading journal (per-stock realized P&L). Account-scoped.
+ * Returns the full response (period totals + return_msg) so callers can surface the
+ * "최근 2개월 이내" notice. base_dt yyyyMMdd; ottks_tp "1" = 단주 포함, ch_crd_tp "0" = 전체.
+ * NOTE: an empty day returns one all-blank row — callers must filter blank rows.
+ */
+export async function fetchTradingJournal(
+  client: KiwoomClient,
+  baseDate: string,
+): Promise<TradingJournalResponse> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "ka10170",
+    body: { base_dt: baseDate, ottks_tp: "1", ch_crd_tp: "0" },
+  });
+  return tradingJournalResponseSchema.parse(res.json);
+}
