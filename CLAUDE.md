@@ -155,8 +155,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   volume; ka10061 doubles the sign: `"--23722054"` = negative); ka40002 ETF종목정보
   (returns `etftxon_type` e.g. "비과세"/"보유기간과세" — Kiwoom's own taxation type!).
 - ka10030 caps `trde_qty` at uint32 max (4294967295) — display verbatim, don't "fix".
-- Market-movers TRs (all `/api/dostk/stkinfo`, **mock-verified 2026-07-08 on VIRTUAL; REAL not
-  yet probed**): ka10016 신고저가 (`{mrkt_tp, ntl_tp: "1"신고가|"2"신저가, high_low_close_tp: "1",
+- Market-movers TRs (all `/api/dostk/stkinfo`, **live-verified on REAL 2026-07-08** — same
+  bodies re-probed read-only; array keys + all consumed fields matched the VIRTUAL rows
+  byte-for-byte, confirming mock mirrors production for market TRs): ka10016 신고저가 (`{mrkt_tp, ntl_tp: "1"신고가|"2"신저가, high_low_close_tp: "1",
   stk_cnd: "0", trde_qty_tp: "00000", crd_cnd: "0", updown_incls: "0", dt: 5|10|20|60|250,
   stex_tp: "1"}` → `ntl_pric[]` incl. `high_pric`/`low_pric` 기간 고저가); ka10017 상하한가
   (`{mrkt_tp, updown_tp: "1"상한|"4"하한, sort_tp: "3"등락률순, …, trde_gold_tp: "0", stex_tp: "1"}`
@@ -289,10 +290,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
 - **v0.9.0 (2026-07-08) — general-account-first + `get_market_movers`.** The ISA tool became
   opt-in via `ISA_ENABLED` (PR #2 on the recreated public repo; server = 21 always-on tools
   + 1 ISA opt-in). Added `get_market_movers`: ka10016 신고저가 / ka10017 상하한가 / ka10019
-  가격급등락 behind one signal-enum tool (get_ranking pattern). **Mock-verified on VIRTUAL**
-  (real-looking rows; fixtures in `tests/market-movers.test.ts` captured from mockapi
-  2026-07-08) + live mock stdio smoke on 3 signal paths; **REAL read-only probe still
-  pending — run one before the next npm publish and upgrade this bullet's provenance.**
+  가격급등락 behind one signal-enum tool (get_ranking pattern). Developed on VIRTUAL
+  (fixtures in `tests/market-movers.test.ts` captured from mockapi 2026-07-08; live mock
+  stdio smoke on 3 signal paths), then **live-verified on REAL 2026-07-08** (owner-authorized
+  one-shot read-only probe: rc=0, array keys OK, zero consumed-field gaps, rows identical to
+  mock — first confirmation that mockapi mirrors production for market-data TRs).
   **Server exposes 22 tools with ISA enabled (21 without).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
