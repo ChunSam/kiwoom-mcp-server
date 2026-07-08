@@ -1,10 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { buildConfig } from "../src/config.js";
+import { buildConfig, parseBool } from "../src/config.js";
 
 const creds = { KIWOOM_APP_KEY: "app-key", KIWOOM_APP_SECRET: "app-secret" };
 
+describe("parseBool", () => {
+  it("is true only for explicit truthy tokens (case-insensitive)", () => {
+    for (const v of ["true", "TRUE", "1", "yes", "on", " True "]) expect(parseBool(v)).toBe(true);
+  });
+  it("is false for unset, blank, and everything else (incl. \"false\")", () => {
+    for (const v of [undefined, "", "  ", "false", "0", "no", "off", "nope"])
+      expect(parseBool(v)).toBe(false);
+  });
+});
+
 describe("buildConfig", () => {
+  it("is general-account-first: ISA disabled unless ISA_ENABLED is truthy", () => {
+    expect(buildConfig({ ...creds }).isaEnabled).toBe(false);
+    expect(buildConfig({ ...creds, ISA_ENABLED: "false" }).isaEnabled).toBe(false);
+    expect(buildConfig({ ...creds, ISA_ENABLED: "" }).isaEnabled).toBe(false);
+    expect(buildConfig({ ...creds, ISA_ENABLED: "true" }).isaEnabled).toBe(true);
+  });
+
   it("treats a blank ISA_OPENED_ON (the shipped .env.example default) as unset, not an error", () => {
     // A mock/general account never uses ISA; a blank value must not break config load.
     const cfg = buildConfig({ ...creds, ISA_OPENED_ON: "" });

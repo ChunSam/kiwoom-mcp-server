@@ -104,11 +104,14 @@ npm test                    # 단위 테스트 (네트워크 불필요)
 | `KIWOOM_APP_KEY` | ✅ | 키움 REST API 앱키 |
 | `KIWOOM_APP_SECRET` | ✅ | 키움 REST API 앱 시크릿 |
 | `KIWOOM_MODE` | | `VIRTUAL`(모의투자, 기본값) 또는 `REAL`(실전투자) |
-| `ISA_TYPE` | | `GENERAL`(일반형, 한도 200만원, 기본값) 또는 `SEOMIN`(서민형/농어민형, 400만원) |
-| `ISA_OPENED_ON` | | ISA 계좌 개설일 `yyyy-MM-dd` — `calc_isa_tax_status` 집계 시작일 기본값 |
+| `ISA_ENABLED` | | `true`면 `calc_isa_tax_status` tool 활성화. 기본값 `false`(일반 계좌 기준) |
+| `ISA_TYPE` | | `GENERAL`(일반형, 한도 200만원, 기본값) 또는 `SEOMIN`(서민형/농어민형, 400만원). `ISA_ENABLED=true`일 때만 사용 |
+| `ISA_OPENED_ON` | | ISA 계좌 개설일 `yyyy-MM-dd` — `calc_isa_tax_status` 집계 시작일 기본값. `ISA_ENABLED=true`일 때만 사용 |
 
-ISA 계좌가 아니라면 `ISA_TYPE`/`ISA_OPENED_ON`은 비워 두면 됩니다 —
-`calc_isa_tax_status`만 사용할 수 없고 나머지 tool은 모두 동작합니다.
+기본값은 **일반(비-ISA) 계좌 기준**입니다 — 별도 설정이 없으면 시장·계좌 조회 tool만
+노출됩니다. ISA 계좌를 연결해 비과세 한도 tool을 쓰려면 `ISA_ENABLED=true`로 켜고
+`ISA_TYPE`/`ISA_OPENED_ON`을 채우세요. 끄면 `calc_isa_tax_status`가 등록되지 않고
+나머지 tool은 모두 그대로 동작합니다.
 
 `.env`는 프로젝트 루트에서 먼저 찾기 때문에 (Claude Desktop처럼) 임의의 작업
 디렉터리에서 실행돼도 동작합니다.
