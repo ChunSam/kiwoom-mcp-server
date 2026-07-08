@@ -35,6 +35,55 @@ printf '%s\n' \
   | node dist/index.js
 ```
 
+## Development vs production (VIRTUAL/REAL split)
+
+Keep the **production install** (REAL account, used daily from an MCP client) decoupled
+from the **development copy** (VIRTUAL/모의투자, where features are built and broken). Do
+**not** fork the repo to separate them — split by **env + install source** so there is one
+source of truth (this repo → npm):
+
+- **Production** = the **published npm package**, version-pinned, wired into the MCP client
+  with a REAL app key in the client's `env` block. It is immune to working-tree edits and
+  rebuilds. Upgrade it deliberately by bumping the pinned version after a new publish.
+- **Development** = this git working tree, run against VIRTUAL (`KIWOOM_MODE=VIRTUAL` + a
+  VIRTUAL app key) via `npm run dev` / `npm test` / the offline smoke test. Break things
+  here freely.
+
+Both can be registered in Claude Desktop at once under distinct names — e.g. `kiwoom`
+(prod: `command: npx`, `args: ["-y", "kiwoom-mcp-server@<pinned>"]`, REAL env block) and
+`kiwoom-dev` (dev: `command: node`, `args: ["<abs>/dist/index.js"]`, `env:
+{"KIWOOM_MODE":"VIRTUAL"}`). Every tool output is prefixed `[실전투자]`/`[모의투자]`, so the two
+are unambiguous inside one Claude session. GUI apps don't inherit shell `PATH` → use
+**absolute** `command` paths (`which npx`/`which node`). Requires a full ⌘Q relaunch of
+Claude Desktop to pick up config changes (it does not hot-reload).
+
+**Env precedence:** an MCP client `env` block sets real `process.env`, which **overrides**
+the repo `.env` (Node `--env-file`/`loadEnvFile` semantics — the environment wins over the
+file). So `kiwoom-dev`'s `KIWOOM_MODE=VIRTUAL` pins the mode regardless of the repo `.env`;
+keys not set in the block fall through to the repo `.env`. Convention: keep REAL creds in a
+gitignored **`.env.real`** (never `.env`) so `.env` stays VIRTUAL-by-default; swap
+`.env.real`→`.env` only for the brief REAL verification probe below, then swap back.
+
+**Feature dev loop** (this is exactly how the v1.1 tool round was built):
+
+1. **Mock (VIRTUAL):** build the plumbing on mock — zod schema (consumed subset), fetch fn,
+   `format*` function, `register*Tool`, and unit tests off captured fixtures.
+2. **REAL read-only probe (one-shot):** ⚠️ **VIRTUAL is not a substitute for REAL
+   verification.** `mockapi.kiwoom.com` does **not** serve the full TR set — many
+   market-data TRs are unsupported or return empty on mock, and a mock account has little
+   or no holdings/transaction history. So the **field shape and real values of market-data
+   and account TRs must be confirmed with a single REAL read-only call** before shipping.
+   Read-only means this is safe on a live account.
+3. **Honest provenance:** record per-TR whether fields are live-verified (REAL) vs
+   wrapper/mock-sourced, the way the "Live verification status" section below already does.
+   Never claim REAL-verified from a mock-only run.
+4. **Publish → bump:** `npm publish` a new version (owner-run), then bump the production
+   install's pinned version. `prepublishOnly` (typecheck + test + build) gates the publish.
+
+Read-only stays a hard boundary in both modes: VIRTUAL makes order execution *safe to
+experiment with*, but "no trading tools" is a **design decision** (needs a separate
+confirmation flow + owner sign-off), not merely a safety guard — see the Project section.
+
 ## Architecture
 
 - `src/index.ts` — entry point; connects `StdioServerTransport` only. **stdout is reserved
