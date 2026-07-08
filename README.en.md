@@ -112,11 +112,14 @@ npm test                     # unit tests (no network required)
 | `KIWOOM_APP_KEY` | ✅ | Kiwoom REST API app key |
 | `KIWOOM_APP_SECRET` | ✅ | Kiwoom REST API app secret |
 | `KIWOOM_MODE` | | `VIRTUAL` (paper trading, default) or `REAL` (live trading) |
-| `ISA_TYPE` | | `GENERAL` (general, 2,000,000 KRW limit, default) or `SEOMIN` (low-income/farmer-fisher, 4,000,000 KRW) |
-| `ISA_OPENED_ON` | | ISA account opening date `yyyy-MM-dd` — default aggregation start for `calc_isa_tax_status` |
+| `ISA_ENABLED` | | `true` registers the `calc_isa_tax_status` tool. Default `false` (general-account-first) |
+| `ISA_TYPE` | | `GENERAL` (general, 2,000,000 KRW limit, default) or `SEOMIN` (low-income/farmer-fisher, 4,000,000 KRW). Only used when `ISA_ENABLED=true` |
+| `ISA_OPENED_ON` | | ISA account opening date `yyyy-MM-dd` — default aggregation start for `calc_isa_tax_status`. Only used when `ISA_ENABLED=true` |
 
-If the account is not an ISA, leave `ISA_TYPE`/`ISA_OPENED_ON` blank — only
-`calc_isa_tax_status` becomes unavailable; every other tool still works.
+The default is **general-account-first**: without extra config, only the market-data
+and account-inquiry tools are exposed. To use the tax-free-limit tool on an ISA
+account, set `ISA_ENABLED=true` and fill in `ISA_TYPE`/`ISA_OPENED_ON`. When off,
+`calc_isa_tax_status` is not registered and every other tool still works.
 
 `.env` is resolved from the project root first, so the server works even when
 launched from an arbitrary working directory (as Claude Desktop does).

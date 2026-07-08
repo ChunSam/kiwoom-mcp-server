@@ -9,7 +9,8 @@ Desktop/Code: market data (search/quote/chart/orderbook/index/ranking/investor t
 short-selling/foreign-holding) + HTS watchlist (read-only) + account inquiry (balance/holdings/
 transactions/pending orders/trading journal) + an ISA tax-allowance calculator.
 Built to be reusable by third parties; the ISA tool is an optional extra on top of the
-generic core. **Order execution (buy/sell/modify/cancel) is out of scope by design** — do
+generic core, **gated behind `ISA_ENABLED` (general-account-first by default; ISA is opt-in
+via env)**. **Order execution (buy/sell/modify/cancel) is out of scope by design** — do
 not add trading tools; that requires a separately designed confirmation flow to be
 discussed with the owner first. This connects to a real brokerage account: prioritize
 error handling, and ask the owner before proceeding on ambiguous API behavior.
@@ -208,7 +209,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
 - `search_stock` caches the ka10099 master list in-process for 12h (two markets fetched
   1.1s apart — same TR, rate limit). Chart tools fetch the first page only (240~900 rows).
 - Account tools are named generically (`get_account_balance`/`get_account_holdings`) —
-  kt00001/kt00018 are not ISA-specific. Only `calc_isa_tax_status` needs the ISA envs.
+  kt00001/kt00018 are not ISA-specific. **The server is general-account-first: the
+  `calc_isa_tax_status` tool is registered only when `ISA_ENABLED=true`, checked at
+  startup in `createServer()` via `isIsaEnabled()` (loads `.env`, no credential
+  validation, defaults false). A general/non-ISA account never sees the tool.** `ISA_TYPE`
+  / `ISA_OPENED_ON` are consulted only when enabled; all three are the only ISA envs.
 - License **MIT** (`LICENSE`, © ChunSam); README is bilingual (`README.md` 한국어 /
   `README.en.md` English). **Distribution is publish-enabled: `package.json` `"private":
   false`** (flipped from `true` at go-live — the owner's deliberate go/no-go was taken).

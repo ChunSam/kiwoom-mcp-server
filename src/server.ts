@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { isIsaEnabled } from "./config.js";
 import { registerAccountBalanceTool } from "./tools/account-balance.js";
 import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
@@ -57,7 +58,12 @@ export function createServer(): McpServer {
   registerTransactionsTool(server);
   registerPendingOrdersTool(server);
   registerTradingJournalTool(server);
-  registerIsaTaxStatusTool(server);
+
+  // ISA tax tool — opt-in, general-account-first. Enable with ISA_ENABLED=true
+  // (see .env.example). A non-ISA / general account simply won't see this tool.
+  if (isIsaEnabled()) {
+    registerIsaTaxStatusTool(server);
+  }
 
   return server;
 }
