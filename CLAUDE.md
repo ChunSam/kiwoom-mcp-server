@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 Read-only MCP server (stdio transport) exposing the Kiwoom Securities REST API to Claude
-Desktop/Code: market data (search/quote/chart/orderbook/index/ranking/investor trend/ETF/theme/
-short-selling/foreign-holding) + HTS watchlist (read-only) + account inquiry (balance/holdings/
+Desktop/Code: market data (search/quote/chart/orderbook/index/ranking/movers/investor trend/ETF/
+theme/short-selling/foreign-holding) + HTS watchlist (read-only) + account inquiry (balance/holdings/
 transactions/pending orders/trading journal) + an ISA tax-allowance calculator.
 Built to be reusable by third parties; the ISA tool is an optional extra on top of the
 generic core, **gated behind `ISA_ENABLED` (general-account-first by default; ISA is opt-in
@@ -70,11 +70,22 @@ gitignored **`.env.real`** (never `.env`) so `.env` stays VIRTUAL-by-default; sw
 1. **Mock (VIRTUAL):** build the plumbing on mock — zod schema (consumed subset), fetch fn,
    `format*` function, `register*Tool`, and unit tests off captured fixtures.
 2. **REAL read-only probe (one-shot):** ⚠️ **VIRTUAL is not a substitute for REAL
-   verification.** `mockapi.kiwoom.com` does **not** serve the full TR set — many
-   market-data TRs are unsupported or return empty on mock, and a mock account has little
-   or no holdings/transaction history. So the **field shape and real values of market-data
+   verification.** A mock account has little or no holdings/transaction history, and a few
+   TRs are mock-unsupported outright. So the **field shape and real values of market-data
    and account TRs must be confirmed with a single REAL read-only call** before shipping.
    Read-only means this is safe on a live account.
+
+**Mock (VIRTUAL) TR coverage — probed 2026-07-08, 46 read-only TRs.** Far better than
+feared: **43/46 respond with `return_code 0`**, and market-data TRs return real-looking
+production-mirrored rows (ka10099 ~2475 rows, charts full-length, rankings/theme/short/
+foreign all populated). Mock-**unsupported** (do not develop against mock for these):
+**kt00015 위탁종합거래내역** (RC9000 "모의투자에서는 해당업무가 제공되지 않습니다" → `get_transactions`
+and `calc_isa_tax_status` are dead on mock), **kt00010 주문인출가능금액** (RC7006 조회실패),
+**ka01690 일별잔고수익률** (8104 지원하지 않는 API). Account TRs respond but with empty/zero
+data on a fresh mock account (kt00018 0 holdings, ka10075 empty `oso`, ka10170 blank row);
+the mock HTS watchlist starts with 2 default groups. Full results:
+`mock-probe-results.json` in the 2026-07-08 session scratchpad (re-probe with a one-off
+script when in doubt — token + 46 calls at 1.1s spacing ≈ 60s).
 3. **Honest provenance:** record per-TR whether fields are live-verified (REAL) vs
    wrapper/mock-sourced, the way the "Live verification status" section below already does.
    Never claim REAL-verified from a mock-only run.
@@ -144,6 +155,15 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   volume; ka10061 doubles the sign: `"--23722054"` = negative); ka40002 ETF종목정보
   (returns `etftxon_type` e.g. "비과세"/"보유기간과세" — Kiwoom's own taxation type!).
 - ka10030 caps `trde_qty` at uint32 max (4294967295) — display verbatim, don't "fix".
+- Market-movers TRs (all `/api/dostk/stkinfo`, **mock-verified 2026-07-08 on VIRTUAL; REAL not
+  yet probed**): ka10016 신고저가 (`{mrkt_tp, ntl_tp: "1"신고가|"2"신저가, high_low_close_tp: "1",
+  stk_cnd: "0", trde_qty_tp: "00000", crd_cnd: "0", updown_incls: "0", dt: 5|10|20|60|250,
+  stex_tp: "1"}` → `ntl_pric[]` incl. `high_pric`/`low_pric` 기간 고저가); ka10017 상하한가
+  (`{mrkt_tp, updown_tp: "1"상한|"4"하한, sort_tp: "3"등락률순, …, trde_gold_tp: "0", stex_tp: "1"}`
+  → `updown_pric[]` incl. `cnt` 연속횟수); ka10019 가격급등락 (`{mrkt_tp, flu_tp: "1"급등|"2"급락,
+  tm_tp: "2", tm: "1"(전일 기준), …, updown_incls: "1", stex_tp: "1"}` → `pric_jmpflu[]` incl.
+  `base_pric`/`jmp_rt` 기준가 대비 급등락률). mrkt_tp shares the ranking codes (000/001/101).
+  All three wrapped by the single `get_market_movers` tool (signal enum, get_ranking pattern).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -261,7 +281,18 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   (`isError:false`, "당일 매매 내역이 없습니다" after blank-row filtering). **Server now exposes
   21 tools.** This completes the v1.1 read-only tool round (미체결/테마/공매도/외국인/당일매매일지);
   no further read-only market/account TRs remain worth adding (재무/배당캘린더/공시/뉴스/환율/파생 have
-  no Kiwoom REST TR; 실시간/조건검색 are WebSocket-only).
+  no Kiwoom REST TR; 실시간/조건검색 are WebSocket-only). **Erratum (2026-07-08): the KKimj
+  openapi comparison surfaced ~20 genuinely-new read-only TRs after all** (screening/sector/
+  ETF-detail/tick·yearly-chart/program-trade/대차 — see the market-movers batch below);
+  "no further TRs" was too strong.
+- **v0.9.0 (2026-07-08) — general-account-first + `get_market_movers`.** The ISA tool became
+  opt-in via `ISA_ENABLED` (PR #2 on the recreated public repo; server = 21 always-on tools
+  + 1 ISA opt-in). Added `get_market_movers`: ka10016 신고저가 / ka10017 상하한가 / ka10019
+  가격급등락 behind one signal-enum tool (get_ranking pattern). **Mock-verified on VIRTUAL**
+  (real-looking rows; fixtures in `tests/market-movers.test.ts` captured from mockapi
+  2026-07-08) + live mock stdio smoke on 3 signal paths; **REAL read-only probe still
+  pending — run one before the next npm publish and upgrade this bullet's provenance.**
+  **Server exposes 22 tools with ISA enabled (21 without).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
