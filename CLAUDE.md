@@ -168,8 +168,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   tm_tp: "2", tm: "1"(전일 기준), …, updown_incls: "1", stex_tp: "1"}` → `pric_jmpflu[]` incl.
   `base_pric`/`jmp_rt` 기준가 대비 급등락률). mrkt_tp shares the ranking codes (000/001/101).
   All three wrapped by the single `get_market_movers` tool (signal enum, get_ranking pattern).
-- Sector TRs (both `/api/dostk/sect` like ka20003; **mock-verified 2026-07-09, REAL probe
-  pending**): ka20001 업종현재가 (body `{mrkt_tp, inds_cd}` → 22 flat fields — cur_prc/
+- Sector TRs (both `/api/dostk/sect` like ka20003; **live-verified on REAL 2026-07-09** —
+  owner-authorized one-shot read-only probe, both kospi/kosdaq variants: rc=0, array keys OK,
+  zero consumed-field gaps, rows byte-identical to mock): ka20001 업종현재가 (body `{mrkt_tp, inds_cd}` → 22 flat fields — cur_prc/
   open/high/low (지수, 부호 접두 소수), trde_qty 천주 / trde_prica 백만원 (ka20003과 동일 단위),
   등락 구성 `upl 상한/rising/stdns/fall/lst 하한`, `trde_frmatn_*` 거래형성, 6 `52wk_*` fields
   (**keys start with a digit** — quote them in TS) — plus `inds_cur_prc_tm[]` 시간대별
@@ -324,8 +325,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   + `get_sector_stocks` (ka20002 업종별주가), both on `/api/dostk/sect`; `get_market_index`
   gained a 코드 column + chaining hint so the sector code flows into both new tools.
   Developed on VIRTUAL per the dev loop (fixtures in `tests/sector.test.ts` captured from
-  mockapi 2026-07-09); **REAL probe pending** — run the one-shot read-only probe before the
-  first publish that includes this batch. Also codified the version policy (above), promoted
+  mockapi 2026-07-09), then **live-verified on REAL 2026-07-09** (owner-authorized one-shot
+  read-only probe, 4 calls across kospi/kosdaq: rc=0, array keys OK, zero consumed-field
+  gaps, rows byte-identical to mock — mock-mirrors-production reconfirmed, and the
+  inds_cd→mrkt_tp derivation holds on REAL). Also codified the version policy (above), promoted
   the two owner test docs from `.git/info/exclude` to tracked `.gitignore`, and extended
   `scripts/sweep.py` to 29 calls. **Server exposes 23 always-on tools (24 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
