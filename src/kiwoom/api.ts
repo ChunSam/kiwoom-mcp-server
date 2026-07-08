@@ -12,10 +12,13 @@ import {
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorTotalItemSchema,
+  limitStockItemSchema,
   minuteChartItemSchema,
+  newHighLowItemSchema,
   orderbookResponseSchema,
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
+  priceJumpItemSchema,
   realizedPnlResponseSchema,
   shortSellingResponseSchema,
   stockInfoResponseSchema,
@@ -36,10 +39,13 @@ import {
   type IndexItem,
   type InvestorDailyItem,
   type InvestorTotalItem,
+  type LimitStockItem,
   type MinuteChartItem,
+  type NewHighLowItem,
   type OrderbookResponse,
   type PendingOrderItem,
   type PriceChangeRankItem,
+  type PriceJumpItem,
   type RealizedPnlResponse,
   type ShortSellingItem,
   type StockInfoResponse,
@@ -526,4 +532,90 @@ export async function fetchTradingJournal(
     body: { base_dt: baseDate, ottks_tp: "1", ch_crd_tp: "0" },
   });
   return tradingJournalResponseSchema.parse(res.json);
+}
+
+/**
+ * ka10016 신고저가요청 — stocks marking a new period high/low (mock-verified
+ * 2026-07-08; REAL not yet probed). ntl_tp "1"=신고가, "2"=신저가; dt = lookback
+ * days (5/10/20/60/250); array key `ntl_pric`. Filter params fixed to "all".
+ */
+export async function fetchNewHighLow(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: "high" | "low",
+  days: string,
+): Promise<NewHighLowItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10016",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      ntl_tp: direction === "high" ? "1" : "2",
+      high_low_close_tp: "1",
+      stk_cnd: "0",
+      trde_qty_tp: "00000",
+      crd_cnd: "0",
+      updown_incls: "0",
+      dt: days,
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "ntl_pric", newHighLowItemSchema);
+}
+
+/**
+ * ka10017 상하한가요청 — stocks at the daily upper/lower price limit
+ * (mock-verified 2026-07-08; REAL not yet probed). updown_tp "1"=상한, "4"=하한;
+ * sort_tp "3"=등락률순; array key `updown_pric`. `cnt` = 연속 도달 횟수.
+ */
+export async function fetchLimitStocks(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: "upper" | "lower",
+): Promise<LimitStockItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10017",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      updown_tp: direction === "upper" ? "1" : "4",
+      sort_tp: "3",
+      stk_cnd: "0",
+      trde_qty_tp: "00000",
+      crd_cnd: "0",
+      trde_gold_tp: "0",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "updown_pric", limitStockItemSchema);
+}
+
+/**
+ * ka10019 가격급등락요청 — sharp movers vs the previous day (mock-verified
+ * 2026-07-08; REAL not yet probed). flu_tp "1"=급등, "2"=급락; tm_tp "2"/tm "1"
+ * fixes the baseline to 1 trading day ago; array key `pric_jmpflu`.
+ * `jmp_rt` = 기준가(base_pric) 대비 급등/급락률.
+ */
+export async function fetchPriceJumps(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: "surge" | "plunge",
+): Promise<PriceJumpItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10019",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      flu_tp: direction === "surge" ? "1" : "2",
+      tm_tp: "2",
+      tm: "1",
+      trde_qty_tp: "00000",
+      stk_cnd: "0",
+      crd_cnd: "0",
+      pric_cnd: "0",
+      updown_incls: "1",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "pric_jmpflu", priceJumpItemSchema);
 }

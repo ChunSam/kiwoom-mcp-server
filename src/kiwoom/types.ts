@@ -494,6 +494,42 @@ export const tradingJournalResponseSchema = z.looseObject({
 
 export type TradingJournalResponse = z.infer<typeof tradingJournalResponseSchema>;
 
+// ── ka10016/ka10017/ka10019: 신고저가/상하한가/가격급등락 (mock-verified 2026-07-08) ──
+
+export const newHighLowItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 부호 포함
+  pred_pre: str(), // 전일대비 (부호)
+  flu_rt: str(), // 등락률 (부호)
+  trde_qty: str(), // 거래량
+  high_pric: str(), // 기간 고가
+  low_pric: str(), // 기간 저가
+});
+export type NewHighLowItem = z.infer<typeof newHighLowItemSchema>;
+
+export const limitStockItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre: str(),
+  flu_rt: str(),
+  trde_qty: str(),
+  cnt: str(), // 연속 횟수
+});
+export type LimitStockItem = z.infer<typeof limitStockItemSchema>;
+
+export const priceJumpItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(),
+  flu_rt: str(), // 전일 대비 등락률 (부호)
+  base_pric: str(), // 기준가 (급등락 산정 기준시점 가격)
+  jmp_rt: str(), // 기준 대비 급등/급락률 (부호)
+  trde_qty: str(),
+});
+export type PriceJumpItem = z.infer<typeof priceJumpItemSchema>;
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");
