@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import { fetchInvestorDaily, fetchInvestorTotal, type InvestorUnit } from "../kiwoom/api.js";
 import type { InvestorDailyItem, InvestorTotalItem } from "../kiwoom/types.js";
-import { formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
+import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatNumber, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
@@ -105,6 +105,7 @@ export function registerInvestorTrendTool(server: McpServer): void {
         const code = stock_code.toUpperCase();
         const fromDate = (from_date ?? kstDaysAgo(DEFAULT_LOOKBACK_DAYS)).replaceAll("-", "");
         const toDate = (to_date ?? todayInKst()).replaceAll("-", "");
+        assertDateRange(fromDate, toDate);
         const u: InvestorUnit = unit ?? "amount";
 
         // ka10061 and ka10059 are different TRs — per-TR rate limits allow parallel calls.

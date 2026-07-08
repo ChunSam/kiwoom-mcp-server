@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import { fetchTransactions } from "../kiwoom/api.js";
 import { normalizeStockCode, type TransactionRow } from "../kiwoom/types.js";
-import { formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
+import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatKRW, parseKiwoomNumber } from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
@@ -108,6 +108,7 @@ export function registerTransactionsTool(server: McpServer): void {
           toDate: (to_date ?? todayInKst()).replaceAll("-", ""),
           stockCode: stock_code,
         };
+        assertDateRange(query.fromDate, query.toDate);
         const { rows, truncated } = await fetchTransactions(client, query.fromDate, query.toDate);
         return textResult(formatTransactions(rows, query, config.modeLabel, truncated));
       }),

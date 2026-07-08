@@ -204,8 +204,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   instead reconstructed from kt00015 trades (`src/isa/realized.ts`, moving-average cost,
   validated within tens of KRW of ka10074). Cash deposit rows never appear in kt00015
   under any tried tp/gds_tp combination, so dividend auto-detection
-  (`scanDividends`) is unverified until a real dividend arrives — the tool exposes a
-  `dividends_received` manual input for that reason.
+  (`scanDividends` — in `src/tools/isa-tax-status.ts`, NOT realized.ts) is unverified until
+  a real dividend arrives — the tool exposes a `dividends_received` manual input for that
+  reason.
 - Rate limit: **~1 req/s per TR, burst 2**, HTTP 429 on overage. Client retries 429/5xx
   with backoff; continuation pages are spaced 1.1s apart.
 - Numeric values arrive as strings, zero-padded and/or sign-prefixed (`"+61300"`,
