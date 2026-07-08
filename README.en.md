@@ -28,6 +28,8 @@ allowance.
 | `get_stock_chart` | Daily/weekly/monthly/minute candles (adjusted price) | ka10080~83 |
 | `get_orderbook` | 10-level ask/bid quotes and sizes | ka10004 |
 | `get_market_index` | KOSPI/KOSDAQ composite and sector indices | ka20003 |
+| `get_sector_price` | Sector index detail (breadth / 52-week range / intraday trend) | ka20001 |
+| `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges | ka10016/17/19 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |

@@ -126,10 +126,11 @@ describe("formatIndices", () => {
     { stk_cd: "001", stk_nm: "종합(KOSPI)", cur_prc: "+8088.34", pre_sig: "2", pred_pre: "+440.25", flu_rt: "+5.76", trde_qty: "465821", trde_prica: "45492055", rising: "589", stdns: "27", fall: "297" },
   ].map((i) => indexItemSchema.parse(i));
 
-  it("renders index points with two decimals and breadth counts", () => {
+  it("renders index points with two decimals, the sector code, and breadth counts", () => {
     const text = formatIndices(items, "kospi", MODE);
     expect(text).toContain("코스피 업종 지수");
-    expect(text).toContain("| 종합(KOSPI) | 8,088.34 | +440.25 | +5.76% | 589/27/297 |");
+    expect(text).toContain("| 종합(KOSPI) | 001 | 8,088.34 | +440.25 | +5.76% | 589/27/297 |");
+    expect(text).toContain("get_sector_price / get_sector_stocks");
   });
 });
 

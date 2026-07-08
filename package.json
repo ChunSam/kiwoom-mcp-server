@@ -1,6 +1,6 @@
 {
   "name": "kiwoom-mcp-server",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Read-only MCP server exposing the Kiwoom Securities REST API (market data, account inquiry, ISA tax-allowance calculator) to Claude Desktop / Claude Code.",
   "private": false,
   "type": "module",

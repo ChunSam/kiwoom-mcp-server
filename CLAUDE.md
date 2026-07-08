@@ -82,7 +82,8 @@ feared: **43/46 respond with `return_code 0`**, and market-data TRs return real-
 production-mirrored rows (ka10099 ~2475 rows, charts full-length, rankings/theme/short/
 foreign all populated). Mock-**unsupported** (do not develop against mock for these):
 **kt00015 위탁종합거래내역** (RC9000 "모의투자에서는 해당업무가 제공되지 않습니다" → `get_transactions`
-and `calc_isa_tax_status` are dead on mock), **kt00010 주문인출가능금액** (RC7006 조회실패),
+and `calc_isa_tax_status` are dead on mock; **confirmed working on REAL 2026-07-08** —
+the owner's GUI test returned real transaction rows), **kt00010 주문인출가능금액** (RC7006 조회실패),
 **ka01690 일별잔고수익률** (8104 지원하지 않는 API). Account TRs respond but with empty/zero
 data on a fresh mock account (kt00018 0 holdings, ka10075 empty `oso`, ka10170 blank row);
 the mock HTS watchlist starts with 2 default groups. Full results:
@@ -167,6 +168,18 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   tm_tp: "2", tm: "1"(전일 기준), …, updown_incls: "1", stex_tp: "1"}` → `pric_jmpflu[]` incl.
   `base_pric`/`jmp_rt` 기준가 대비 급등락률). mrkt_tp shares the ranking codes (000/001/101).
   All three wrapped by the single `get_market_movers` tool (signal enum, get_ranking pattern).
+- Sector TRs (both `/api/dostk/sect` like ka20003; **live-verified on REAL 2026-07-09** —
+  owner-authorized one-shot read-only probe, both kospi/kosdaq variants: rc=0, array keys OK,
+  zero consumed-field gaps, rows byte-identical to mock): ka20001 업종현재가 (body `{mrkt_tp, inds_cd}` → 22 flat fields — cur_prc/
+  open/high/low (지수, 부호 접두 소수), trde_qty 천주 / trde_prica 백만원 (ka20003과 동일 단위),
+  등락 구성 `upl 상한/rising/stdns/fall/lst 하한`, `trde_frmatn_*` 거래형성, 6 `52wk_*` fields
+  (**keys start with a digit** — quote them in TS) — plus `inds_cur_prc_tm[]` 시간대별
+  (`*_n`-suffixed fields; `tm_n "999999"/"888888"` are close-of-day sentinel rows → filter
+  before display)); ka20002 업종별주가 (body `{mrkt_tp, inds_cd, stex_tp: "1"}` →
+  `inds_stkpc[]`, 100/page **code-ordered**, page-1 only + truncated flag). **mrkt_tp is
+  derived from the inds_cd leading digit** (0xx→"0" 코스피, 1xx→"1" 코스닥, 2xx→"2" 코스피200);
+  inds_cd shares ka20003's code space, so `get_market_index` now shows a 코드 column for
+  chaining into `get_sector_price`/`get_sector_stocks`.
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -238,6 +251,16 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   startup in `createServer()` via `isIsaEnabled()` (loads `.env`, no credential
   validation, defaults false). A general/non-ISA account never sees the tool.** `ISA_TYPE`
   / `ISA_OPENED_ON` are consulted only when enabled; all three are the only ISA envs.
+- **Version policy** (de facto since v0.5.x, codified 2026-07-09): new tool(s)/feature =
+  **minor bump IN the feature PR**, updating `package.json` AND `src/server.ts`
+  `SERVER_VERSION` together (`npm version <v> --no-git-tag-version` keeps the lockfile in
+  sync); fixes-only = patch; docs/CI/build-infra/dev-tooling = **no bump**. The file version
+  advances independently of npm publish timing (0.6.0/0.7.0 were never published; npm went
+  0.8.0 → 0.9.0). A 0.x minor MAY change behavior, but its release notes must **lead with a
+  migration block** (v0.9.0 `ISA_ENABLED` precedent). Tag + GitHub Release at publish
+  decision points. Publish gates: `prepublishOnly` (typecheck+test+build) + a one-shot REAL
+  read-only probe for any new TR before its first publish; `npm publish` is owner-run at a
+  real TTY (passkey flow — no npm token exists).
 - License **MIT** (`LICENSE`, © ChunSam); README is bilingual (`README.md` 한국어 /
   `README.en.md` English). **Distribution is publish-enabled: `package.json` `"private":
   false`** (flipped from `true` at go-live — the owner's deliberate go/no-go was taken).
@@ -298,6 +321,16 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   one-shot read-only probe: rc=0, array keys OK, zero consumed-field gaps, rows identical to
   mock — first confirmation that mockapi mirrors production for market-data TRs).
   **Server exposes 22 tools with ISA enabled (21 without).**
+- **v0.10.0 (2026-07-09) — 업종 drill-down.** Added `get_sector_price` (ka20001 업종현재가)
+  + `get_sector_stocks` (ka20002 업종별주가), both on `/api/dostk/sect`; `get_market_index`
+  gained a 코드 column + chaining hint so the sector code flows into both new tools.
+  Developed on VIRTUAL per the dev loop (fixtures in `tests/sector.test.ts` captured from
+  mockapi 2026-07-09), then **live-verified on REAL 2026-07-09** (owner-authorized one-shot
+  read-only probe, 4 calls across kospi/kosdaq: rc=0, array keys OK, zero consumed-field
+  gaps, rows byte-identical to mock — mock-mirrors-production reconfirmed, and the
+  inds_cd→mrkt_tp derivation holds on REAL). Also codified the version policy (above), promoted
+  the two owner test docs from `.git/info/exclude` to tracked `.gitignore`, and extended
+  `scripts/sweep.py` to 29 calls. **Server exposes 23 always-on tools (24 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

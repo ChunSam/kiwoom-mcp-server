@@ -20,6 +20,8 @@ import {
   priceChangeRankItemSchema,
   priceJumpItemSchema,
   realizedPnlResponseSchema,
+  sectorPriceResponseSchema,
+  sectorStocksResponseSchema,
   shortSellingResponseSchema,
   stockInfoResponseSchema,
   stockListResponseSchema,
@@ -47,6 +49,8 @@ import {
   type PriceChangeRankItem,
   type PriceJumpItem,
   type RealizedPnlResponse,
+  type SectorPriceResponse,
+  type SectorStockItem,
   type ShortSellingItem,
   type StockInfoResponse,
   type StockListItem,
@@ -280,6 +284,41 @@ export async function fetchAllIndices(client: KiwoomClient, indsCd: "001" | "101
     body: { inds_cd: indsCd },
   });
   return allIndexResponseSchema.parse(res.json).all_inds_idex;
+}
+
+/**
+ * ka20001/ka20002의 mrkt_tp는 inds_cd 선행 자리에서 유도한다
+ * (0xx→"0" 코스피, 1xx→"1" 코스닥, 2xx→"2" 코스피200; mock-probed 2026-07-09).
+ * inds_cd 자체는 ka20003의 업종코드 공간을 그대로 쓴다.
+ */
+function sectorMarketType(indsCd: string): string {
+  return indsCd.startsWith("1") ? "1" : indsCd.startsWith("2") ? "2" : "0";
+}
+
+/** ka20001 업종현재가 — 업종 지수 스냅샷 + 시간대별 추이. */
+export async function fetchSectorPrice(client: KiwoomClient, indsCd: string): Promise<SectorPriceResponse> {
+  const res = await client.call({
+    path: SECTOR_PATH,
+    apiId: "ka20001",
+    body: { mrkt_tp: sectorMarketType(indsCd), inds_cd: indsCd },
+  });
+  return sectorPriceResponseSchema.parse(res.json);
+}
+
+/**
+ * ka20002 업종별주가 — 업종 구성 종목의 시세. 100행/페이지(종목코드순)이며
+ * 첫 페이지만 가져온다; 남은 페이지가 있으면 truncated로 알린다.
+ */
+export async function fetchSectorStocks(
+  client: KiwoomClient,
+  indsCd: string,
+): Promise<{ items: SectorStockItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: SECTOR_PATH,
+    apiId: "ka20002",
+    body: { mrkt_tp: sectorMarketType(indsCd), inds_cd: indsCd, stex_tp: "1" },
+  });
+  return { items: sectorStocksResponseSchema.parse(res.json).inds_stkpc, truncated: res.hasNext };
 }
 
 export type InvestorUnit = "amount" | "quantity";
