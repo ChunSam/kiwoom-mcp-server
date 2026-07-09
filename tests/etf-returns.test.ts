@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { etfReturnItemSchema } from "../src/kiwoom/types.js";
-import { formatEtfReturns } from "../src/tools/etf-returns.js";
+import { formatEtfReturns, formatNonEtfNotice } from "../src/tools/etf-returns.js";
 
 const MODE = "모의투자";
 
@@ -51,5 +51,21 @@ describe("formatEtfReturns", () => {
     const text = formatEtfReturns([null, blank, null, null], "이상한ETF", "999999", "201", MODE);
     expect(text).toContain("999999의 ETF 수익률 데이터가 없습니다");
     expect(text).not.toContain("| 기간 |");
+  });
+});
+
+describe("formatNonEtfNotice", () => {
+  // ka40002 mock-probed 2026-07-10: 비ETF(005930)는 stk_nm만 채워지고 추적지수명이
+  // 빈값, 존재하지 않는 코드(999999)는 둘 다 빈값.
+  it("names the stock when the code is a non-ETF instrument", () => {
+    const text = formatNonEtfNotice("삼성전자", "005930", MODE);
+    expect(text).toContain("삼성전자 (005930)은(는) ETF가 아니어서");
+    expect(text).toContain("get_stock_price");
+  });
+
+  it("asks to re-check the code when ka40002 knows nothing about it", () => {
+    const text = formatNonEtfNotice("", "999999", MODE);
+    expect(text).toContain("999999의 ETF 정보를 찾을 수 없습니다");
+    expect(text).toContain("search_stock");
   });
 });

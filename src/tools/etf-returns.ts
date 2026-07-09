@@ -11,6 +11,24 @@ import { sectorLabel } from "./sector.js";
 /** ka40001의 etfobjt_idex_cd는 필수 — 지정이 없으면 KOSPI200(201)을 기본 벤치마크로 쓴다. */
 const DEFAULT_BENCHMARK = "201";
 
+/**
+ * 비ETF 가드 안내 (2026-07-10 GUI 테스트 발견 대응): ka40001은 일반 종목 코드에도
+ * 수익률을 돌려주므로 ka40002로 선별한다 — 비ETF는 stk_nm은 있지만 추적지수명이
+ * 빈값, 존재하지 않는 코드는 둘 다 빈값 (mock-probed 2026-07-10).
+ */
+export function formatNonEtfNotice(stockName: string, stockCode: string, modeLabel: string): string {
+  if (stockName) {
+    return (
+      `[${modeLabel}] ${stockName} (${stockCode})은(는) ETF가 아니어서 ETF 기간 수익률을 제공하지 않습니다. ` +
+      `일반 종목 시세는 get_stock_price / get_stock_chart를 이용하세요.`
+    );
+  }
+  return (
+    `[${modeLabel}] ${stockCode}의 ETF 정보를 찾을 수 없습니다. ` +
+    `ETF 종목코드인지 확인해 주세요 (search_stock으로 검색 가능).`
+  );
+}
+
 export function formatEtfReturns(
   rows: (EtfReturnItem | null)[],
   etfName: string | null,
@@ -77,12 +95,15 @@ export function registerEtfReturnsTool(server: McpServer): void {
         const code = stock_code.toUpperCase();
         const benchmark = benchmark_index_code ?? DEFAULT_BENCHMARK;
 
-        // 4-period loop (~3.3s, same-TR rate limit) + name garnish in parallel.
-        const [rows, etf] = await Promise.all([
-          fetchEtfReturns(client, code, benchmark),
-          fetchEtfInfo(client, code).catch(() => null),
-        ]);
+        // Non-ETF guard BEFORE the 4-call loop — best-effort: a flaky ka40002
+        // lookup must not block a real ETF, so only a successful blank-index
+        // response refuses (and it also saves the 4 wasted ka40001 calls).
+        const etf = await fetchEtfInfo(client, code).catch(() => null);
+        if (etf && !etf.etfobjt_idex_nm) {
+          return textResult(formatNonEtfNotice(etf.stk_nm, code, config.modeLabel));
+        }
 
+        const rows = await fetchEtfReturns(client, code, benchmark);
         return textResult(
           formatEtfReturns(rows, etf?.stk_nm || null, code, benchmark, config.modeLabel),
         );
