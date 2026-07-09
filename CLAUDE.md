@@ -158,7 +158,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   volume; ka10061 doubles the sign: `"--23722054"` = negative); ka40002 ETF종목정보
   (returns `etftxon_type` e.g. "비과세"/"보유기간과세" — Kiwoom's own taxation type!).
 - ka10030 caps `trde_qty` at uint32 max (4294967295) — display verbatim, don't "fix".
-- Chart-extension TRs (both `/api/dostk/chart`; **mock-verified 2026-07-09, REAL probe pending**):
+- Chart-extension TRs (both `/api/dostk/chart`; **live-verified on REAL 2026-07-09** —
+  owner-authorized one-shot read-only probe: rc=0, zero consumed-field gaps, responses
+  byte-identical mock==REAL, fourth TR family confirming mock mirrors production):
   ka10079 틱차트 (body `{stk_cd, tic_scope: "1"|"3"|"5"|"10"|"30" 캔들당 틱 수, upd_stkpc_tp: "1"}`
   → `stk_tic_chart_qry[]` 900 rows newest-first — **row shape identical to ka10080 분봉** incl.
   `cntr_tm` yyyyMMddHHmmss but WITHOUT `acc_trde_qty` (schema default covers it); top-level
@@ -373,9 +375,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   (`period: "tick"` + `tick_scope`, default 30) and ka10094 년봉 (`period: "year"`) — **no new
   tool**: year rides the existing CHART_TRS map/`formatDailyChart`, tick reuses the minute row
   schema and `formatMinuteChart` (generalized to a `scopeLabel` like "5분"/"30틱"). Developed on
-  VIRTUAL per the dev loop (fixtures in `tests/market.test.ts` captured from mockapi 2026-07-09);
-  REAL probe pending. 142 tests. `scripts/sweep.py` = 32 calls. **Server still exposes 24
-  always-on tools (25 with ISA).**
+  VIRTUAL per the dev loop (fixtures in `tests/market.test.ts` captured from mockapi 2026-07-09),
+  then **live-verified on REAL 2026-07-09** (owner-authorized one-shot read-only probe, 2 calls:
+  rc=0, zero consumed-field gaps, responses byte-identical mock==REAL). 142 tests.
+  `scripts/sweep.py` = 32 calls. **Server still exposes 24 always-on tools (25 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
