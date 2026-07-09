@@ -228,18 +228,20 @@ export async function fetchStockList(client: KiwoomClient, marketCode: "0" | "10
   return stockListResponseSchema.parse(res.json).list;
 }
 
-export type ChartPeriod = "day" | "week" | "month";
+export type ChartPeriod = "day" | "week" | "month" | "year";
 
 const CHART_TRS: Record<ChartPeriod, { apiId: string; arrayKey: string }> = {
   day: { apiId: "ka10081", arrayKey: "stk_dt_pole_chart_qry" },
   week: { apiId: "ka10082", arrayKey: "stk_stk_pole_chart_qry" },
   month: { apiId: "ka10083", arrayKey: "stk_mth_pole_chart_qry" },
+  year: { apiId: "ka10094", arrayKey: "stk_yr_pole_chart_qry" },
 };
 
 /**
- * ka10081/82/83 일·주·월봉 — newest first; first page (240~600 rows) only,
- * which is plenty for LLM consumption and avoids pagination rate-limit cost.
- * upd_stkpc_tp "1" = 수정주가 반영.
+ * ka10081/82/83/94 일·주·월·년봉 — same item shape, array key differs per TR
+ * (년봉 rows carry no pred_pre — schema defaults cover it). Newest first;
+ * first page (년봉 ~30, others 240~600 rows) only, which is plenty for LLM
+ * consumption and avoids pagination rate-limit cost. upd_stkpc_tp "1" = 수정주가 반영.
  */
 export async function fetchDailyChart(
   client: KiwoomClient,
@@ -268,6 +270,24 @@ export async function fetchMinuteChart(
     body: { stk_cd: stockCode, tic_scope: ticScope, upd_stkpc_tp: "1" },
   });
   return parseArray(res.json, "stk_min_pole_chart_qry", minuteChartItemSchema);
+}
+
+/**
+ * ka10079 틱차트 — tic_scope = 캔들당 틱 수 ("1"|"3"|"5"|"10"|"30"). Row shape는
+ * ka10080 분봉과 동일(cntr_tm 포함; top-level last_tic_cnt는 미소비). Newest first,
+ * first page (900 rows) only.
+ */
+export async function fetchTickChart(
+  client: KiwoomClient,
+  stockCode: string,
+  ticScope: string,
+): Promise<MinuteChartItem[]> {
+  const res = await client.call({
+    path: CHART_PATH,
+    apiId: "ka10079",
+    body: { stk_cd: stockCode, tic_scope: ticScope, upd_stkpc_tp: "1" },
+  });
+  return parseArray(res.json, "stk_tic_chart_qry", minuteChartItemSchema);
 }
 
 /** ka10004 주식호가 — 10-level orderbook; levels 2-10 live in the loose passthrough. */

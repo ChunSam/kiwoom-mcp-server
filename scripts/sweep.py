@@ -120,6 +120,8 @@ def main() -> int:
         ("get_stock_price", {"stock_code": "005930"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "day"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "minute", "minute_scope": "5"}),
+        ("get_stock_chart", {"stock_code": "005930", "period": "year"}),
+        ("get_stock_chart", {"stock_code": "005930", "period": "tick", "tick_scope": "30"}),
         ("get_orderbook", {"stock_code": "005930"}),
         ("get_market_index", {"market": "kospi"}),
         ("get_sector_price", {"sector_code": "001"}),
