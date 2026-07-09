@@ -27,7 +27,7 @@ const SECTOR_LABELS: Record<string, string> = {
   "201": "KOSPI200",
 };
 
-const sectorLabel = (code: string): string => SECTOR_LABELS[code] ?? `업종 ${code}`;
+export const sectorLabel = (code: string): string => SECTOR_LABELS[code] ?? `업종 ${code}`;
 
 /** "153220" → "15:32:20"; 시각이 아닌 값(장마감 센티널 999999/888888 등)은 null. */
 function formatSectorTime(tm: string): string | null {

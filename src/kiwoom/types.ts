@@ -400,6 +400,34 @@ export const etfInfoResponseSchema = z.looseObject({
 
 export type EtfInfoResponse = z.infer<typeof etfInfoResponseSchema>;
 
+// ── ka40001: ETF수익율 (array key etfprft_rt_lst; mock-probed 2026-07-09) ──
+// NOTE: cntr_prft_rt is the period return of the index selected by the
+// etfobjt_idex_cd REQUEST field (not validated against the ETF) — probed:
+// same code → same value regardless of stk_cd; bogus code → "0.00".
+
+export const etfReturnItemSchema = z.looseObject({
+  etfprft_rt: str(), // ETF 기간 수익률(%)
+  cntr_prft_rt: str(), // 대상지수(etfobjt_idex_cd) 기간 수익률(%)
+  for_netprps_qty: str(), // 외인 순매수량
+  orgn_netprps_qty: str(), // 기관 순매수량 (mock: blank)
+});
+
+export type EtfReturnItem = z.infer<typeof etfReturnItemSchema>;
+
+// ── ka40009: ETF NAV 추이 (array key etfnavarray, newest first, no time field) ──
+// Rows carry NO timestamp; NAV/괴리율/추적오차 fields arrive blank on mock —
+// only stkcnt/base_pric are populated there. Callers must tolerate blanks.
+
+export const etfNavItemSchema = z.looseObject({
+  nav: str(),
+  navpred_pre: str(), // NAV 전일대비
+  navflu_rt: str(), // NAV 등락률(%)
+  trace_eor_rt: str(), // 추적오차율(%)
+  dispty_rt: str(), // 괴리율(%)
+});
+
+export type EtfNavItem = z.infer<typeof etfNavItemSchema>;
+
 // ── ka01300/ka01301: 관심종목 그룹 (HTS 저장 그룹, live-verified 2026-07-06) ──
 // NOTE: array keys are nofi(그룹)/nofj(종목); item fields are terse (gcod/name,
 // cod2/bgb) and differ from the usual snake_case TRs. The response also carries

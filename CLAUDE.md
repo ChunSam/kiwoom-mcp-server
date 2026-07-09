@@ -180,6 +180,24 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   derived from the inds_cd leading digit** (0xx→"0" 코스피, 1xx→"1" 코스닥, 2xx→"2" 코스피200);
   inds_cd shares ka20003's code space, so `get_market_index` now shows a 코드 column for
   chaining into `get_sector_price`/`get_sector_stocks`.
+- ETF detail TRs (both `/api/dostk/etf` like ka40002; **live-verified on REAL 2026-07-09** —
+  owner-authorized one-shot read-only probe, 4 calls: rc=0, zero consumed-field gaps):
+  ka40001 ETF수익율 (body `{stk_cd, etfobjt_idex_cd, dt: "0"1주|"1"1개월|"2"6개월|"3"1년}`
+  → `etfprft_rt_lst[]` of `{etfprft_rt, cntr_prft_rt, for_netprps_qty, orgn_netprps_qty}`).
+  **`etfobjt_idex_cd` is REQUIRED (blank → 1511 입력 값 오류) but NOT validated against the ETF —
+  it is a benchmark-index selector: `cntr_prft_rt` is that index's period return** (holds on
+  REAL: two ETFs @ idex 201 → identical cntr_prft_rt; bogus code on mock → "0.00").
+  `for_netprps_qty` carries real values on REAL (mock: "0"); `orgn_netprps_qty` blank on both.
+  **Erratum to seq-11 Appendix B: ka40002 does NOT return `etfobjt_idex_cd`** (full response =
+  5 scalars, index NAME only), so `get_etf_returns` exposes `benchmark_index_code` (default
+  "201" KOSPI200, ka20003 code space) instead of chaining; it fetches all 4 dt values
+  sequentially (same TR, 1.1s spacing). ka40009 ETF NAV (`{stk_cd}` → `etfnavarray[]`
+  newest-first; **rows carry NO time field, and NAV/괴리율/추적오차 fields arrive ALL BLANK on
+  BOTH mock and REAL** (probed intraday, 2 ETFs; responses byte-identical mock==REAL — third
+  TR family confirming mock mirrors production) — only stkcnt/base_pric populated; `get_etf_info`
+  renders the NAV block only if Kiwoom ever populates the values). **ka40010 deliberately NOT
+  exposed**: its `etftisl_trnsn[]` rows also lack a time field and carry only cur_prc/pred_pre/
+  trde_qty/for_netprps — strictly inferior to ka10008 (`get_foreign_holding`, dated rows).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -331,6 +349,18 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   inds_cd→mrkt_tp derivation holds on REAL). Also codified the version policy (above), promoted
   the two owner test docs from `.git/info/exclude` to tracked `.gitignore`, and extended
   `scripts/sweep.py` to 29 calls. **Server exposes 23 always-on tools (24 with ISA).**
+- **v0.11.0 (2026-07-09) — ETF detail.** Added `get_etf_returns` (ka40001: 4개 dt를 순차 호출해
+  기간별 수익률 테이블 + `benchmark_index_code` 옵션, 기본 201 KOSPI200) and enriched
+  `get_etf_info` with ka40009 NAV/괴리율/추적오차율 (best-effort third parallel call,
+  blank-tolerant — mock returns blanks). ka40010 skipped by design (see the ETF detail TR
+  bullet above). Developed on VIRTUAL per the dev loop (fixtures in `tests/etf-returns.test.ts`
+  + NAV cases in `tests/market.test.ts`, captured from mockapi 2026-07-09), then **live-verified
+  on REAL 2026-07-09** (owner-authorized one-shot read-only probe, 4 calls: rc=0, zero
+  consumed-field gaps; benchmark-selector semantics hold; for_netprps_qty real-valued;
+  **NAV fields blank on REAL too — the NAV block stays dormant until Kiwoom populates them**;
+  ka40009 responses byte-identical mock==REAL). Probe was first blocked by **Kiwoom 8050
+  지정단말기 인증** (recurred on IP change — owner re-registered the terminal to clear it).
+  139 tests. `scripts/sweep.py` = 30 calls. **Server exposes 24 always-on tools (25 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
