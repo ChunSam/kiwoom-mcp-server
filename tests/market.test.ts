@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   dailyChartItemSchema,
   etfInfoResponseSchema,
+  etfNavItemSchema,
   indexItemSchema,
   investorDailyItemSchema,
   investorTotalItemSchema,
@@ -205,15 +206,43 @@ describe("formatEtfInfo", () => {
       return_code: 0, stk_cd: "069500", stk_nm: "KODEX 200",
       cur_prc: "+123530", flu_rt: "1.25", trde_qty: "5000000",
     });
-    const text = formatEtfInfo(etf, quote, "069500", MODE);
+    const text = formatEtfInfo(etf, quote, null, "069500", MODE);
     expect(text).toContain("KODEX 200 (069500) ETF 정보");
     expect(text).toContain("추적지수: KOSPI200");
     expect(text).toContain("과세유형: 비과세");
     expect(text).toContain("현재가: 123,530원 (+1.25%)");
+    expect(text).toContain("get_etf_returns");
+  });
+
+  it("appends NAV/괴리율 lines when ka40009 carries values", () => {
+    const etf = etfInfoResponseSchema.parse({
+      return_code: 0, stk_nm: "KODEX 200", etfobjt_idex_nm: "KOSPI200", etftxon_type: "비과세",
+    });
+    const nav = etfNavItemSchema.parse({
+      nav: "116865.23", navpred_pre: "-30.5", navflu_rt: "-0.03",
+      trace_eor_rt: "0.51", dispty_rt: "-0.12",
+    });
+    const text = formatEtfInfo(etf, null, nav, "069500", MODE);
+    expect(text).toContain("- NAV: 116,865.23원 (전일대비 -30.5, -0.03%)");
+    expect(text).toContain("- 괴리율: -0.12% · 추적오차율: 0.51%");
+  });
+
+  it("omits the NAV section when ka40009 fields are blank (mock behavior)", () => {
+    const etf = etfInfoResponseSchema.parse({
+      return_code: 0, stk_nm: "KODEX 200", etfobjt_idex_nm: "KOSPI200", etftxon_type: "비과세",
+    });
+    // mock rows populate only stkcnt/base_pric; all NAV fields arrive blank
+    const nav = etfNavItemSchema.parse({
+      nav: "", navpred_pre: "", navflu_rt: "", trace_eor_rt: "", dispty_rt: "",
+      stkcnt: "216000", base_pric: "116865",
+    });
+    const text = formatEtfInfo(etf, null, nav, "069500", MODE);
+    expect(text).not.toContain("NAV:");
+    expect(text).not.toContain("괴리율");
   });
 
   it("reports non-ETF codes gracefully", () => {
     const etf = etfInfoResponseSchema.parse({ return_code: 0 });
-    expect(formatEtfInfo(etf, null, "005930", MODE)).toContain("ETF 정보가 없습니다");
+    expect(formatEtfInfo(etf, null, null, "005930", MODE)).toContain("ETF 정보가 없습니다");
   });
 });

@@ -4,6 +4,7 @@ import { isIsaEnabled } from "./config.js";
 import { registerAccountBalanceTool } from "./tools/account-balance.js";
 import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
+import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerForeignHoldingTool } from "./tools/foreign-holding.js";
 import { registerInvestorTrendTool } from "./tools/investor-trend.js";
 import { registerIsaTaxStatusTool } from "./tools/isa-tax-status.js";
@@ -24,7 +25,7 @@ import { registerTransactionsTool } from "./tools/transactions.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.10.0";
+export const SERVER_VERSION = "0.11.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -46,6 +47,7 @@ export function createServer(): McpServer {
   registerMarketMoversTool(server);
   registerInvestorTrendTool(server);
   registerEtfInfoTool(server);
+  registerEtfReturnsTool(server);
   registerShortSellingTool(server);
   registerForeignHoldingTool(server);
 

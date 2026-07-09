@@ -9,6 +9,8 @@ import {
   dailyChartItemSchema,
   depositResponseSchema,
   etfInfoResponseSchema,
+  etfNavItemSchema,
+  etfReturnItemSchema,
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorTotalItemSchema,
@@ -37,6 +39,8 @@ import {
   type DailyChartItem,
   type DepositResponse,
   type EtfInfoResponse,
+  type EtfNavItem,
+  type EtfReturnItem,
   type ForeignHoldingItem,
   type IndexItem,
   type InvestorDailyItem,
@@ -451,6 +455,51 @@ export async function fetchEtfInfo(client: KiwoomClient, stockCode: string): Pro
     body: { stk_cd: stockCode },
   });
   return etfInfoResponseSchema.parse(res.json);
+}
+
+/** ka40001의 dt(기간) 코드 — 조회 순서대로 4행 테이블을 만든다. */
+export const ETF_RETURN_PERIODS = [
+  { dt: "0", label: "1주" },
+  { dt: "1", label: "1개월" },
+  { dt: "2", label: "6개월" },
+  { dt: "3", label: "1년" },
+] as const;
+
+/**
+ * ka40001 ETF수익율 — 기간(dt)별 ETF 수익률 + 대상지수 수익률. mock-probed
+ * 2026-07-09: etfobjt_idex_cd는 필수(빈값 → 1511 오류)지만 ETF와 대조 검증되지
+ * 않는 "벤치마크 지수 선택자"다 — cntr_prft_rt가 그 지수의 기간 수익률로 채워진다.
+ * 4개 dt를 순차 호출(같은 TR — 레이트리밋 1.1s 간격)해 기간 순서대로 돌려준다.
+ */
+export async function fetchEtfReturns(
+  client: KiwoomClient,
+  stockCode: string,
+  benchmarkIndexCode: string,
+): Promise<(EtfReturnItem | null)[]> {
+  const rows: (EtfReturnItem | null)[] = [];
+  for (const [i, period] of ETF_RETURN_PERIODS.entries()) {
+    if (i > 0) await sleep(PAGE_INTERVAL_MS);
+    const res = await client.call({
+      path: ETF_PATH,
+      apiId: "ka40001",
+      body: { stk_cd: stockCode, etfobjt_idex_cd: benchmarkIndexCode, dt: period.dt },
+    });
+    rows.push(parseArray(res.json, "etfprft_rt_lst", etfReturnItemSchema)[0] ?? null);
+  }
+  return rows;
+}
+
+/**
+ * ka40009 ETF NAV 추이 — 최신순 배열(etfnavarray)이지만 행에 시각 필드가 없다.
+ * mock에서는 NAV 관련 필드가 전부 빈 문자열 — 호출부는 빈값을 허용해야 한다.
+ */
+export async function fetchEtfNav(client: KiwoomClient, stockCode: string): Promise<EtfNavItem[]> {
+  const res = await client.call({
+    path: ETF_PATH,
+    apiId: "ka40009",
+    body: { stk_cd: stockCode },
+  });
+  return parseArray(res.json, "etfnavarray", etfNavItemSchema);
 }
 
 /**
