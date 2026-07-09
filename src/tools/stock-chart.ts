@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { getKiwoomContext } from "../context.js";
-import { fetchDailyChart, fetchMinuteChart, type ChartPeriod } from "../kiwoom/api.js";
+import { fetchDailyChart, fetchMinuteChart, fetchTickChart, type ChartPeriod } from "../kiwoom/api.js";
 import type { DailyChartItem, MinuteChartItem } from "../kiwoom/types.js";
 import { formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatNumber, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
@@ -11,11 +11,11 @@ import { runTool, textResult } from "./helpers.js";
 const DEFAULT_COUNT = 30;
 const MAX_COUNT = 200;
 
-const PERIOD_LABELS: Record<ChartPeriod | "minute", string> = {
+const PERIOD_LABELS: Record<ChartPeriod, string> = {
   day: "일봉",
   week: "주봉",
   month: "월봉",
-  minute: "분봉",
+  year: "년봉",
 };
 
 /** "20260703153000" → "2026-07-03 15:30" */
@@ -51,19 +51,20 @@ export function formatDailyChart(
   return lines.join("\n");
 }
 
+/** 분봉과 틱봉이 같은 행 구조(cntr_tm)를 공유 — scopeLabel은 "5분"/"30틱" 형태. */
 export function formatMinuteChart(
   items: MinuteChartItem[],
   stockCode: string,
-  ticScope: string,
+  scopeLabel: string,
   count: number,
   modeLabel: string,
 ): string {
   if (items.length === 0) {
-    return `[${modeLabel}] ${stockCode} 분봉 데이터가 없습니다. 종목코드를 확인해 주세요.`;
+    return `[${modeLabel}] ${stockCode} ${scopeLabel}봉 데이터가 없습니다. 종목코드를 확인해 주세요.`;
   }
   const shown = items.slice(0, count).reverse();
   const lines = [
-    `[${modeLabel}] ${stockCode} ${ticScope}분봉 차트 (최근 ${shown.length}개, 수정주가 반영)`,
+    `[${modeLabel}] ${stockCode} ${scopeLabel}봉 차트 (최근 ${shown.length}개, 수정주가 반영)`,
     "",
     "| 시각 | 시가 | 고가 | 저가 | 종가 | 거래량 |",
     "|---|---:|---:|---:|---:|---:|",
@@ -76,18 +77,19 @@ export function registerStockChartTool(server: McpServer): void {
   server.registerTool(
     "get_stock_chart",
     {
-      title: "주식 차트 조회 (일/주/월/분봉)",
+      title: "주식 차트 조회 (일/주/월/년/분/틱봉)",
       description:
-        "종목의 캔들 차트 데이터를 조회합니다 (키움 ka10080~ka10083, 수정주가 반영). " +
-        "period: day(일봉, 기본)/week(주봉)/month(월봉)/minute(분봉). 분봉은 minute_scope로 " +
-        "분 단위를 지정합니다. 종목코드를 모르면 search_stock으로 먼저 찾으세요.",
+        "종목의 캔들 차트 데이터를 조회합니다 (키움 ka10079~ka10083/ka10094, 수정주가 반영). " +
+        "period: day(일봉, 기본)/week(주봉)/month(월봉)/year(년봉)/minute(분봉)/tick(틱봉). " +
+        "분봉은 minute_scope로 분 단위를, 틱봉은 tick_scope로 캔들당 틱 수를 지정합니다. " +
+        "종목코드를 모르면 search_stock으로 먼저 찾으세요.",
       inputSchema: {
         stock_code: z
           .string()
           .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
           .describe("6자리 종목코드 (예: 005930)"),
         period: z
-          .enum(["day", "week", "month", "minute"])
+          .enum(["day", "week", "month", "year", "minute", "tick"])
           .optional()
           .describe("봉 주기 (기본값: day)"),
         count: z
@@ -101,18 +103,27 @@ export function registerStockChartTool(server: McpServer): void {
           .enum(["1", "3", "5", "10", "15", "30", "45", "60"])
           .optional()
           .describe("period=minute일 때 분 단위 (기본값: 5)"),
+        tick_scope: z
+          .enum(["1", "3", "5", "10", "30"])
+          .optional()
+          .describe("period=tick일 때 캔들당 틱 수 (기본값: 30)"),
       },
     },
-    async ({ stock_code, period, count, minute_scope }) =>
+    async ({ stock_code, period, count, minute_scope, tick_scope }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
         const code = stock_code.toUpperCase();
         const n = count ?? DEFAULT_COUNT;
 
-        if (period === "minute") {
-          const scope = minute_scope ?? "5";
-          const items = await fetchMinuteChart(client, code, scope);
-          return textResult(formatMinuteChart(items, code, scope, n, config.modeLabel));
+        if (period === "minute" || period === "tick") {
+          const isTick = period === "tick";
+          const scope = isTick ? (tick_scope ?? "30") : (minute_scope ?? "5");
+          const items = isTick
+            ? await fetchTickChart(client, code, scope)
+            : await fetchMinuteChart(client, code, scope);
+          return textResult(
+            formatMinuteChart(items, code, `${scope}${isTick ? "틱" : "분"}`, n, config.modeLabel),
+          );
         }
 
         const p: ChartPeriod = period ?? "day";

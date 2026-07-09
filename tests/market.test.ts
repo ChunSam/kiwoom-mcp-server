@@ -79,6 +79,16 @@ describe("formatDailyChart", () => {
     expect(formatDailyChart(items, "005930", "day", 1, MODE)).toContain("최근 1개");
     expect(formatDailyChart([], "999999", "week", 30, MODE)).toContain("데이터가 없습니다");
   });
+
+  it("renders yearly candles (ka10094 rows lack pred_pre — mock fixture 2026-07-09)", () => {
+    const yearly = [
+      { cur_prc: "278000", trde_qty: "3954801551", trde_prica: "907701444915103", dt: "20260102", open_pric: "120200", high_pric: "374500", low_pric: "120200" },
+      { cur_prc: "119900", trde_qty: "4665865779", trde_prica: "341878475645200", dt: "20250102", open_pric: "52700", high_pric: "121200", low_pric: "50800" },
+    ].map((i) => dailyChartItemSchema.parse(i));
+    const text = formatDailyChart(yearly, "005930", "year", 30, MODE);
+    expect(text).toContain("005930 년봉 차트 (최근 2개");
+    expect(text).toContain("| 2026-01-02 | 120,200 | 374,500 | 120,200 | 278,000 | 3,954,801,551 |");
+  });
 });
 
 describe("formatMinuteChart", () => {
@@ -87,9 +97,23 @@ describe("formatMinuteChart", () => {
   ].map((i) => minuteChartItemSchema.parse(i));
 
   it("renders minute timestamps and abs prices", () => {
-    const text = formatMinuteChart(items, "005930", "5", 30, MODE);
+    const text = formatMinuteChart(items, "005930", "5분", 30, MODE);
     expect(text).toContain("5분봉");
     expect(text).toContain("| 2026-07-03 15:30 | 309,500 | 309,500 | 309,500 | 309,500 | 2,283,317 |");
+  });
+
+  it("renders tick candles with the 틱 scope label (ka10079 mock fixture 2026-07-09)", () => {
+    // tick rows share the minute shape but lack acc_trde_qty (schema default covers it)
+    const tick = [
+      { cur_prc: "278000", trde_qty: "4670600", cntr_tm: "20260709151957", open_pric: "279000", high_pric: "279000", low_pric: "278000", pred_pre: "500", pred_pre_sig: "2" },
+    ].map((i) => minuteChartItemSchema.parse(i));
+    const text = formatMinuteChart(tick, "005930", "30틱", 30, MODE);
+    expect(text).toContain("005930 30틱봉 차트 (최근 1개");
+    expect(text).toContain("| 2026-07-09 15:19 | 279,000 | 279,000 | 278,000 | 278,000 | 4,670,600 |");
+  });
+
+  it("names the scope in the empty-data message", () => {
+    expect(formatMinuteChart([], "999999", "30틱", 30, MODE)).toContain("30틱봉 데이터가 없습니다");
   });
 });
 
