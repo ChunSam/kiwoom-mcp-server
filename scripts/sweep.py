@@ -136,6 +136,7 @@ def main() -> int:
         ("get_investor_trend", {"stock_code": "005930"}),
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_returns", {"stock_code": "069500"}),
+        ("get_etf_returns", {"stock_code": "005930"}),  # non-ETF guard path (ka40002 gate)
         ("get_short_selling", {"stock_code": "005930"}),
         ("get_foreign_holding", {"stock_code": "005930", "limit": 5}),
         ("get_watchlist_groups", {}),

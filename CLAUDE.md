@@ -208,6 +208,12 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   renders the NAV block only if Kiwoom ever populates the values). **ka40010 deliberately NOT
   exposed**: its `etftisl_trnsn[]` rows also lack a time field and carry only cur_prc/pred_pre/
   trde_qty/for_netprps — strictly inferior to ka10008 (`get_foreign_holding`, dated rows).
+  **ka40001 computes rates for ANY code, non-ETF included** (owner GUI finding 2026-07-10) —
+  `get_etf_returns` guards via a sequential ka40002 pre-check: **non-ETF = `stk_nm` present +
+  `etfobjt_idex_nm` blank; unknown code = both blank** (mock-probed 2026-07-10; NOT `!stk_nm`,
+  which ka40002 fills even for 삼성전자). Guard is best-effort — a failed ka40002 lookup does
+  not block. NOTE: `get_etf_info` still renders a degenerate "-" card for non-ETF codes (same
+  signal available; left as-is, revisit if it confuses).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -379,6 +385,12 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   then **live-verified on REAL 2026-07-09** (owner-authorized one-shot read-only probe, 2 calls:
   rc=0, zero consumed-field gaps, responses byte-identical mock==REAL). 142 tests.
   `scripts/sweep.py` = 32 calls. **Server still exposes 24 always-on tools (25 with ISA).**
+- **v0.12.1 (2026-07-10) — get_etf_returns non-ETF guard** (fixes-only patch; owner GUI test
+  found ka40001 returning a "수익률" table for 삼성전자). Sequential ka40002 pre-check refuses
+  non-ETFs with a named notice and skips the 4 ka40001 calls (see the ETF detail TR bullet for
+  the discriminator). 144 tests. `scripts/sweep.py` = 33 calls (guard path included).
+  npm `kiwoom-mcp-server@0.12.0` was published 2026-07-10 KST (tag v0.12.0 + Release batching
+  0.10.0~0.12.0; Desktop prod pin bumped) — 0.12.1 rides the next publish.
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
