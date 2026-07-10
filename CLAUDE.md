@@ -212,8 +212,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `get_etf_returns` guards via a sequential ka40002 pre-check: **non-ETF = `stk_nm` present +
   `etfobjt_idex_nm` blank; unknown code = both blank** (mock-probed 2026-07-10; NOT `!stk_nm`,
   which ka40002 fills even for 삼성전자). Guard is best-effort — a failed ka40002 lookup does
-  not block. NOTE: `get_etf_info` still renders a degenerate "-" card for non-ETF codes (same
-  signal available; left as-is, revisit if it confuses).
+  not block. `get_etf_info` applies the SAME discriminator since v0.16.0 (inside `formatEtfInfo`,
+  zero extra calls — ka40002 is its primary TR): non-ETF → named notice via the generalized
+  `formatNonEtfNotice(…, featurePhrase)`, unknown code → "찾을 수 없습니다" notice.
 - 대차/프로그램 TRs (v0.13.0 batch; **live-verified on REAL 2026-07-10** — owner-authorized
   one-shot read-only probe, 4 calls: rc=0, zero consumed-field gaps; **대차 responses
   byte-identical mock==REAL** (5th TR family confirming mock mirrors production), ka90003
@@ -479,6 +480,14 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   field survey + abnormal-row fixtures captured verbatim 2026-07-11). 161 tests.
   `scripts/sweep.py` unchanged (38 calls — both tools already swept). **Server still exposes
   28 always-on tools (29 with ISA).**
+- **v0.16.0 (2026-07-11) — UX batch #2: get_etf_info non-ETF guard + watchlist 투자유의.**
+  `get_etf_info` now refuses non-ETF codes with the same ka40002 discriminator as
+  `get_etf_returns` (checked inside `formatEtfInfo` — zero extra calls; previously rendered a
+  degenerate "-" card, the carried 2026-07-10 watch item, now RESOLVED); `formatNonEtfNotice`
+  generalized with a `featurePhrase` param. `get_watchlist` gained a 비고 column via
+  `masterItemWarnings()` on the master rows it already loads. No new tool/TR, no REAL probe
+  needed; mock-only per the dev loop. 162 tests. `scripts/sweep.py` = 39 calls (+get_etf_info
+  guard path). **Server still exposes 28 always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

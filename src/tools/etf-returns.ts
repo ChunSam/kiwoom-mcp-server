@@ -15,11 +15,17 @@ const DEFAULT_BENCHMARK = "201";
  * 비ETF 가드 안내 (2026-07-10 GUI 테스트 발견 대응): ka40001은 일반 종목 코드에도
  * 수익률을 돌려주므로 ka40002로 선별한다 — 비ETF는 stk_nm은 있지만 추적지수명이
  * 빈값, 존재하지 않는 코드는 둘 다 빈값 (mock-probed 2026-07-10).
+ * get_etf_info도 같은 판별자를 쓴다 — featurePhrase는 조사까지 포함한 목적어구.
  */
-export function formatNonEtfNotice(stockName: string, stockCode: string, modeLabel: string): string {
+export function formatNonEtfNotice(
+  stockName: string,
+  stockCode: string,
+  modeLabel: string,
+  featurePhrase = "ETF 기간 수익률을",
+): string {
   if (stockName) {
     return (
-      `[${modeLabel}] ${stockName} (${stockCode})은(는) ETF가 아니어서 ETF 기간 수익률을 제공하지 않습니다. ` +
+      `[${modeLabel}] ${stockName} (${stockCode})은(는) ETF가 아니어서 ${featurePhrase} 제공하지 않습니다. ` +
       `일반 종목 시세는 get_stock_price / get_stock_chart를 이용하세요.`
     );
   }

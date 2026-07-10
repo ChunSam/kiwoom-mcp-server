@@ -47,7 +47,7 @@ allowance.
 | Tool | Description | Kiwoom TR |
 |---|---|---|
 | `get_watchlist_groups` | List of saved watchlist groups (code + name) | ka01300 |
-| `get_watchlist` | Stocks in a group (enriched with name / prev close / market) | ka01301, ka10099 |
+| `get_watchlist` | Stocks in a group (enriched with name / prev close / market / caution flags) | ka01301, ka10099 |
 
 > The Kiwoom REST API exposes no watchlist **edit** (add/remove) TR — read-only.
 

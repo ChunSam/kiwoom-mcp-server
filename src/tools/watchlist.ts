@@ -5,7 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchWatchlistGroupDetail, fetchWatchlistGroups } from "../kiwoom/api.js";
 import type { KiwoomClient } from "../kiwoom/client.js";
 import { KiwoomApiError } from "../kiwoom/errors.js";
-import { loadMasterList } from "../kiwoom/master-list.js";
+import { loadMasterList, masterItemWarnings } from "../kiwoom/master-list.js";
 import {
   normalizeStockCode,
   type StockListItem,
@@ -67,7 +67,7 @@ export function formatWatchlist(
     return `${title}\n\n(이 그룹에 등록된 종목이 없습니다.)`;
   }
 
-  const lines = [title, "", "| 코드 | 종목명 | 시장 | 전일종가 |", "|---|---|---|---:|"];
+  const lines = [title, "", "| 코드 | 종목명 | 시장 | 전일종가 | 비고 |", "|---|---|---|---:|---|"];
   let missing = 0;
   for (const s of stocks) {
     const code = normalizeStockCode(s.cod2);
@@ -77,7 +77,8 @@ export function formatWatchlist(
     const name = `${bookmark}${info?.name || "-"}`;
     const market = info?.marketName || "-";
     const price = info ? formatKRW(parseKiwoomPrice(info.lastPrice)) : "-";
-    lines.push(`| ${code} | ${name} | ${market} | ${price} |`);
+    const flags = info ? masterItemWarnings(info).join("·") : "";
+    lines.push(`| ${code} | ${name} | ${market} | ${price} | ${flags || "-"} |`);
   }
 
   if (nameIndex.size === 0) {
@@ -131,7 +132,7 @@ export function registerWatchlistTool(server: McpServer): void {
       description:
         "관심종목 그룹에 담긴 종목 목록을 조회합니다 (키움 ka01301, 읽기 전용). " +
         "그룹코드(예: '000') 또는 그룹명(예: 'etf')을 넘기세요. 그룹을 모르면 get_watchlist_groups로 먼저 확인하세요. " +
-        "종목명·전일종가·시장은 종목 마스터에서 보강해 함께 표시합니다.",
+        "종목명·전일종가·시장과 거래정지/관리종목 같은 투자유의 상태를 종목 마스터에서 보강해 함께 표시합니다.",
       inputSchema: {
         group: z
           .string()

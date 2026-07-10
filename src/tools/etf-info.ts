@@ -13,6 +13,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
+import { formatNonEtfNotice } from "./etf-returns.js";
 import { runTool, textResult } from "./helpers.js";
 
 export function formatEtfInfo(
@@ -22,8 +23,11 @@ export function formatEtfInfo(
   stockCode: string,
   modeLabel: string,
 ): string {
-  if (!etf.stk_nm) {
-    return `[${modeLabel}] ${stockCode}의 ETF 정보가 없습니다. ETF 종목코드인지 확인해 주세요.`;
+  // 비ETF/미존재 코드 가드 — get_etf_returns와 동일한 ka40002 판별자
+  // (비ETF는 stk_nm만 채워지고 추적지수명이 빈값, 없는 코드는 둘 다 빈값).
+  // 이전에는 비ETF에 "-"투성이 카드가 나갔다 (2026-07-10 GUI 테스트 watch item).
+  if (!etf.stk_nm || !etf.etfobjt_idex_nm) {
+    return formatNonEtfNotice(etf.stk_nm, stockCode, modeLabel, "ETF 정보를");
   }
 
   const lines = [

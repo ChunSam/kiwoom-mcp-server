@@ -25,6 +25,7 @@ const groups = [
 const masterItems: StockListItem[] = [
   { code: "005930", name: "삼성전자", lastPrice: "00061300", marketName: "거래소", upName: "전기/전자", upSizeName: "대형주", state: "", auditInfo: "정상", orderWarning: "0" },
   { code: "000660", name: "SK하이닉스", lastPrice: "00195000", marketName: "거래소", upName: "전기/전자", upSizeName: "대형주", state: "", auditInfo: "정상", orderWarning: "0" },
+  { code: "000040", name: "KR모터스", lastPrice: "00000267", marketName: "거래소", upName: "운송장비/부품", upSizeName: "소형주", state: "증거금100%|거래정지", auditInfo: "거래정지", orderWarning: "0" },
 ].map((i) => stockListItemSchema.parse(i));
 
 const nameIndex = new Map(masterItems.map((i) => [i.code, i]));
@@ -32,6 +33,7 @@ const nameIndex = new Map(masterItems.map((i) => [i.code, i]));
 const stocks = [
   { cod2: "005930", bgb: "0", bgb_clr: "" },
   { cod2: "000660", bgb: "1", bgb_clr: "red" }, // bookmarked
+  { cod2: "000040", bgb: "0", bgb_clr: "" }, // 거래정지 (abnormal auditInfo)
   { cod2: "999999", bgb: "0", bgb_clr: "" }, // not in master list
 ].map((s) => watchlistStockItemSchema.parse(s));
 
@@ -73,13 +75,15 @@ describe("formatWatchlist", () => {
     expect(text).toContain("등록된 종목이 없습니다");
   });
 
-  it("enriches codes with name/시장/전일종가 and marks bookmarks", () => {
+  it("enriches codes with name/시장/전일종가/투자유의 and marks bookmarks", () => {
     const text = formatWatchlist(group, stocks, nameIndex, MODE);
-    expect(text).toContain("관심종목: IT 대형주 (004) — 3종목");
-    expect(text).toContain("| 005930 | 삼성전자 | 거래소 | 61,300원 |");
-    expect(text).toContain("| 000660 | ⭐ SK하이닉스 | 거래소 | 195,000원 |");
+    expect(text).toContain("관심종목: IT 대형주 (004) — 4종목");
+    expect(text).toContain("| 005930 | 삼성전자 | 거래소 | 61,300원 | - |");
+    expect(text).toContain("| 000660 | ⭐ SK하이닉스 | 거래소 | 195,000원 | - |");
+    // abnormal status from the master row lands in the 비고 column
+    expect(text).toContain("| 000040 | KR모터스 | 거래소 | 267원 | 거래정지 |");
     // unknown code degrades to code-only and is counted
-    expect(text).toContain("| 999999 | - | - | - |");
+    expect(text).toContain("| 999999 | - | - | - | - |");
     expect(text).toContain("※ 1개 종목은 상장 마스터에 없어");
   });
 
