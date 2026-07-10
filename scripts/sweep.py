@@ -138,7 +138,10 @@ def main() -> int:
         ("get_etf_returns", {"stock_code": "069500"}),
         ("get_etf_returns", {"stock_code": "005930"}),  # non-ETF guard path (ka40002 gate)
         ("get_short_selling", {"stock_code": "005930"}),
+        ("get_stock_lending", {}),  # ka10068 market-wide
+        ("get_stock_lending", {"stock_code": "005930"}),  # ka20068 per-stock
         ("get_foreign_holding", {"stock_code": "005930", "limit": 5}),
+        ("get_program_trading", {"top": 5}),  # ka90003 — pre-market may be an empty-state ok
         ("get_watchlist_groups", {}),
         ("get_watchlist", None),
         ("get_theme_groups", {"limit": 5}),

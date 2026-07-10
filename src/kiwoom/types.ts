@@ -549,6 +549,43 @@ export const foreignHoldingResponseSchema = z.looseObject({
   stk_frgnr: z.array(foreignHoldingItemSchema).default([]),
 });
 
+// ── ka10068(전체)/ka20068(종목별): 대차거래추이 — /api/dostk/slb ──
+// Both TRs share the array key AND the row shape (mock-probed 2026-07-10).
+// 당일 행은 집계 전이라 전부 "0"으로 올 수 있다.
+
+export const lendingTrendItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  dbrt_trde_cntrcnt: str(), // 대차거래 체결주수 (주)
+  dbrt_trde_rpy: str(), // 대차거래 상환주수 (주)
+  dbrt_trde_irds: str(), // 대차거래 증감 (주, 부호) = 체결 − 상환
+  rmnd: str(), // 잔고주수 (주)
+  remn_amt: str(), // 잔고금액 (백만원)
+});
+
+export type LendingTrendItem = z.infer<typeof lendingTrendItemSchema>;
+
+export const lendingTrendResponseSchema = z.looseObject({
+  ...envelope,
+  dbrt_trde_trnsn: z.array(lendingTrendItemSchema).default([]),
+});
+
+// ── ka90003: 프로그램순매수상위50 — /api/dostk/stkinfo ──
+// prm_* 필드의 단위는 요청의 amt_qty_tp를 따른다 (1=금액 백만원, 2=수량 주).
+
+export const programTradeItemSchema = z.looseObject({
+  rank: str(), // 순위
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (부호 방향)
+  flu_rt: str(), // 등락률(%)
+  acc_trde_qty: str(), // 누적거래량 (주)
+  prm_sell_amt: str(), // 프로그램 매도
+  prm_buy_amt: str(), // 프로그램 매수
+  prm_netprps_amt: str(), // 프로그램 순매수 (부호)
+});
+
+export type ProgramTradeItem = z.infer<typeof programTradeItemSchema>;
+
 // ── ka10170: 당일매매일지 — /api/dostk/acnt (live-verified 2026-07-07) ──
 // NOTE: an empty trading day returns ONE all-blank row (not an empty array) — callers
 // must filter blank rows (empty stk_cd/stk_nm). A base_dt beyond ~2 months returns

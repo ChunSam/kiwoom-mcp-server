@@ -14,6 +14,7 @@ import {
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorTotalItemSchema,
+  lendingTrendResponseSchema,
   limitStockItemSchema,
   minuteChartItemSchema,
   newHighLowItemSchema,
@@ -21,6 +22,7 @@ import {
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
   priceJumpItemSchema,
+  programTradeItemSchema,
   realizedPnlResponseSchema,
   sectorPriceResponseSchema,
   sectorStocksResponseSchema,
@@ -45,6 +47,7 @@ import {
   type IndexItem,
   type InvestorDailyItem,
   type InvestorTotalItem,
+  type LendingTrendItem,
   type LimitStockItem,
   type MinuteChartItem,
   type NewHighLowItem,
@@ -52,6 +55,7 @@ import {
   type PendingOrderItem,
   type PriceChangeRankItem,
   type PriceJumpItem,
+  type ProgramTradeItem,
   type RealizedPnlResponse,
   type SectorPriceResponse,
   type SectorStockItem,
@@ -79,6 +83,7 @@ const WATCHLIST_PATH = "/api/dostk/watchlist";
 const THEME_PATH = "/api/dostk/thme";
 const SHORT_PATH = "/api/dostk/shsa";
 const FOREIGN_PATH = "/api/dostk/frgnistt";
+const SLB_PATH = "/api/dostk/slb";
 
 /** Pulls an array out of an already-envelope-checked response body. */
 function parseArray<T extends z.ZodType>(json: unknown, key: string, itemSchema: T): z.infer<T>[] {
@@ -622,6 +627,67 @@ export async function fetchForeignHolding(
     body: { stk_cd: stockCode },
   });
   return foreignHoldingResponseSchema.parse(res.json).stk_frgnr;
+}
+
+/**
+ * ka10068(전체)/ka20068(종목별) 대차거래추이 — securities-lending daily trend.
+ * 두 TR은 배열 키(dbrt_trde_trnsn)와 행 구조가 동일하다 (mock-probed 2026-07-10).
+ * stockCode 지정 시 ka20068 (all_tp "0" = 입력종목만), 미지정 시 ka10068 시장 전체
+ * (all_tp "1" = 전체표시). Rows newest-first.
+ */
+export async function fetchLendingTrend(
+  client: KiwoomClient,
+  stockCode: string | undefined,
+  fromDate: string,
+  toDate: string,
+): Promise<LendingTrendItem[]> {
+  const res = await client.call(
+    stockCode
+      ? {
+          path: SLB_PATH,
+          apiId: "ka20068",
+          body: { stk_cd: stockCode, all_tp: "0", strt_dt: fromDate, end_dt: toDate },
+        }
+      : {
+          path: SLB_PATH,
+          apiId: "ka10068",
+          body: { all_tp: "1", strt_dt: fromDate, end_dt: toDate },
+        },
+  );
+  return lendingTrendResponseSchema.parse(res.json).dbrt_trde_trnsn;
+}
+
+export type ProgramMarket = "kospi" | "kosdaq";
+
+/** ka90003만 쓰는 P-접두 시장코드 — 전체(all) 옵션이 없는 TR이다. */
+const PROGRAM_MARKET_CODES: Record<ProgramMarket, string> = {
+  kospi: "P00101",
+  kosdaq: "P10102",
+};
+
+/**
+ * ka90003 프로그램순매수상위50 — program-trading net buy/sell top-50 for the day.
+ * trde_upper_tp "1"=순매도, "2"=순매수; amt_qty_tp는 투자자 TR과 동일 코드
+ * (1=금액 백만원, 2=수량 주)이며 prm_* 필드의 단위가 이를 따른다. 장 시작 전에는
+ * rc=0 + 빈 배열이 온다 (mock-probed 2026-07-10 08:30 KST).
+ */
+export async function fetchProgramTrades(
+  client: KiwoomClient,
+  direction: "net_buy" | "net_sell",
+  unit: InvestorUnit,
+  market: ProgramMarket,
+): Promise<ProgramTradeItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka90003",
+    body: {
+      trde_upper_tp: direction === "net_sell" ? "1" : "2",
+      amt_qty_tp: INVESTOR_UNIT_CODES[unit],
+      mrkt_tp: PROGRAM_MARKET_CODES[market],
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "prm_netprps_upper_50", programTradeItemSchema);
 }
 
 /**
