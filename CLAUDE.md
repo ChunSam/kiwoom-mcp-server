@@ -214,8 +214,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   which ka40002 fills even for 삼성전자). Guard is best-effort — a failed ka40002 lookup does
   not block. NOTE: `get_etf_info` still renders a degenerate "-" card for non-ETF codes (same
   signal available; left as-is, revisit if it confuses).
-- 대차/프로그램 TRs (v0.13.0 batch; **mock-probed 2026-07-10** — REAL provenance per the status
-  bullet below): ka10068 대차거래추이 전체 + ka20068 대차거래추이 종목별 (both `/api/dostk/slb`;
+- 대차/프로그램 TRs (v0.13.0 batch; **live-verified on REAL 2026-07-10** — owner-authorized
+  one-shot read-only probe, 4 calls: rc=0, zero consumed-field gaps; **대차 responses
+  byte-identical mock==REAL** (5th TR family confirming mock mirrors production), ka90003
+  structurally identical — same 15-row shape/필드명/rank universe — with intraday values
+  differing only by capture timing): ka10068 대차거래추이 전체 + ka20068 대차거래추이 종목별 (both `/api/dostk/slb`;
   bodies `{all_tp: "1"전체표시, strt_dt, end_dt}` / `{stk_cd, all_tp: "0"입력종목만, strt_dt,
   end_dt}`) — **두 TR은 배열 키(`dbrt_trde_trnsn`)와 행 구조가 동일**: `{dt, dbrt_trde_cntrcnt
   체결(주), dbrt_trde_rpy 상환(주), dbrt_trde_irds 증감(주, 부호 — 실측으로 체결−상환과 일치),
@@ -231,9 +234,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   cur_prc, flu_sig, pred_pre, flu_rt, acc_trde_qty, prm_sell_amt, prm_buy_amt,
   prm_netprps_amt}`) — **장 시작 전에는 rc=0 + 빈 배열, 개장 직후부터 15행** (08:30 KST probe
   3개 조합 전부 빈 배열 → 09:01 KST 재프로브 15행, 행 필드명 11개 전부 openapi 스펙과 일치;
-  빈 상태 문구가 장전 케이스를 안내). prm_* 값은 amt_qty_tp에 따라 백만원/주 — 수량 모드도
-  필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading` (direction/unit/market enum,
-  get_ranking 패턴).
+  빈 상태 문구가 장전 케이스를 안내). **"상위50"이라는 이름과 달리 15행만 반환** (mock·REAL
+  양쪽 동일, 09:10 KST 관측 — 장 후반 증가 여부는 미확인). prm_* 값은 amt_qty_tp에 따라
+  백만원/주 — 수량 모드도 필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading`
+  (direction/unit/market enum, get_ranking 패턴).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -417,8 +421,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   (see the 대차/프로그램 TR bullet). Developed on VIRTUAL per the dev loop (fixtures in
   `tests/lending-program.test.ts` captured verbatim from mockapi 2026-07-10 — 대차 rows pre-market,
   ka90003 rows via a post-open 09:01 KST re-probe after the pre-market probe returned empty
-  arrays). 150 tests. `scripts/sweep.py` = 36 calls. **Server exposes 26 always-on tools
-  (27 with ISA).**
+  arrays), then **live-verified on REAL 2026-07-10** (owner-authorized one-shot read-only probe,
+  4 calls: rc=0, zero consumed-field gaps; 대차 byte-identical mock==REAL — 5th family; ka90003
+  structurally identical, intraday values differ by timing only; no 8050 recurrence). 150 tests.
+  `scripts/sweep.py` = 36 calls. **Server exposes 26 always-on tools (27 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
