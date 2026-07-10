@@ -174,10 +174,12 @@ export const stockListItemSchema = z.looseObject({
   lastPrice: str(), // 전일종가, zero-padded
   marketName: str(), // "거래소" | "코스닥" | "ETF" | ...
   upName: str(), // 업종명 (ETF/ETN은 빈 값)
-  upSizeName: str(), // 대형주/중형주/소형주
+  upSizeName: str(), // 대형주/중형주/소형주 (우선주/ETF 등은 빈 값)
   state: str(), // "증거금20%|담보대출|신용가능"
-  auditInfo: str(), // "정상" 등
-  orderWarning: str(), // "0"=정상
+  auditInfo: str(), // "정상"/"거래정지"/"관리종목"/"투자주의환기종목"/"단기과열"/"투자경고" 등
+  orderWarning: str(), // 투자유의: "0"=해당없음, 나머지는 master-list.ts ORDER_WARNING_LABELS
+  regDay: str(), // 상장일 yyyyMMdd
+  companyClassName: str(), // 코스닥 전용 기업분류: 벤처기업/우량기업/스팩 등 (그 외 빈 값)
 });
 
 export type StockListItem = z.infer<typeof stockListItemSchema>;

@@ -6,6 +6,7 @@ import {
   normalizeStockCode,
   pendingOrderItemSchema,
   stockInfoResponseSchema,
+  stockListItemSchema,
   transactionRowSchema,
 } from "../src/kiwoom/types.js";
 import { formatBalance } from "../src/tools/account-balance.js";
@@ -112,6 +113,56 @@ describe("formatStockInfo", () => {
     const info = stockInfoResponseSchema.parse({ return_code: 0, stk_cd: "005930", stk_nm: "삼성전자" });
     const text = formatStockInfo(info, MODE);
     expect(text).toContain("현재가: -");
+  });
+
+  it("appends 업종/상장일 from the master-list row when provided", () => {
+    // ka10099 row captured verbatim from mockapi 2026-07-11.
+    const master = stockListItemSchema.parse({
+      code: "005930",
+      name: "삼성전자",
+      listCount: "0000005846278608",
+      auditInfo: "정상",
+      regDay: "19750611",
+      lastPrice: "00278000",
+      state: "증거금30%|담보대출|신용가능",
+      marketCode: "0",
+      marketName: "거래소",
+      upName: "전기/전자",
+      upSizeName: "대형주",
+      companyClassName: "",
+      orderWarning: "0",
+      nxtEnable: "Y",
+      kind: "A",
+    });
+    const info = stockInfoResponseSchema.parse(ka10001Fixture);
+    const text = formatStockInfo(info, MODE, master);
+
+    expect(text).toContain("시장/업종: 거래소 · 전기/전자 (대형주)");
+    expect(text).toContain("상장일: 1975-06-11");
+    expect(text).not.toContain("투자유의");
+
+    // No master row (lookup miss / master fetch failure) → the block is absent.
+    expect(formatStockInfo(info, MODE)).not.toContain("시장/업종");
+  });
+
+  it("flags abnormal statuses from the master-list row", () => {
+    const master = stockListItemSchema.parse({
+      code: "000040",
+      name: "KR모터스",
+      auditInfo: "거래정지",
+      regDay: "19760525",
+      lastPrice: "00000267",
+      state: "증거금100%|거래정지",
+      marketName: "거래소",
+      upName: "운송장비/부품",
+      upSizeName: "소형주",
+      orderWarning: "0",
+    });
+    const info = stockInfoResponseSchema.parse({ return_code: 0, stk_cd: "000040", stk_nm: "KR모터스" });
+    const text = formatStockInfo(info, MODE, master);
+
+    expect(text).toContain("시장/업종: 거래소 · 운송장비/부품 (소형주)");
+    expect(text).toContain("⚠️ 투자유의: 거래정지");
   });
 });
 

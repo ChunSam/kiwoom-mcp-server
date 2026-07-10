@@ -28,3 +28,30 @@ export async function loadMasterList(client: KiwoomClient): Promise<StockListIte
 export function clearMasterListCache(): void {
   cache = null;
 }
+
+/**
+ * ka10099 orderWarning(투자유의종목여부) codes. "5" arrives on rows whose
+ * auditInfo is 투자경고 (mock-probed 2026-07-11), so the openapi description's
+ * "투자경과" is read as a typo for 투자경고. "1" is ETF-only.
+ */
+const ORDER_WARNING_LABELS: Record<string, string> = {
+  "1": "ETF투자주의요망",
+  "2": "정리매매",
+  "3": "단기과열",
+  "4": "투자위험",
+  "5": "투자경고",
+};
+
+/**
+ * Abnormal-status labels for a master-list row — 감리구분(auditInfo)이 "정상"이
+ * 아니면 그 값을, orderWarning이 "0"이 아니면 라벨을 모은다. 둘이 같은 상태를
+ * 가리키는 경우(예: auditInfo "단기과열" + orderWarning "3")는 한 번만 담는다.
+ * 정상 종목은 빈 배열.
+ */
+export function masterItemWarnings(item: StockListItem): string[] {
+  const warnings: string[] = [];
+  if (item.auditInfo && item.auditInfo !== "정상") warnings.push(item.auditInfo);
+  const orderLabel = ORDER_WARNING_LABELS[item.orderWarning];
+  if (orderLabel && !warnings.includes(orderLabel)) warnings.push(orderLabel);
+  return warnings;
+}
