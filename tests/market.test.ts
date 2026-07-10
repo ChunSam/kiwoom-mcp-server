@@ -297,8 +297,19 @@ describe("formatEtfInfo", () => {
     expect(text).not.toContain("괴리율");
   });
 
-  it("reports non-ETF codes gracefully", () => {
+  it("refuses non-ETF codes with a named notice instead of a degenerate card", () => {
+    // ka40002 discriminator (same as get_etf_returns): 비ETF = stk_nm filled, 추적지수명 blank.
+    const etf = etfInfoResponseSchema.parse({ return_code: 0, stk_nm: "삼성전자", etfobjt_idex_nm: "" });
+    const text = formatEtfInfo(etf, null, null, "005930", MODE);
+    expect(text).toContain("삼성전자 (005930)은(는) ETF가 아니어서 ETF 정보를 제공하지 않습니다");
+    expect(text).toContain("get_stock_price");
+    expect(text).not.toContain("추적지수");
+  });
+
+  it("reports unknown codes gracefully (both discriminator fields blank)", () => {
     const etf = etfInfoResponseSchema.parse({ return_code: 0 });
-    expect(formatEtfInfo(etf, null, null, "005930", MODE)).toContain("ETF 정보가 없습니다");
+    const text = formatEtfInfo(etf, null, null, "999999", MODE);
+    expect(text).toContain("999999의 ETF 정보를 찾을 수 없습니다");
+    expect(text).toContain("search_stock");
   });
 });
