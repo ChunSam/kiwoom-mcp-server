@@ -6,6 +6,7 @@ import { KiwoomApiError } from "./errors.js";
 import {
   accountEvaluationResponseSchema,
   allIndexResponseSchema,
+  brokerActivityResponseSchema,
   dailyChartItemSchema,
   depositResponseSchema,
   etfInfoResponseSchema,
@@ -34,10 +35,12 @@ import {
   themeStocksResponseSchema,
   transactionsResponseSchema,
   valueRankItemSchema,
+  viStockItemSchema,
   volumeRankItemSchema,
   watchlistGroupDetailResponseSchema,
   watchlistGroupsResponseSchema,
   type AccountEvaluationResponse,
+  type BrokerActivityResponse,
   type DailyChartItem,
   type DepositResponse,
   type EtfInfoResponse,
@@ -67,6 +70,7 @@ import {
   type TradingJournalResponse,
   type TransactionRow,
   type ValueRankItem,
+  type ViStockItem,
   type VolumeRankItem,
   type WatchlistGroupItem,
   type WatchlistStockItem,
@@ -627,6 +631,59 @@ export async function fetchForeignHolding(
     body: { stk_cd: stockCode },
   });
   return foreignHoldingResponseSchema.parse(res.json).stk_frgnr;
+}
+
+export type ViDirection = "all" | "up" | "down";
+export type ViType = "all" | "static" | "dynamic";
+
+const VI_DIRECTION_CODES: Record<ViDirection, string> = { all: "0", up: "1", down: "2" };
+const VI_TYPE_CODES: Record<ViType, string> = { all: "0", static: "1", dynamic: "2" };
+
+/**
+ * ka10054 변동성완화장치(VI) 발동종목 — mock-probed 2026-07-10. 필터 12종 중
+ * 거래량/거래대금 필터는 미사용("0"), skip_stk "000000000" = 전종목 포함.
+ * stockCode 지정 시 해당 종목의 당일 발동 내역만 (미발동이면 빈 배열).
+ */
+export async function fetchViStocks(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: ViDirection,
+  viType: ViType,
+  stockCode?: string,
+): Promise<ViStockItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10054",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      bf_mkrt_tp: "0",
+      stk_cd: stockCode ?? "",
+      motn_tp: VI_TYPE_CODES[viType],
+      skip_stk: "000000000",
+      trde_qty_tp: "0",
+      min_trde_qty: "0",
+      max_trde_qty: "0",
+      trde_prica_tp: "0",
+      min_trde_prica: "0",
+      max_trde_prica: "0",
+      motn_drc: VI_DIRECTION_CODES[direction],
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "motn_stk", viStockItemSchema);
+}
+
+/** ka10002 주식거래원 — 상위 5 매도/매수 거래원 (flat 37 fields, mock-probed 2026-07-10). */
+export async function fetchBrokerActivity(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<BrokerActivityResponse> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10002",
+    body: { stk_cd: stockCode },
+  });
+  return brokerActivityResponseSchema.parse(res.json);
 }
 
 /**

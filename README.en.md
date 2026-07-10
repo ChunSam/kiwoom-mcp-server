@@ -32,7 +32,9 @@ allowance.
 | `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges | ka10016/17/19 |
+| `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |
+| `get_broker_activity` | Per-stock top-5 buying/selling brokers (member firms) | ka10002 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |

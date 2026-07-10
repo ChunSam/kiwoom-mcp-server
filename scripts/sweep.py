@@ -133,7 +133,9 @@ def main() -> int:
         ("get_market_movers", {"signal": "lower_limit", "top": 3}),
         ("get_market_movers", {"signal": "surge", "top": 3}),
         ("get_market_movers", {"signal": "plunge", "top": 3}),
+        ("get_vi_stocks", {"top": 5}),  # ka10054
         ("get_investor_trend", {"stock_code": "005930"}),
+        ("get_broker_activity", {"stock_code": "005930"}),  # ka10002
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_returns", {"stock_code": "069500"}),
         ("get_etf_returns", {"stock_code": "005930"}),  # non-ETF guard path (ka40002 gate)
