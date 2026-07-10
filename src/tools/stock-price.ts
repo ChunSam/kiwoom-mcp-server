@@ -3,7 +3,9 @@ import { z } from "zod";
 
 import { getKiwoomContext } from "../context.js";
 import { fetchStockInfo } from "../kiwoom/api.js";
-import type { StockInfoResponse } from "../kiwoom/types.js";
+import { loadMasterList, masterItemWarnings } from "../kiwoom/master-list.js";
+import type { StockInfoResponse, StockListItem } from "../kiwoom/types.js";
+import { formatDateDashed } from "../utils/date.js";
 import {
   formatKRW,
   formatPercent,
@@ -20,7 +22,11 @@ const PRE_SIG_LABELS: Record<string, string> = {
   "5": "하락",
 };
 
-export function formatStockInfo(info: StockInfoResponse, modeLabel: string): string {
+export function formatStockInfo(
+  info: StockInfoResponse,
+  modeLabel: string,
+  master?: StockListItem,
+): string {
   const cur = parseKiwoomPrice(info.cur_prc);
   const change = parseKiwoomNumber(info.pred_pre);
   const fluRt = parseKiwoomNumber(info.flu_rt);
@@ -56,6 +62,22 @@ export function formatStockInfo(info: StockInfoResponse, modeLabel: string): str
     lines.push(`- ${fundamentals.join(" / ")}`);
   }
 
+  // ka10099 마스터 캐시에서 얻는 부가 정보 — 조회 실패 시 이 블록만 조용히 빠진다.
+  if (master) {
+    const marketParts = [master.marketName, master.upName].filter(Boolean).join(" · ");
+    const sizeClass = [master.upSizeName, master.companyClassName].filter(Boolean).join(", ");
+    if (marketParts) {
+      lines.push(`- 시장/업종: ${marketParts}${sizeClass ? ` (${sizeClass})` : ""}`);
+    }
+    if (/^\d{8}$/.test(master.regDay)) {
+      lines.push(`- 상장일: ${formatDateDashed(master.regDay)}`);
+    }
+    const warnings = masterItemWarnings(master);
+    if (warnings.length > 0) {
+      lines.push(`- ⚠️ 투자유의: ${warnings.join(" · ")}`);
+    }
+  }
+
   return lines.join("\n");
 }
 
@@ -66,6 +88,7 @@ export function registerStockPriceTool(server: McpServer): void {
       title: "종목 현재가 조회",
       description:
         "6자리 종목코드로 국내 주식/ETF의 현재가, 등락률, 거래량, 기본 지표를 조회합니다 (키움 ka10001). " +
+        "업종·상장일과 거래정지/관리종목/투자경고 같은 투자유의 상태도 함께 표시됩니다. " +
         "종목명만 알고 있다면 search_stock으로 먼저 코드를 찾으세요.",
       inputSchema: {
         stock_code: z
@@ -77,8 +100,15 @@ export function registerStockPriceTool(server: McpServer): void {
     async ({ stock_code }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const info = await fetchStockInfo(client, stock_code);
-        return textResult(formatStockInfo(info, config.modeLabel));
+        // 마스터 조회는 best-effort 부가정보 — 실패해도 시세 응답은 그대로 나간다.
+        // 캐시가 따뜻하면 추가 API 콜 없음(12h TTL), 콜드면 ka10099 2콜이 병렬로 얹힌다.
+        const [info, master] = await Promise.all([
+          fetchStockInfo(client, stock_code),
+          loadMasterList(client)
+            .then((items) => items.find((i) => i.code === stock_code))
+            .catch(() => undefined),
+        ]);
+        return textResult(formatStockInfo(info, config.modeLabel, master));
       }),
   );
 }

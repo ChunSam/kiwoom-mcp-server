@@ -15,6 +15,7 @@ import {
   valueRankItemSchema,
   volumeRankItemSchema,
 } from "../src/kiwoom/types.js";
+import { masterItemWarnings } from "../src/kiwoom/master-list.js";
 import { formatEtfInfo } from "../src/tools/etf-info.js";
 import { formatInvestorTrend } from "../src/tools/investor-trend.js";
 import { formatIndices } from "../src/tools/market-index.js";
@@ -32,6 +33,9 @@ const masterItems = [
   { code: "069500", name: "KODEX 200", lastPrice: "00123530", marketName: "ETF", upName: "", upSizeName: "", state: "증거금20%", auditInfo: "정상", orderWarning: "0" },
   { code: "379800", name: "KODEX 미국S&P500", lastPrice: "00026320", marketName: "ETF", upName: "", upSizeName: "", state: "증거금20%", auditInfo: "정상", orderWarning: "0" },
   { code: "005935", name: "삼성전자우", lastPrice: "00230000", marketName: "거래소", upName: "전기/전자", upSizeName: "대형주", state: "증거금30%", auditInfo: "정상", orderWarning: "0" },
+  // Abnormal-status rows captured verbatim from mockapi ka10099 (2026-07-11).
+  { code: "000040", name: "KR모터스", listCount: "0000000086375184", auditInfo: "거래정지", regDay: "19760525", lastPrice: "00000267", state: "증거금100%|거래정지", marketCode: "0", marketName: "거래소", upName: "운송장비/부품", upSizeName: "소형주", companyClassName: "", orderWarning: "0", nxtEnable: "N", kind: "A" },
+  { code: "000545", name: "흥국화재우", listCount: "0000000000768000", auditInfo: "단기과열", regDay: "19900320", lastPrice: "00005370", state: "증거금100%", marketCode: "0", marketName: "거래소", upName: "보험", upSizeName: "", companyClassName: "", orderWarning: "3", nxtEnable: "N", kind: "A" },
 ].map((i) => stockListItemSchema.parse(i));
 
 describe("searchStockItems", () => {
@@ -56,7 +60,35 @@ describe("searchStockItems", () => {
 
   it("renders a result table with parsed prices", () => {
     const text = formatSearchResults(searchStockItems(masterItems, "kodex"), "kodex", MODE);
-    expect(text).toContain("| 069500 | KODEX 200 | ETF | 123,530원 | - |");
+    expect(text).toContain("| 069500 | KODEX 200 | ETF | 123,530원 | - | - |");
+  });
+
+  it("renders abnormal statuses in the 비고 column, deduped across auditInfo/orderWarning", () => {
+    const halted = formatSearchResults(searchStockItems(masterItems, "000040"), "000040", MODE);
+    expect(halted).toContain("| 000040 | KR모터스 | 거래소 | 267원 | 운송장비/부품 | 거래정지 |");
+
+    // auditInfo "단기과열" + orderWarning "3"(단기과열) → one label, not two.
+    const overheated = formatSearchResults(searchStockItems(masterItems, "000545"), "000545", MODE);
+    expect(overheated).toContain("| 000545 | 흥국화재우 | 거래소 | 5,370원 | 보험 | 단기과열 |");
+    expect(overheated).not.toContain("단기과열·단기과열");
+  });
+});
+
+describe("masterItemWarnings", () => {
+  const base = masterItems[0]!;
+
+  it("returns empty for a normal row", () => {
+    expect(masterItemWarnings(base)).toEqual([]);
+  });
+
+  it("collects distinct auditInfo and orderWarning labels", () => {
+    expect(masterItemWarnings({ ...base, auditInfo: "거래정지", orderWarning: "0" })).toEqual(["거래정지"]);
+    expect(masterItemWarnings({ ...base, auditInfo: "관리종목", orderWarning: "5" })).toEqual(["관리종목", "투자경고"]);
+    expect(masterItemWarnings({ ...base, auditInfo: "정상", orderWarning: "1" })).toEqual(["ETF투자주의요망"]);
+  });
+
+  it("dedupes when both fields carry the same status", () => {
+    expect(masterItemWarnings({ ...base, auditInfo: "단기과열", orderWarning: "3" })).toEqual(["단기과열"]);
   });
 });
 

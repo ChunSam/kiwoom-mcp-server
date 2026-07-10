@@ -259,7 +259,19 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   upName/upSizeName/companyClassName/orderWarning/nxtEnable/kind — 005930으로 실측 대조) — 이미
   12h 캐시하는 마스터의 단건 조회일 뿐. 부수 발견: 마스터 행에 업종명(upName)/상장일(regDay)/
   감리구분/투자유의(orderWarning) 필드가 있어 search_stock/get_stock_price를 API 콜 없이 보강할
-  여지가 있다 (미구현, 아이디어만 기록).
+  여지가 있다 — **v0.15.0에서 구현 완료** (아래 마스터리스트 보강 불릿 참조).
+- 마스터리스트(ka10099) 보강 필드 (v0.15.0; **mock 실측 2026-07-11, 4,294행 전수 서베이**):
+  `regDay` 상장일 = 전 행 예외 없이 yyyyMMdd. `auditInfo` 감리/상태 자유텍스트 — 실측값
+  "정상"(4056)/"거래정지"(119)/"투자주의환기종목"(37)/"관리종목"(29)/"투자주의"(29)/
+  "단기과열"(12)/"투자경고"(12); ETF/ETN도 "정상"으로 채워짐. `orderWarning` 투자유의 코드
+  (KKimj openapi 응답 스키마) = **0 해당없음, 1 ETF투자주의요망(ETF만), 2 정리매매, 3 단기과열,
+  4 투자위험, 5 투자경고** — 스펙 원문의 "투자경과"는 오타 (실측: auditInfo "투자경고" 행들이
+  정확히 orderWarning "5", "단기과열"이 "3"). 둘은 상관되지만 동일하지 않아
+  `masterItemWarnings()` (master-list.ts)가 중복 제거해 합친다. `companyClassName` 코스닥 전용
+  (중견/우량/벤처/신성장기업/스팩/외국기업; 그 외 빈 값), `upSizeName`은 우선주/ETF에서 빈 값.
+  `state`(증거금|담보대출|신용가능 파이프 문자열)는 **표시 안 함** (거래정지/관리종목이 auditInfo와
+  중복, 증거금은 브로커 설정 노이즈). get_stock_price는 ka10001과 **병렬로 best-effort 마스터
+  조회** (warm 캐시 = 추가 콜 0, cold = ka10099 2콜이 얹힘; 실패 시 보강 블록만 조용히 생략).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -457,6 +469,16 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   consumed-field gaps; REAL first VI row was 동적 with static_* zeroed — picker confirmed both
   ways; no 8050). 155 tests. `scripts/sweep.py` = 38 calls. **Server exposes 28 always-on tools
   (29 with ISA).**
+- **v0.15.0 (2026-07-11) — hardening/UX pivot begins: master-list enrichment.** The zero-cost
+  idea recorded at the ka10100 skip is now shipped: `search_stock` gained a 비고 column
+  (거래정지/관리종목/단기과열/투자경고 등), `get_stock_price` gained 시장/업종(+대형주·코스닥
+  기업분류)/상장일/⚠️투자유의 lines via a best-effort parallel master lookup. New shared helper
+  `masterItemWarnings()` in `master-list.ts` (auditInfo + orderWarning 라벨, deduped);
+  `stockListItemSchema` +regDay/+companyClassName. **No new tool, no new TR** — ka10099 was
+  live-verified long ago, so no REAL probe needed; developed and verified on mock only (4,294-row
+  field survey + abnormal-row fixtures captured verbatim 2026-07-11). 161 tests.
+  `scripts/sweep.py` unchanged (38 calls — both tools already swept). **Server still exposes
+  28 always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

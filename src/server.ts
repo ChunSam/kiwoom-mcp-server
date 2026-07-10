@@ -29,7 +29,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.14.0";
+export const SERVER_VERSION = "0.15.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
