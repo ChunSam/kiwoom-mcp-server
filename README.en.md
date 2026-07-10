@@ -36,7 +36,9 @@ allowance.
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
+| `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_foreign_holding` | Per-stock foreign holding trend (holdings / holding weight / limit-usage rate) | ka10008 |
+| `get_program_trading` | Today's top program-trading net buys / sells (KOSPI/KOSDAQ) | ka90003 |
 
 **Watchlist** (interest-stock groups saved in the 영웅문 HTS client — read-only):
 

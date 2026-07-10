@@ -13,10 +13,12 @@ import { registerMarketMoversTool } from "./tools/market-movers.js";
 import { registerOrderbookTool } from "./tools/orderbook.js";
 import { registerPendingOrdersTool } from "./tools/pending-orders.js";
 import { registerPingTool } from "./tools/ping.js";
+import { registerProgramTradingTool } from "./tools/program-trading.js";
 import { registerRankingTool } from "./tools/ranking.js";
 import { registerSectorPriceTool, registerSectorStocksTool } from "./tools/sector.js";
 import { registerShortSellingTool } from "./tools/short-selling.js";
 import { registerStockChartTool } from "./tools/stock-chart.js";
+import { registerStockLendingTool } from "./tools/stock-lending.js";
 import { registerStockPriceTool } from "./tools/stock-price.js";
 import { registerStockSearchTool } from "./tools/stock-search.js";
 import { registerThemeGroupsTool, registerThemeStocksTool } from "./tools/theme.js";
@@ -25,7 +27,7 @@ import { registerTransactionsTool } from "./tools/transactions.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.12.1";
+export const SERVER_VERSION = "0.13.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -49,7 +51,9 @@ export function createServer(): McpServer {
   registerEtfInfoTool(server);
   registerEtfReturnsTool(server);
   registerShortSellingTool(server);
+  registerStockLendingTool(server);
   registerForeignHoldingTool(server);
+  registerProgramTradingTool(server);
 
   // Watchlist (HTS 저장 관심종목 — read-only; ka01300/ka01301)
   registerWatchlistGroupsTool(server);
