@@ -569,6 +569,60 @@ export const lendingTrendResponseSchema = z.looseObject({
   dbrt_trde_trnsn: z.array(lendingTrendItemSchema).default([]),
 });
 
+// ── ka10054: 변동성완화장치(VI) 발동종목 — /api/dostk/stkinfo ──
+// 정적 VI 행은 dynm_* 필드가 "0"/"0.00"으로 온다; virelis_time "000000" = 미해제.
+
+export const viStockItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  acc_trde_qty: str(), // 누적거래량 (주)
+  motn_pric: str(), // 발동가격 (원)
+  dynm_dispty_rt: str(), // 동적괴리율(%)
+  trde_cntr_proc_time: str(), // 매매체결처리시각 HHmmss
+  virelis_time: str(), // VI해제시각 HHmmss ("000000" = 미해제)
+  viaplc_tp: str(), // VI적용구분 ("정적"/"동적" 등)
+  dynm_stdpc: str(), // 동적기준가격 (원)
+  static_stdpc: str(), // 정적기준가격 (원)
+  static_dispty_rt: str(), // 정적괴리율(%)
+  open_pric_pre_flu_rt: str(), // 시가대비등락률(%)
+  vimotn_cnt: str(), // VI발동횟수
+});
+
+export type ViStockItem = z.infer<typeof viStockItemSchema>;
+
+// ── ka10002: 주식거래원 — /api/dostk/stkinfo (flat, 상위 5 매도/매수 거래원) ──
+// 수량은 부호 접두 (매도 음수/매수 양수 — 방향 중복이라 표시할 땐 절대값).
+
+export const brokerActivityResponseSchema = z.looseObject({
+  ...envelope,
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (부호 방향)
+  flu_rt: str(), // 등락률(%)
+  sel_trde_ori_nm_1: str(), // 매도거래원명1
+  sel_trde_qty_1: str(), // 매도거래량1 (주, 부호 접두)
+  sel_trde_ori_nm_2: str(),
+  sel_trde_qty_2: str(),
+  sel_trde_ori_nm_3: str(),
+  sel_trde_qty_3: str(),
+  sel_trde_ori_nm_4: str(),
+  sel_trde_qty_4: str(),
+  sel_trde_ori_nm_5: str(),
+  sel_trde_qty_5: str(),
+  buy_trde_ori_nm_1: str(), // 매수거래원명1
+  buy_trde_qty_1: str(), // 매수거래량1 (주, 부호 접두)
+  buy_trde_ori_nm_2: str(),
+  buy_trde_qty_2: str(),
+  buy_trde_ori_nm_3: str(),
+  buy_trde_qty_3: str(),
+  buy_trde_ori_nm_4: str(),
+  buy_trde_qty_4: str(),
+  buy_trde_ori_nm_5: str(),
+  buy_trde_qty_5: str(),
+});
+
+export type BrokerActivityResponse = z.infer<typeof brokerActivityResponseSchema>;
+
 // ── ka90003: 프로그램순매수상위50 — /api/dostk/stkinfo ──
 // prm_* 필드의 단위는 요청의 amt_qty_tp를 따른다 (1=금액 백만원, 2=수량 주).
 

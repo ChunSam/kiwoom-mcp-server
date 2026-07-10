@@ -238,6 +238,25 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   양쪽 동일, 09:10 KST 관측 — 장 후반 증가 여부는 미확인). prm_* 값은 amt_qty_tp에 따라
   백만원/주 — 수량 모드도 필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading`
   (direction/unit/market enum, get_ranking 패턴).
+- VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **mock-probed 2026-07-10** — REAL
+  provenance per the status bullet below): ka10054 변동성완화장치발동종목 (body: mrkt_tp
+  000/001/101 랭킹 코드 공유, `bf_mkrt_tp: "0"`, `stk_cd` 옵션(빈값=전체, 지정 시 해당 종목만 —
+  미발동이면 빈 배열), `motn_tp: "0"전체|"1"정적|"2"동적`, `skip_stk: "000000000"` 9자리
+  제외마스크=전종목 포함, 거래량/거래대금 필터 6종 미사용 "0", `motn_drc: "0"전체|"1"상승|"2"하락`,
+  `stex_tp: "1"` → `motn_stk[]` of `{stk_cd, stk_nm, acc_trde_qty, motn_pric 발동가,
+  dynm_dispty_rt/static_dispty_rt 동적·정적 괴리율, trde_cntr_proc_time 발동시각 HHmmss,
+  virelis_time 해제시각(**"000000"=미해제 → "-"**), viaplc_tp "정적"/"동적", dynm_stdpc/
+  static_stdpc, open_pric_pre_flu_rt 시가대비, vimotn_cnt 발동횟수, stex_tp "KRX"}` — **정적 VI
+  행은 dynm_* 필드가 "0"** 이므로 괴리율 컬럼은 viaplc_tp로 선택). Wrapped by `get_vi_stocks`.
+  ka10002 주식거래원 (body `{stk_cd}` → flat 37 fields: 시세 헤더 + `sel/buy_trde_ori_nm_1~5`
+  거래원명, `sel/buy_trde_ori_1~5` 거래원코드(미소비), `sel/buy_trde_qty_1~5` 수량 — **부호
+  접두(매도 음수/매수 양수), 방향 중복이라 절대값 표시**). Wrapped by `get_broker_activity`.
+  **ka10100 종목정보조회는 스킵 확정**: 응답이 ka10099 마스터 리스트의 행과 **완전히 동일한
+  camelCase 레코드** (code/name/listCount/auditInfo/regDay/lastPrice/state/marketCode/marketName/
+  upName/upSizeName/companyClassName/orderWarning/nxtEnable/kind — 005930으로 실측 대조) — 이미
+  12h 캐시하는 마스터의 단건 조회일 뿐. 부수 발견: 마스터 행에 업종명(upName)/상장일(regDay)/
+  감리구분/투자유의(orderWarning) 필드가 있어 search_stock/get_stock_price를 API 콜 없이 보강할
+  여지가 있다 (미구현, 아이디어만 기록).
 - Watchlist TRs (both `/api/dostk/watchlist`, read-only, live-verified 2026-07-06):
   ka01300 관심종목 그룹 리스트 (empty body → `nofi[]` of `{gcod 그룹코드, name 그룹명}`);
   ka01301 관심종목 그룹 상세 (body `{arn_grp_id: <gcod>}` → `nofj[]` of `{cod2 종목코드,
@@ -425,6 +444,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   4 calls: rc=0, zero consumed-field gaps; 대차 byte-identical mock==REAL — 5th family; ka90003
   structurally identical, intraday values differ by timing only; no 8050 recurrence). 150 tests.
   `scripts/sweep.py` = 36 calls. **Server exposes 26 always-on tools (27 with ISA).**
+- **v0.14.0 (2026-07-10) — VI + 거래원.** Added `get_vi_stocks` (ka10054 변동성완화장치 발동종목 —
+  market/direction/vi_type enum + optional stock_code) and `get_broker_activity` (ka10002 거래원
+  상위 5 매수/매도). **ka10100 skipped** — response is byte-for-byte a ka10099 master-list row
+  (see the VI/거래원 TR bullet). Developed on VIRTUAL per the dev loop (fixtures in
+  `tests/vi-broker.test.ts` captured verbatim from mockapi 2026-07-10; one synthetic 동적-VI row
+  for the 괴리율-picker branch — no dynamic VI observed on mock). 155 tests. `scripts/sweep.py`
+  = 38 calls. **Server exposes 28 always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

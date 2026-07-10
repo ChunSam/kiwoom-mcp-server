@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isIsaEnabled } from "./config.js";
 import { registerAccountBalanceTool } from "./tools/account-balance.js";
 import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
+import { registerBrokerActivityTool } from "./tools/broker-activity.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
 import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerForeignHoldingTool } from "./tools/foreign-holding.js";
@@ -24,10 +25,11 @@ import { registerStockSearchTool } from "./tools/stock-search.js";
 import { registerThemeGroupsTool, registerThemeStocksTool } from "./tools/theme.js";
 import { registerTradingJournalTool } from "./tools/trading-journal.js";
 import { registerTransactionsTool } from "./tools/transactions.js";
+import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.13.0";
+export const SERVER_VERSION = "0.14.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -47,7 +49,9 @@ export function createServer(): McpServer {
   registerSectorStocksTool(server);
   registerRankingTool(server);
   registerMarketMoversTool(server);
+  registerViStocksTool(server);
   registerInvestorTrendTool(server);
+  registerBrokerActivityTool(server);
   registerEtfInfoTool(server);
   registerEtfReturnsTool(server);
   registerShortSellingTool(server);
