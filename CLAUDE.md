@@ -238,8 +238,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   양쪽 동일, 09:10 KST 관측 — 장 후반 증가 여부는 미확인). prm_* 값은 amt_qty_tp에 따라
   백만원/주 — 수량 모드도 필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading`
   (direction/unit/market enum, get_ranking 패턴).
-- VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **mock-probed 2026-07-10** — REAL
-  provenance per the status bullet below): ka10054 변동성완화장치발동종목 (body: mrkt_tp
+- VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
+  owner-authorized one-shot read-only probe, 2 calls: rc=0, zero consumed-field gaps; REAL VI
+  rows included a 동적 행 with static_* fields zeroed — the mirror image of mock's 정적 rows,
+  confirming the 괴리율-picker both ways; intraday data so byte-comparison not applicable):
+  ka10054 변동성완화장치발동종목 (body: mrkt_tp
   000/001/101 랭킹 코드 공유, `bf_mkrt_tp: "0"`, `stk_cd` 옵션(빈값=전체, 지정 시 해당 종목만 —
   미발동이면 빈 배열), `motn_tp: "0"전체|"1"정적|"2"동적`, `skip_stk: "000000000"` 9자리
   제외마스크=전종목 포함, 거래량/거래대금 필터 6종 미사용 "0", `motn_drc: "0"전체|"1"상승|"2"하락`,
@@ -449,8 +452,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   상위 5 매수/매도). **ka10100 skipped** — response is byte-for-byte a ka10099 master-list row
   (see the VI/거래원 TR bullet). Developed on VIRTUAL per the dev loop (fixtures in
   `tests/vi-broker.test.ts` captured verbatim from mockapi 2026-07-10; one synthetic 동적-VI row
-  for the 괴리율-picker branch — no dynamic VI observed on mock). 155 tests. `scripts/sweep.py`
-  = 38 calls. **Server exposes 28 always-on tools (29 with ISA).**
+  for the 괴리율-picker branch, later observed live on both mock and REAL), then **live-verified
+  on REAL 2026-07-10** (owner-authorized one-shot read-only probe, 2 calls: rc=0, zero
+  consumed-field gaps; REAL first VI row was 동적 with static_* zeroed — picker confirmed both
+  ways; no 8050). 155 tests. `scripts/sweep.py` = 38 calls. **Server exposes 28 always-on tools
+  (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
