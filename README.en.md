@@ -123,6 +123,11 @@ npm test                     # unit tests (no network required)
 | `ISA_ENABLED` | | `true` registers the `calc_isa_tax_status` tool. Default `false` (general-account-first) |
 | `ISA_TYPE` | | `GENERAL` (general, 2,000,000 KRW limit, default) or `SEOMIN` (low-income/farmer-fisher, 4,000,000 KRW). Only used when `ISA_ENABLED=true` |
 | `ISA_OPENED_ON` | | ISA account opening date `yyyy-MM-dd` — default aggregation start for `calc_isa_tax_status`. Only used when `ISA_ENABLED=true` |
+| `MCP_TRANSPORT` | | `stdio` (default) or `http` — see [Remote access](#remote-access-http-mode--claudeai-webmobile) |
+| `MCP_AUTH_TOKEN` | HTTP mode ✅ | Bearer token every `/mcp` request must present in HTTP mode |
+| `MCP_HTTP_PORT` | | HTTP-mode port (default `8000`) |
+| `MCP_HTTP_HOST` | | HTTP-mode bind address (default `127.0.0.1`) |
+| `MCP_HTTP_NO_AUTH` | | `true` allows starting HTTP mode without auth (discouraged — see the security notes below) |
 
 The default is **general-account-first**: without extra config, only the market-data
 and account-inquiry tools are exposed. To use the tax-free-limit tool on an ISA
@@ -194,6 +199,38 @@ From source — app key from the project-root `.env`:
 ```sh
 claude mcp add kiwoom -- node /absolute/path/kiwoom-mcp-server/dist/index.js
 ```
+
+## Remote access (HTTP mode) — claude.ai web/mobile
+
+claude.ai **custom connectors** (web/mobile) cannot attach to a local stdio server;
+they need a **Streamable HTTP** MCP server reachable over public HTTPS. Start this
+server in HTTP mode with the `--http` flag (or `MCP_TRANSPORT=http`):
+
+```sh
+MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 8000
+# endpoint: http://127.0.0.1:8000/mcp · health check: /healthz
+```
+
+- **Auth is required by default.** Without `MCP_AUTH_TOKEN` the server refuses to
+  start — every `/mcp` request must carry `Authorization: Bearer <token>`. To run
+  without auth you must pass `--no-auth` explicitly; the account-inquiry tools are
+  then exposed as-is, so do that only on a trusted network or with a paper-trading
+  key (`KIWOOM_MODE=VIRTUAL`).
+- The default bind is `127.0.0.1`, assuming a tunnel in front. To expose directly
+  (container/VPS), opt in with `--host 0.0.0.0`.
+- Get a public HTTPS URL with e.g. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+  `cloudflared tunnel --url http://localhost:8000` (ephemeral URL — use a named
+  tunnel for anything permanent).
+- Register on claude.ai under **Settings → Connectors → Add custom connector** with
+  `https://<your-domain>/mcp`. The bearer token can be supplied via the connector's
+  request-header settings (beta). A connector added once is available across the
+  web, mobile, and desktop clients.
+- ⚠️ **Kiwoom API calls originate from wherever this server runs.** REAL mode is
+  bound to Kiwoom's designated-terminal (8050) IP registration, so running it
+  outside a registered IP (e.g. in the cloud) can fail auth. Validate remote
+  setups with a VIRTUAL key first.
+
+The stdio behavior (Claude Desktop/Code) is unchanged when run without arguments.
 
 ## Smoke test
 

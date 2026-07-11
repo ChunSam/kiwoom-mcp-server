@@ -67,7 +67,7 @@ export interface AppConfig {
 
 let cached: AppConfig | null = null;
 
-function loadDotEnv(): void {
+export function loadDotEnv(): void {
   // Claude Desktop launches this server with an arbitrary cwd, so resolve .env
   // relative to the project root (parent of dist/ or src/) first.
   const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
