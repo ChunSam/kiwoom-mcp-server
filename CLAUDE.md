@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Read-only MCP server (stdio transport) exposing the Kiwoom Securities REST API to Claude
+Read-only MCP server (stdio transport by default; opt-in Streamable HTTP mode for
+claude.ai custom connectors) exposing the Kiwoom Securities REST API to Claude
 Desktop/Code: market data (search/quote/chart/orderbook/index/ranking/movers/investor trend/ETF/
 theme/short-selling/foreign-holding) + HTS watchlist (read-only) + account inquiry (balance/holdings/
 transactions/pending orders/trading journal) + an ISA tax-allowance calculator.
@@ -101,9 +102,21 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
 
 ## Architecture
 
-- `src/index.ts` — entry point; connects `StdioServerTransport` only. **stdout is reserved
-  for MCP protocol frames; all logging must use `console.error` (stderr)** or the client
-  breaks.
+- `src/index.ts` — entry point; loads `.env` (real env wins), then `chooseTransport`
+  picks stdio (default, zero-arg — unchanged for existing installs) or HTTP (`--http` /
+  `MCP_TRANSPORT=http`). **stdout is reserved for MCP protocol frames in stdio mode; all
+  logging must use `console.error` (stderr)** or the client breaks.
+- `src/http.ts` — opt-in Streamable HTTP mode (v0.17.0) for claude.ai custom connectors:
+  `node:http` server (no new deps), `/mcp` endpoint + unauthenticated `/healthz`,
+  **stateless** SDK transport (`sessionIdGenerator: undefined`) with a fresh
+  `McpServer`+transport per request (module-level Kiwoom token/master-list caches are
+  shared, so per-request server build is cheap). **Bearer auth is required by default**:
+  HTTP mode refuses to start without `MCP_AUTH_TOKEN` (env-only — a CLI flag would leak
+  to `ps`) unless `--no-auth` is explicit; token check is timing-safe (sha256 +
+  `timingSafeEqual`). Default bind `127.0.0.1:8000` (tunnel-first; `--host 0.0.0.0` to
+  expose directly). Remote-exposure caveat: Kiwoom API calls originate wherever the
+  server runs — REAL mode's 8050 지정단말기 IP binding makes cloud hosting fail auth, so
+  remote setups run from a registered IP (e.g. home + Cloudflare Tunnel) or VIRTUAL.
 - `src/server.ts` — `createServer()` builds the `McpServer` and is the single registration
   hub: every tool module exports a `register<Name>Tool(server)` function called from here.
 - `src/context.ts` — lazy singleton for config + `KiwoomClient`. Config/credential errors
@@ -488,6 +501,15 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `masterItemWarnings()` on the master rows it already loads. No new tool/TR, no REAL probe
   needed; mock-only per the dev loop. 162 tests. `scripts/sweep.py` = 39 calls (+get_etf_info
   guard path). **Server still exposes 28 always-on tools (29 with ISA).**
+- **v0.17.0 (2026-07-12) — remote access: opt-in Streamable HTTP transport.** Path A
+  (supergateway stdio→HTTP bridge + Cloudflare quick tunnel, VIRTUAL) was owner-verified
+  end-to-end on claude.ai web AND mobile first; then the native mode shipped as
+  `src/http.ts` (see Architecture). No new TR, no Kiwoom-layer change → no REAL probe
+  needed; stdio behavior byte-identical for existing installs. 188 tests (+26 in
+  tests/http.test.ts incl. an in-process HTTP round-trip on an ephemeral port — offline,
+  ping/tools-list only). `scripts/sweep.py` unchanged (39 calls, stdio). README (ko/en)
+  gained a "원격 연결 (HTTP 모드)" section + 5 MCP_* env rows. **Server still exposes 28
+  always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

@@ -115,6 +115,11 @@ npm test                    # 단위 테스트 (네트워크 불필요)
 | `ISA_ENABLED` | | `true`면 `calc_isa_tax_status` tool 활성화. 기본값 `false`(일반 계좌 기준) |
 | `ISA_TYPE` | | `GENERAL`(일반형, 한도 200만원, 기본값) 또는 `SEOMIN`(서민형/농어민형, 400만원). `ISA_ENABLED=true`일 때만 사용 |
 | `ISA_OPENED_ON` | | ISA 계좌 개설일 `yyyy-MM-dd` — `calc_isa_tax_status` 집계 시작일 기본값. `ISA_ENABLED=true`일 때만 사용 |
+| `MCP_TRANSPORT` | | `stdio`(기본값) 또는 `http` — [원격 연결](#원격-연결-http-모드--claudeai-웹모바일) 참조 |
+| `MCP_AUTH_TOKEN` | HTTP 모드 ✅ | HTTP 모드에서 모든 `/mcp` 요청이 제시해야 하는 Bearer 토큰 |
+| `MCP_HTTP_PORT` | | HTTP 모드 포트 (기본값 `8000`) |
+| `MCP_HTTP_HOST` | | HTTP 모드 바인드 주소 (기본값 `127.0.0.1`) |
+| `MCP_HTTP_NO_AUTH` | | `true`면 인증 없이 HTTP 모드 기동 허용 (비권장 — 아래 보안 주의 참조) |
 
 기본값은 **일반(비-ISA) 계좌 기준**입니다 — 별도 설정이 없으면 시장·계좌 조회 tool만
 노출됩니다. ISA 계좌를 연결해 비과세 한도 tool을 쓰려면 `ISA_ENABLED=true`로 켜고
@@ -185,6 +190,34 @@ claude mcp add kiwoom \
 ```sh
 claude mcp add kiwoom -- node /절대/경로/kiwoom-mcp-server/dist/index.js
 ```
+
+## 원격 연결 (HTTP 모드) — claude.ai 웹/모바일
+
+claude.ai(웹/모바일)의 **커스텀 커넥터**는 로컬 stdio 서버에 직접 붙을 수 없고, 공개
+HTTPS로 접근 가능한 **Streamable HTTP** MCP 서버가 필요합니다. `--http` 플래그(또는
+`MCP_TRANSPORT=http`)로 이 서버를 HTTP 모드로 띄울 수 있습니다:
+
+```sh
+MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 8000
+# 엔드포인트: http://127.0.0.1:8000/mcp · 헬스체크: /healthz
+```
+
+- **인증이 기본 필수입니다.** `MCP_AUTH_TOKEN`이 없으면 기동을 거부합니다 — 모든 `/mcp`
+  요청에 `Authorization: Bearer <토큰>` 헤더가 있어야 합니다. 인증 없이 열려면
+  `--no-auth`를 명시해야 하며, 계좌 조회 도구가 그대로 노출되므로 신뢰할 수 있는
+  네트워크나 모의투자(`KIWOOM_MODE=VIRTUAL`)에서만 사용하세요.
+- 기본 바인드는 `127.0.0.1`입니다 — 터널을 앞에 두는 구성을 전제합니다. 컨테이너/서버에
+  직접 노출하려면 `--host 0.0.0.0`을 명시하세요.
+- 공개 HTTPS URL은 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 등으로 만듭니다:
+  `cloudflared tunnel --url http://localhost:8000` (임시 URL — 상시 운영은 named tunnel 권장).
+- claude.ai 등록: **Settings → Connectors → Add custom connector**에
+  `https://<도메인>/mcp`를 입력합니다. Bearer 토큰은 Advanced settings의 요청 헤더
+  설정(베타)으로 전달할 수 있습니다. 등록한 커넥터는 웹/모바일/데스크톱에서 공용입니다.
+- ⚠️ **키움 API 호출은 이 서버가 실행되는 곳에서 나갑니다.** REAL 모드는 키움 지정단말기
+  인증(8050)이 IP에 묶이므로, 등록된 IP가 아닌 곳(클라우드 등)에서 실행하면 인증 오류가
+  날 수 있습니다. 원격 노출은 모의투자로 먼저 검증하세요.
+
+기존 stdio 동작(Claude Desktop/Code 연결)은 인자 없이 실행하면 그대로입니다.
 
 ## 동작 확인
 

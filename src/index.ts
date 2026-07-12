@@ -1,9 +1,21 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { loadDotEnv } from "./config.js";
+import { chooseTransport, startHttpServer } from "./http.js";
 import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 async function main(): Promise<void> {
+  // Load .env before reading MCP_* transport vars (credential validation stays
+  // lazy in getConfig). Real environment variables win over the file.
+  loadDotEnv();
+  const choice = chooseTransport(process.argv.slice(2), process.env);
+
+  if (choice.mode === "http") {
+    await startHttpServer(choice.options);
+    return;
+  }
+
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
