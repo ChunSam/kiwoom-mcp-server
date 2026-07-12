@@ -117,6 +117,20 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   expose directly). Remote-exposure caveat: Kiwoom API calls originate wherever the
   server runs — REAL mode's 8050 지정단말기 IP binding makes cloud hosting fail auth, so
   remote setups run from a registered IP (e.g. home + Cloudflare Tunnel) or VIRTUAL.
+- `src/oauth.ts` — minimal built-in OAuth 2.0 authorization server (v0.18.0) so
+  claude.ai custom connectors authenticate natively (personal-plan claude.ai has NO
+  request-header field — OAuth is the only connector auth path; discovered 2026-07-12).
+  Implements the MCP auth spec chain: 401 + `WWW-Authenticate resource_metadata` →
+  RFC 9728 `/.well-known/oauth-protected-resource` → RFC 8414
+  `/.well-known/oauth-authorization-server` → RFC 7591 `/register` (DCR, https-or-loopback
+  redirect URIs only) → `/authorize` (Korean consent page; **the pre-shared
+  MCP_AUTH_TOKEN doubles as the consent password** — one secret, two auth paths) →
+  `/token` (PKCE S256 enforced, single-use 5-min codes, opaque hex tokens, 1h access /
+  rotating refresh). Tokens+clients persist to `<cwd>/.oauth-state.json` (0600,
+  gitignored) so launchd restarts don't drop connectors. Consent brute-force guard:
+  10 failures / 10 min → 429. `/mcp` accepts static bearer OR OAuth access token;
+  issuer/base URL derives from Host + X-Forwarded-Proto (funnel/tunnel-friendly),
+  `MCP_PUBLIC_URL` overrides. `--no-auth` disables OAuth endpoints entirely.
 - `src/server.ts` — `createServer()` builds the `McpServer` and is the single registration
   hub: every tool module exports a `register<Name>Tool(server)` function called from here.
 - `src/context.ts` — lazy singleton for config + `KiwoomClient`. Config/credential errors
@@ -510,6 +524,17 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   ping/tools-list only). `scripts/sweep.py` unchanged (39 calls, stdio). README (ko/en)
   gained a "원격 연결 (HTTP 모드)" section + 5 MCP_* env rows. **Server still exposes 28
   always-on tools (29 with ISA).**
+- **v0.18.0 (2026-07-12) — built-in OAuth for claude.ai connectors.** Driven by a live
+  finding: the owner's personal-plan claude.ai connector dialog exposes ONLY OAuth
+  client-ID/secret fields (no request-header input), so the v0.17.0 static-bearer path
+  cannot authenticate there; claude.ai auto-started an OAuth flow against the nonexistent
+  `/authorize` (404 screenshot). Options weighed: URL-secret path + `--no-auth` (plan B,
+  blocked by the auto-mode classifier as a safety bypass and rightly so) vs implementing
+  the MCP auth spec — owner chose OAuth. See the `src/oauth.ts` Architecture bullet for
+  the full design. No new TR/Kiwoom-layer change → no REAL probe; stdio and `--no-auth`
+  behavior unchanged. 205 tests (+17 in tests/oauth.test.ts incl. an in-process
+  register→consent→token→/mcp round-trip). `scripts/sweep.py` unchanged (39 calls).
+  **Server still exposes 28 always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

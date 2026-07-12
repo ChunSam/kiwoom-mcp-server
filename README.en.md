@@ -222,9 +222,15 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
   `cloudflared tunnel --url http://localhost:8000` (ephemeral URL — use a named
   tunnel for anything permanent).
 - Register on claude.ai under **Settings → Connectors → Add custom connector** with
-  `https://<your-domain>/mcp`. The bearer token can be supplied via the connector's
-  request-header settings (beta). A connector added once is available across the
-  web, mobile, and desktop clients.
+  `https://<your-domain>/mcp` (leave the OAuth fields in Advanced settings empty).
+  On connect, a browser **consent page** opens — enter your `MCP_AUTH_TOKEN` as the
+  access password and you are done: the server implements the MCP authorization spec
+  (OAuth 2.0 + PKCE with dynamic client registration), so no header configuration is
+  needed. A connector added once is available across the web, mobile, and desktop
+  clients. Header-capable clients (e.g. Claude Code `--header`) can still use the
+  static `Authorization: Bearer <MCP_AUTH_TOKEN>` path. OAuth tokens are persisted
+  to `.oauth-state.json` (0600) in the working directory, so restarts don't drop
+  the connection.
 - ⚠️ **Kiwoom API calls originate from wherever this server runs.** REAL mode is
   bound to Kiwoom's designated-terminal (8050) IP registration, so running it
   outside a registered IP (e.g. in the cloud) can fail auth. Validate remote
