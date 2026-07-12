@@ -211,8 +211,14 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
 - 공개 HTTPS URL은 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 등으로 만듭니다:
   `cloudflared tunnel --url http://localhost:8000` (임시 URL — 상시 운영은 named tunnel 권장).
 - claude.ai 등록: **Settings → Connectors → Add custom connector**에
-  `https://<도메인>/mcp`를 입력합니다. Bearer 토큰은 Advanced settings의 요청 헤더
-  설정(베타)으로 전달할 수 있습니다. 등록한 커넥터는 웹/모바일/데스크톱에서 공용입니다.
+  `https://<도메인>/mcp`를 입력합니다 (고급 설정의 OAuth 필드는 비워둡니다). 연결 시
+  브라우저에 **승인 페이지**가 뜨고, `MCP_AUTH_TOKEN` 값을 접속 암호로 입력하면
+  완료됩니다 — 서버가 MCP 인증 스펙(OAuth 2.0 + PKCE, 동적 클라이언트 등록)을 내장하고
+  있어 별도 헤더 설정이 필요 없습니다. 등록한 커넥터는 웹/모바일/데스크톱에서 공용입니다.
+  헤더를 지정할 수 있는 클라이언트(예: Claude Code `--header`)는 기존처럼
+  `Authorization: Bearer <MCP_AUTH_TOKEN>` 정적 헤더로도 접속할 수 있습니다.
+  OAuth 토큰은 작업 디렉터리의 `.oauth-state.json`(0600)에 저장되어 서버를 재시작해도
+  연결이 유지됩니다.
 - ⚠️ **키움 API 호출은 이 서버가 실행되는 곳에서 나갑니다.** REAL 모드는 키움 지정단말기
   인증(8050)이 IP에 묶이므로, 등록된 IP가 아닌 곳(클라우드 등)에서 실행하면 인증 오류가
   날 수 있습니다. 원격 노출은 모의투자로 먼저 검증하세요.

@@ -18,3 +18,4 @@ plans/
 # Owner-local live-test docs — contain real account data, never publish
 kiwoom-mcp-test-log.md
 kiwoom-mcp-test-prompts.md
+.oauth-state.json

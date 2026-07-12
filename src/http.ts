@@ -1,8 +1,14 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import http from "node:http";
+import path from "node:path";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+import {
+  handleOAuthRequest,
+  OAuthProvider,
+  requestBaseUrl,
+  timingSafeStringEqual,
+} from "./oauth.js";
 import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 const DEFAULT_PORT = 8000;
@@ -17,6 +23,10 @@ export interface HttpOptions {
   authToken: string | undefined;
   /** Explicit opt-out of auth (--no-auth / MCP_HTTP_NO_AUTH) — off by default. */
   allowNoAuth: boolean;
+  /** Optional canonical base URL (MCP_PUBLIC_URL) for OAuth issuer/metadata. */
+  publicUrl?: string;
+  /** OAuth token/client persistence path (default: <cwd>/.oauth-state.json). */
+  oauthStatePath?: string;
 }
 
 export type TransportChoice = { mode: "stdio" } | { mode: "http"; options: HttpOptions };
@@ -78,17 +88,21 @@ export function chooseTransport(argv: string[], env: NodeJS.ProcessEnv): Transpo
     );
   }
 
-  return { mode: "http", options: { port, host, authToken, allowNoAuth } };
+  const publicUrl = env.MCP_PUBLIC_URL?.trim() || undefined;
+  return { mode: "http", options: { port, host, authToken, allowNoAuth, publicUrl } };
 }
 
-/** Timing-safe bearer-token check (hash first so lengths never short-circuit). */
-export function isAuthorized(authorizationHeader: string | undefined, token: string): boolean {
-  if (!authorizationHeader) return false;
+/** Extracts the bearer credential from an Authorization header, if any. */
+export function bearerToken(authorizationHeader: string | undefined): string | undefined {
+  if (!authorizationHeader) return undefined;
   const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader.trim());
-  if (!match) return false;
-  const presented = createHash("sha256").update(match[1]!).digest();
-  const expected = createHash("sha256").update(token).digest();
-  return timingSafeEqual(presented, expected);
+  return match?.[1];
+}
+
+/** Timing-safe static bearer-token check. */
+export function isAuthorized(authorizationHeader: string | undefined, token: string): boolean {
+  const presented = bearerToken(authorizationHeader);
+  return presented !== undefined && timingSafeStringEqual(presented, token);
 }
 
 function deny(res: http.ServerResponse, status: number, message: string): void {
@@ -109,8 +123,16 @@ function deny(res: http.ServerResponse, status: number, message: string): void {
  * lives at module level and is shared across requests.
  */
 export function createHttpServer(options: HttpOptions): http.Server {
+  // OAuth rides on the same consent secret as the static bearer: no token → no
+  // OAuth endpoints (that is the explicit --no-auth everything-open mode).
+  const oauth = options.authToken
+    ? new OAuthProvider({
+        consentToken: options.authToken,
+        statePath: options.oauthStatePath ?? path.join(process.cwd(), ".oauth-state.json"),
+      })
+    : null;
   return http.createServer((req, res) => {
-    void handleRequest(req, res, options).catch((error: unknown) => {
+    void handleRequest(req, res, options, oauth).catch((error: unknown) => {
       console.error("HTTP request handling failed:", error);
       if (!res.headersSent) deny(res, 500, "internal server error");
     });
@@ -121,6 +143,7 @@ async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   options: HttpOptions,
+  oauth: OAuthProvider | null,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
@@ -129,14 +152,31 @@ async function handleRequest(
     return;
   }
 
+  if (oauth && (await handleOAuthRequest(req, res, oauth, options.publicUrl))) {
+    return;
+  }
+
   if (url.pathname !== MCP_PATH) {
     deny(res, 404, `not found — MCP endpoint is ${MCP_PATH}`);
     return;
   }
 
-  if (options.authToken && !isAuthorized(req.headers.authorization, options.authToken)) {
-    deny(res, 401, "unauthorized — Authorization: Bearer <MCP_AUTH_TOKEN> 헤더가 필요합니다");
-    return;
+  if (options.authToken) {
+    const presented = bearerToken(req.headers.authorization);
+    const ok =
+      presented !== undefined &&
+      (timingSafeStringEqual(presented, options.authToken) ||
+        (oauth?.validateAccessToken(presented) ?? false));
+    if (!ok) {
+      // RFC 9728: point 401s at the protected-resource metadata so MCP
+      // clients (claude.ai connectors) can discover the OAuth flow.
+      res.setHeader(
+        "WWW-Authenticate",
+        `Bearer realm="${SERVER_NAME}", resource_metadata="${requestBaseUrl(req, options.publicUrl)}/.well-known/oauth-protected-resource"`,
+      );
+      deny(res, 401, "unauthorized — OAuth 승인 또는 Authorization: Bearer <MCP_AUTH_TOKEN> 헤더가 필요합니다");
+      return;
+    }
   }
 
   const server = createServer();
