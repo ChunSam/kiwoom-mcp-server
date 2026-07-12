@@ -1,8 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { getKiwoomContext } from "../context.js";
-import { fetchAccountEvaluation, fetchDeposit } from "../kiwoom/api.js";
-import type { AccountEvaluationResponse, DepositResponse } from "../kiwoom/types.js";
+import { fetchAccountEvaluation, fetchAccountPeriodPl, fetchDeposit } from "../kiwoom/api.js";
+import type {
+  AccountEvaluationResponse,
+  AccountPeriodPlResponse,
+  DepositResponse,
+} from "../kiwoom/types.js";
 import { formatKRW, formatPercent, formatSignedKRW, parseKiwoomNumber } from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
@@ -10,9 +14,10 @@ export function formatBalance(
   deposit: DepositResponse,
   evaluation: AccountEvaluationResponse,
   modeLabel: string,
+  periodPl: AccountPeriodPlResponse | null = null,
 ): string {
   const n = parseKiwoomNumber;
-  return [
+  const lines = [
     `[${modeLabel}] 계좌 잔고 요약`,
     "",
     "■ 예수금 (kt00001)",
@@ -25,7 +30,21 @@ export function formatBalance(
     `- 총평가금액: ${formatKRW(n(evaluation.tot_evlt_amt))}`,
     `- 총평가손익: ${formatSignedKRW(n(evaluation.tot_evlt_pl))} (${formatPercent(n(evaluation.tot_prft_rt))})`,
     `- 추정예탁자산: ${formatKRW(n(evaluation.prsm_dpst_aset_amt))}`,
-  ].join("\n");
+  ];
+
+  // 기간 손익 블록은 best-effort — kt00004 조회 실패 시 조용히 생략된다.
+  // 라벨은 키움 스펙 원문 그대로 (당일/당월/누적 투자손익·투자원금·손익율).
+  if (periodPl) {
+    lines.push(
+      "",
+      "■ 기간 손익 (kt00004)",
+      `- 당일투자손익: ${formatSignedKRW(n(periodPl.tdy_lspft))} (${formatPercent(n(periodPl.tdy_lspft_rt))}) / 당일투자원금 ${formatKRW(n(periodPl.tdy_lspft_amt))}`,
+      `- 당월투자손익: ${formatSignedKRW(n(periodPl.lspft2))} (${formatPercent(n(periodPl.lspft_ratio))}) / 당월투자원금 ${formatKRW(n(periodPl.invt_bsamt))}`,
+      `- 누적투자손익: ${formatSignedKRW(n(periodPl.lspft))} (${formatPercent(n(periodPl.lspft_rt))}) / 누적투자원금 ${formatKRW(n(periodPl.lspft_amt))}`,
+    );
+  }
+
+  return lines.join("\n");
 }
 
 export function registerAccountBalanceTool(server: McpServer): void {
@@ -35,17 +54,23 @@ export function registerAccountBalanceTool(server: McpServer): void {
       title: "계좌 잔고 조회",
       description:
         "계좌의 예수금(주문가능/출금가능 포함)과 총매입금액, 총평가금액, 총평가손익, " +
-        "추정예탁자산을 조회합니다 (키움 kt00001 + kt00018). 인자가 필요 없습니다.",
+        "추정예탁자산, 당일/당월/누적 투자손익을 조회합니다 (키움 kt00001 + kt00018 + kt00004). " +
+        "인자가 필요 없습니다.",
     },
     async () =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
         // Different TRs — the per-TR rate limit allows these in parallel.
-        const [deposit, evaluation] = await Promise.all([
+        // kt00004 is best-effort: on failure only the 기간 손익 block is dropped.
+        const [deposit, evaluation, periodPl] = await Promise.all([
           fetchDeposit(client),
           fetchAccountEvaluation(client, "1"),
+          fetchAccountPeriodPl(client).catch((error: unknown) => {
+            console.error("kt00004 계좌평가현황 조회 실패 — 기간 손익 블록 생략:", error);
+            return null;
+          }),
         ]);
-        return textResult(formatBalance(deposit, evaluation, config.modeLabel));
+        return textResult(formatBalance(deposit, evaluation, config.modeLabel, periodPl));
       }),
   );
 }

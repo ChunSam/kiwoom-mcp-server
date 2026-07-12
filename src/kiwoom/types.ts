@@ -95,6 +95,25 @@ export const accountEvaluationResponseSchema = z.looseObject({
 
 export type AccountEvaluationResponse = z.infer<typeof accountEvaluationResponseSchema>;
 
+// ── kt00004: 계좌평가현황 (subset — 당일/당월/누적 기간 손익 필드만 소비) ──
+// 예수금/평가액 계열과 종목별 리스트(stk_acnt_evlt_prst)는 kt00001/kt00018과
+// 중복이라 소비하지 않는다. 필드명은 스펙 그대로(lspft 계열 명명이 뒤섞여 있음).
+
+export const accountPeriodPlResponseSchema = z.looseObject({
+  ...envelope,
+  tdy_lspft_amt: str(), // 당일투자원금
+  invt_bsamt: str(), // 당월투자원금
+  lspft_amt: str(), // 누적투자원금
+  tdy_lspft: str(), // 당일투자손익 (부호 유의미)
+  lspft2: str(), // 당월투자손익 (부호 유의미)
+  lspft: str(), // 누적투자손익 (부호 유의미)
+  tdy_lspft_rt: str(), // 당일손익율(%)
+  lspft_ratio: str(), // 당월손익율(%)
+  lspft_rt: str(), // 누적손익율(%)
+});
+
+export type AccountPeriodPlResponse = z.infer<typeof accountPeriodPlResponseSchema>;
+
 // ── kt00015: 위탁종합거래내역 (subset) ──
 // NOTE: trde_dt is the settlement date (D+2), not the trade date.
 
