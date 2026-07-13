@@ -591,7 +591,32 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   deployed @0.19.0 (owner-run install+kickstart after a [Production Deploy] classifier
   block; OAuth state survived the restart). **Server still exposes 28 always-on tools
   (29 with ISA).**
-- 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
+- **v0.19.1 (2026-07-14) — MCP Registry distribution metadata (visibility round begins).**
+  No behavior change → patch per version policy. package.json gains **`mcpName:
+  "io.github.ChunSam/kiwoom-mcp-server"`** — required by the official MCP Registry
+  (registry.modelcontextprotocol.io) npm ownership validation, which fetches the
+  PUBLISHED package.json of the exact version in server.json and EXACT-matches `mcpName`
+  against the server name (case-sensitive: namespace permission is a
+  `strings.HasPrefix` on `io.github.<GitHub login>/*` with the login's canonical casing
+  `ChunSam` — all three verified in registry source 2026-07-14). The field is permanent:
+  every future registry-published version needs it in that npm version too. New repo-root
+  **`server.json`** (schema 2025-12-11 — registry is PREVIEW, schema churned 5×/year;
+  description capped at 100 chars): npm stdio package + 4 env vars
+  (KIWOOM_APP_KEY/APP_SECRET secret+required, KIWOOM_MODE choices, ISA_ENABLED boolean).
+  **`remotes` deliberately NOT declared** — the registry requires remote URLs to be
+  publicly accessible services; the personal Tailscale funnel is a single-account
+  instance, and BYO-app-key stdio install is the honest representation. Not in the npm
+  tarball (`files: ["dist"]` unchanged) — the registry stores it from `mcp-publisher
+  publish`, git is just provenance. Publish chain (owner-gated): npm publish 0.19.1 →
+  `mcp-publisher login github` (device flow) → `mcp-publisher publish`. Directory-round
+  facts (researched 2026-07-14): **Glama already auto-lists this server unclaimed**
+  (glama.ai/mcp/servers/ChunSam/kiwoom-mcp-server, grades A/A/A, stale "local-only"
+  blurb — personal-repo claim = GitHub login, no repo file); PulseMCP ingests the
+  official registry daily (also has /submit form); mcp.so = self-service form
+  (Cloudflare-blocked for bots — human clicks); Smithery needs an MCPB bundle (deferred;
+  avoid its Hosted flow — 2025-06 security incident + architecture mismatch). Name
+  collision: an unrelated trading-capable "Kiwoom Securities" (kwonsw812) is on
+  PulseMCP — listing copy must lead with read-only/28 tools to differentiate. a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
   entry must be classified rather than treated uniformly.
