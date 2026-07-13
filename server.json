@@ -1,0 +1,48 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ChunSam/kiwoom-mcp-server",
+  "title": "Kiwoom Securities MCP Server",
+  "description": "Read-only MCP server for the Kiwoom Securities REST API: market data, account inquiry, ISA tax tool",
+  "version": "0.19.1",
+  "repository": {
+    "url": "https://github.com/ChunSam/kiwoom-mcp-server",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/ChunSam/kiwoom-mcp-server#readme",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "kiwoom-mcp-server",
+      "version": "0.19.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "KIWOOM_APP_KEY",
+          "description": "Kiwoom REST API app key (issued at openapi.kiwoom.com; VIRTUAL and REAL need separate keys)",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "KIWOOM_APP_SECRET",
+          "description": "Kiwoom REST API app secret",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "KIWOOM_MODE",
+          "description": "VIRTUAL (모의투자, mock trading) or REAL (실전투자, live account)",
+          "default": "VIRTUAL",
+          "choices": ["VIRTUAL", "REAL"]
+        },
+        {
+          "name": "ISA_ENABLED",
+          "description": "Opt-in switch for the ISA tax-allowance tool (set true together with ISA_TYPE / ISA_OPENED_ON)",
+          "format": "boolean",
+          "default": "false"
+        }
+      ]
+    }
+  ]
+}
