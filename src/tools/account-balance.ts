@@ -35,13 +35,27 @@ export function formatBalance(
   // 기간 손익 블록은 best-effort — kt00004 조회 실패 시 조용히 생략된다.
   // 라벨은 키움 스펙 원문 그대로 (당일/당월/누적 투자손익·투자원금·손익율).
   if (periodPl) {
-    lines.push(
-      "",
-      "■ 기간 손익 (kt00004)",
-      `- 당일투자손익: ${formatSignedKRW(n(periodPl.tdy_lspft))} (${formatPercent(n(periodPl.tdy_lspft_rt))}) / 당일투자원금 ${formatKRW(n(periodPl.tdy_lspft_amt))}`,
-      `- 당월투자손익: ${formatSignedKRW(n(periodPl.lspft2))} (${formatPercent(n(periodPl.lspft_ratio))}) / 당월투자원금 ${formatKRW(n(periodPl.invt_bsamt))}`,
-      `- 누적투자손익: ${formatSignedKRW(n(periodPl.lspft))} (${formatPercent(n(periodPl.lspft_rt))}) / 누적투자원금 ${formatKRW(n(periodPl.lspft_amt))}`,
-    );
+    const values = [
+      periodPl.tdy_lspft_amt, periodPl.invt_bsamt, periodPl.lspft_amt,
+      periodPl.tdy_lspft, periodPl.lspft2, periodPl.lspft,
+      periodPl.tdy_lspft_rt, periodPl.lspft_ratio, periodPl.lspft_rt,
+    ];
+    const allZero = values.every((v) => !(n(v) ?? 0));
+    lines.push("", "■ 기간 손익 (kt00004)");
+    if (allZero) {
+      // REAL 실측(2026-07-13): 보유·이력이 있는 계좌도 9필드 전부 0으로 반환될 수
+      // 있다 (집계 시점/기준 미설정 추정). "손익 0원"으로 단정 표시하면 오해를
+      // 유발하므로, ka40009 NAV 선례처럼 값이 채워질 때만 수치를 렌더한다.
+      lines.push(
+        "- 키움이 기간 손익을 모두 0으로 반환했습니다 — 집계 전이거나 수익률 산출 기준이 없는 계좌일 수 있어 실제 손익이 0이라는 뜻은 아닐 수 있습니다.",
+      );
+    } else {
+      lines.push(
+        `- 당일투자손익: ${formatSignedKRW(n(periodPl.tdy_lspft))} (${formatPercent(n(periodPl.tdy_lspft_rt))}) / 당일투자원금 ${formatKRW(n(periodPl.tdy_lspft_amt))}`,
+        `- 당월투자손익: ${formatSignedKRW(n(periodPl.lspft2))} (${formatPercent(n(periodPl.lspft_ratio))}) / 당월투자원금 ${formatKRW(n(periodPl.invt_bsamt))}`,
+        `- 누적투자손익: ${formatSignedKRW(n(periodPl.lspft))} (${formatPercent(n(periodPl.lspft_rt))}) / 누적투자원금 ${formatKRW(n(periodPl.lspft_amt))}`,
+      );
+    }
   }
 
   return lines.join("\n");

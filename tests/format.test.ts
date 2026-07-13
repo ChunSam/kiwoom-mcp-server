@@ -225,13 +225,15 @@ describe("formatBalance", () => {
     expect(text).toContain("누적투자손익: +1,200,000원 (+8.00%) / 누적투자원금 15,000,000원");
   });
 
-  it("renders zeros for a fresh account (mock verbatim: all-zero kt00004)", () => {
+  it("replaces an all-zero kt00004 with an honest notice (REAL-observed 2026-07-13)", () => {
     const deposit = depositResponseSchema.parse(kt00001Fixture);
     const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
-    // Captured verbatim from mockapi 2026-07-13 ("모의투자 해당조회내역이 없습니다").
+    // All-zero shape captured verbatim from BOTH mockapi (fresh account) and a
+    // REAL account with live holdings (2026-07-13 probe) — zeros do not mean
+    // the account earned nothing, so numbers must not be asserted.
     const periodPl = accountPeriodPlResponseSchema.parse({
       return_code: 0,
-      return_msg: "모의투자 해당조회내역이 없습니다.",
+      return_msg: "조회가 완료되었습니다.",
       tdy_lspft_amt: "000000000000",
       invt_bsamt: "000000000000",
       lspft_amt: "000000000000",
@@ -244,7 +246,24 @@ describe("formatBalance", () => {
       stk_acnt_evlt_prst: [],
     });
     const text = formatBalance(deposit, evaluation, MODE, periodPl);
+    expect(text).toContain("■ 기간 손익 (kt00004)");
+    expect(text).toContain("모두 0으로 반환");
+    expect(text).not.toContain("당일투자손익:");
+  });
+
+  it("renders numbers when any period-P&L field is non-zero (당일 0 on a no-trade day)", () => {
+    const deposit = depositResponseSchema.parse(kt00001Fixture);
+    const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
+    const periodPl = accountPeriodPlResponseSchema.parse({
+      ...kt00004Fixture,
+      tdy_lspft_amt: "000000000000",
+      tdy_lspft: "000000000000",
+      tdy_lspft_rt: "0.00",
+    });
+    const text = formatBalance(deposit, evaluation, MODE, periodPl);
     expect(text).toContain("당일투자손익: 0원 (0.00%) / 당일투자원금 0원");
+    expect(text).toContain("누적투자손익: +1,200,000원 (+8.00%) / 누적투자원금 15,000,000원");
+    expect(text).not.toContain("모두 0으로 반환");
   });
 });
 

@@ -181,8 +181,17 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   spec-verbatim** (lspft2=당월손익, lspft=누적손익, lspft_amt=누적원금). The deposit/
   evaluation scalars and per-stock list duplicate kt00001/kt00018 → not consumed;
   계좌명/지점명 deliberately not displayed. Fresh mock account returns all zeros +
-  return_msg "모의투자 해당조회내역이 없습니다" (rc=0). **Period-P&L semantics (실현+평가
-  포함 여부, 누적 기산점) are NOT in the spec — REAL probe pending as the publish gate.**
+  return_msg "모의투자 해당조회내역이 없습니다" (rc=0). **Live-verified on REAL 2026-07-13**
+  (owner-run one-shot read-only probe, Mon 11:45 KST DURING market hours: rc=0, zero
+  consumed-field gaps, holdings rows + deposit/evaluation scalars fully populated) — **BUT
+  all 9 period-P&L fields returned ZERO on an account with live holdings and known Jan-2026
+  realized P&L**, so an all-zero response does NOT mean the account earned nothing. The
+  intraday-timing hypothesis is eliminated (probe ran mid-session); remaining hypotheses:
+  HTS 수익률 산출 기준 미설정, or REST-dead fields for this account (ka40009-NAV-style) —
+  owner GUI cross-check of the 영웅문 계좌수익률 screen would discriminate.
+  `formatBalance` therefore renders the 기간 손익 numbers **only when at least one field is
+  non-zero**; all-zero → an honest one-line notice instead (ka40009 NAV dormant-block
+  precedent, adapted for LLM consumers: explicit beats silent omission).
 - **계좌 TR 3종 검토 (2026-07-13) — ka10077/ka10085 deliberately NOT exposed** (tool-count
   restraint, ka40010/ka10069/ka10100 precedent): ka10077 당일실현손익상세 (`{stk_cd}` →
   `tdy_rlzt_pl_dtl[]` 체결 단위) loses to ka10170 당일매매일지 (whole-account per-stock
@@ -565,11 +574,12 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   kt00018 = unrealized snapshot). **No new tool.** Spec source: official
   `Kiwoom-Securities/Kiwoom-REST-API` kiwoom_docs (first TR work on the new authority).
   Developed on VIRTUAL per the dev loop (3-TR mock probe 2026-07-13: all rc=0; kt00004
-  shape captured verbatim, values synthetic — fresh mock account is all zeros). 208 tests.
-  `scripts/sweep.py` unchanged (39 calls — get_account_balance already swept; it now
-  exercises kt00004 internally). **REAL one-shot read-only probe pending (publish gate —
-  confirms period-P&L field semantics on a real account).** **Server still exposes 28
-  always-on tools (29 with ISA).**
+  shape captured verbatim, values synthetic — fresh mock account is all zeros), then
+  **live-verified on REAL 2026-07-13** (owner-run one-shot probe: contract confirmed, but
+  the 9 period-P&L fields came back ALL-ZERO on a populated account → all-zero guard added,
+  see the kt00004 contract bullet). 209 tests. `scripts/sweep.py` unchanged (39 calls —
+  get_account_balance already swept; it now exercises kt00004 internally). **Server still
+  exposes 28 always-on tools (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
