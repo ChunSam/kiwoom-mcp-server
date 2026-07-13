@@ -186,9 +186,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   consumed-field gaps, holdings rows + deposit/evaluation scalars fully populated) — **BUT
   all 9 period-P&L fields returned ZERO on an account with live holdings and known Jan-2026
   realized P&L**, so an all-zero response does NOT mean the account earned nothing. The
-  intraday-timing hypothesis is eliminated (probe ran mid-session); remaining hypotheses:
-  HTS 수익률 산출 기준 미설정, or REST-dead fields for this account (ka40009-NAV-style) —
-  owner GUI cross-check of the 영웅문 계좌수익률 screen would discriminate.
+  intraday-timing hypothesis is eliminated (probe ran mid-session). **RESOLVED 2026-07-14
+  (owner GUI cross-check): 영웅문 also shows 당월/누적 손익 = 0 for this account** — the
+  zeros are Kiwoom's own aggregation output (NOT a REST-dead field, unlike ka40009 NAV);
+  Kiwoom's period-P&L counters simply exclude this account's known realized history
+  (산출 기준/기산점 소관, exact rule unknown). The all-zero guard stays as shipped: the
+  zeros are Kiwoom-truthful yet still ambiguous per-account, so the hedged notice
+  ("실제 손익이 0이라는 뜻은 아닐 수 있습니다") remains the right wording.
   `formatBalance` therefore renders the 기간 손익 numbers **only when at least one field is
   non-zero**; all-zero → an honest one-line notice instead (ka40009 NAV dormant-block
   precedent, adapted for LLM consumers: explicit beats silent omission).
@@ -577,9 +581,16 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   shape captured verbatim, values synthetic — fresh mock account is all zeros), then
   **live-verified on REAL 2026-07-13** (owner-run one-shot probe: contract confirmed, but
   the 9 period-P&L fields came back ALL-ZERO on a populated account → all-zero guard added,
-  see the kt00004 contract bullet). 209 tests. `scripts/sweep.py` unchanged (39 calls —
-  get_account_balance already swept; it now exercises kt00004 internally). **Server still
-  exposes 28 always-on tools (29 with ISA).**
+  see the kt00004 contract bullet; owner GUI cross-check 2026-07-14 confirmed 영웅문 shows
+  the same zeros — Kiwoom-side truth). 209 tests. `scripts/sweep.py` unchanged (39 calls —
+  get_account_balance already swept; it now exercises kt00004 internally). npm 0.19.0
+  published 2026-07-13 (shasum `a074a5f9…`==local; clean-room npx from a NEUTRAL cwd —
+  running `npx kiwoom-mcp-server@<v>` from the repo root 127s when the spec matches the
+  local project's own name@version); tag v0.19.0 + Release; Desktop pin @0.19.0 (⌘Q'd
+  2026-07-14 — process current for the first time since @0.14.0); `~/kiwoom-remote`
+  deployed @0.19.0 (owner-run install+kickstart after a [Production Deploy] classifier
+  block; OAuth state survived the restart). **Server still exposes 28 always-on tools
+  (29 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
