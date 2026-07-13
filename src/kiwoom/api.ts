@@ -5,6 +5,7 @@ import type { KiwoomClient } from "./client.js";
 import { KiwoomApiError } from "./errors.js";
 import {
   accountEvaluationResponseSchema,
+  accountPeriodPlResponseSchema,
   allIndexResponseSchema,
   brokerActivityResponseSchema,
   dailyChartItemSchema,
@@ -40,6 +41,7 @@ import {
   watchlistGroupDetailResponseSchema,
   watchlistGroupsResponseSchema,
   type AccountEvaluationResponse,
+  type AccountPeriodPlResponse,
   type BrokerActivityResponse,
   type DailyChartItem,
   type DepositResponse,
@@ -156,6 +158,20 @@ export async function fetchAccountEvaluation(
 
   // 남은 페이지가 있는데 상한에서 멈췄으면 데이터가 잘렸다는 뜻.
   return { ...first, acnt_evlt_remn_indv_tot: holdings, truncated: res.hasNext };
+}
+
+/**
+ * kt00004 계좌평가현황요청 — consumed only for the 당일/당월/누적 투자손익 block
+ * (기간 손익); the deposit/evaluation scalars and per-stock list duplicate
+ * kt00001/kt00018. qry_tp "0" = 상장폐지 포함 전체 (probe-validated body).
+ */
+export async function fetchAccountPeriodPl(client: KiwoomClient): Promise<AccountPeriodPlResponse> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "kt00004",
+    body: { qry_tp: "0", dmst_stex_tp: "KRX" },
+  });
+  return accountPeriodPlResponseSchema.parse(res.json);
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   accountEvaluationResponseSchema,
+  accountPeriodPlResponseSchema,
   depositResponseSchema,
   normalizeStockCode,
   pendingOrderItemSchema,
@@ -87,6 +88,32 @@ const kt00001Fixture = {
   d2_entra: "000000001500000",
   ord_alow_amt: "000000001500000",
   pymn_alow_amt: "000000001450000",
+};
+
+// Shape captured verbatim from mockapi 2026-07-13 (18 scalars + empty list);
+// values synthetic — the fresh mock account returns all zeros.
+const kt00004Fixture = {
+  return_code: 0,
+  return_msg: "조회가 완료되었습니다.",
+  acnt_nm: "",
+  brch_nm: "",
+  entr: "000000001500000",
+  d2_entra: "000000001500000",
+  tot_est_amt: "000000005500000",
+  aset_evlt_amt: "000000007000000",
+  tot_pur_amt: "000000005000000",
+  prsm_dpst_aset_amt: "000000007500000",
+  tot_grnt_sella: "000000000000",
+  tdy_lspft_amt: "000002600000",
+  invt_bsamt: "000007150000",
+  lspft_amt: "000015000000",
+  tdy_lspft: "000000013000",
+  lspft2: "-00000150000",
+  lspft: "000001200000",
+  tdy_lspft_rt: "0.50",
+  lspft_ratio: "-2.10",
+  lspft_rt: "8.00",
+  stk_acnt_evlt_prst: [],
 };
 
 describe("normalizeStockCode", () => {
@@ -177,6 +204,66 @@ describe("formatBalance", () => {
     expect(text).toContain("총평가금액: 5,500,000원");
     expect(text).toContain("총평가손익: +500,000원 (+10.00%)");
     expect(text).toContain("추정예탁자산: 7,500,000원");
+  });
+
+  it("omits the 기간 손익 block without a kt00004 response", () => {
+    const deposit = depositResponseSchema.parse(kt00001Fixture);
+    const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
+    expect(formatBalance(deposit, evaluation, MODE)).not.toContain("기간 손익");
+    expect(formatBalance(deposit, evaluation, MODE, null)).not.toContain("기간 손익");
+  });
+
+  it("renders 당일/당월/누적 투자손익 from a kt00004 response", () => {
+    const deposit = depositResponseSchema.parse(kt00001Fixture);
+    const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
+    const periodPl = accountPeriodPlResponseSchema.parse(kt00004Fixture);
+    const text = formatBalance(deposit, evaluation, MODE, periodPl);
+
+    expect(text).toContain("■ 기간 손익 (kt00004)");
+    expect(text).toContain("당일투자손익: +13,000원 (+0.50%) / 당일투자원금 2,600,000원");
+    expect(text).toContain("당월투자손익: -150,000원 (-2.10%) / 당월투자원금 7,150,000원");
+    expect(text).toContain("누적투자손익: +1,200,000원 (+8.00%) / 누적투자원금 15,000,000원");
+  });
+
+  it("replaces an all-zero kt00004 with an honest notice (REAL-observed 2026-07-13)", () => {
+    const deposit = depositResponseSchema.parse(kt00001Fixture);
+    const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
+    // All-zero shape captured verbatim from BOTH mockapi (fresh account) and a
+    // REAL account with live holdings (2026-07-13 probe) — zeros do not mean
+    // the account earned nothing, so numbers must not be asserted.
+    const periodPl = accountPeriodPlResponseSchema.parse({
+      return_code: 0,
+      return_msg: "조회가 완료되었습니다.",
+      tdy_lspft_amt: "000000000000",
+      invt_bsamt: "000000000000",
+      lspft_amt: "000000000000",
+      tdy_lspft: "000000000000",
+      lspft2: "000000000000",
+      lspft: "000000000000",
+      tdy_lspft_rt: "0.00",
+      lspft_ratio: "0.00",
+      lspft_rt: "0.00",
+      stk_acnt_evlt_prst: [],
+    });
+    const text = formatBalance(deposit, evaluation, MODE, periodPl);
+    expect(text).toContain("■ 기간 손익 (kt00004)");
+    expect(text).toContain("모두 0으로 반환");
+    expect(text).not.toContain("당일투자손익:");
+  });
+
+  it("renders numbers when any period-P&L field is non-zero (당일 0 on a no-trade day)", () => {
+    const deposit = depositResponseSchema.parse(kt00001Fixture);
+    const evaluation = accountEvaluationResponseSchema.parse(kt00018Fixture);
+    const periodPl = accountPeriodPlResponseSchema.parse({
+      ...kt00004Fixture,
+      tdy_lspft_amt: "000000000000",
+      tdy_lspft: "000000000000",
+      tdy_lspft_rt: "0.00",
+    });
+    const text = formatBalance(deposit, evaluation, MODE, periodPl);
+    expect(text).toContain("당일투자손익: 0원 (0.00%) / 당일투자원금 0원");
+    expect(text).toContain("누적투자손익: +1,200,000원 (+8.00%) / 누적투자원금 15,000,000원");
+    expect(text).not.toContain("모두 0으로 반환");
   });
 });
 
