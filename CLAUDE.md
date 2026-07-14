@@ -611,12 +611,15 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `mcp-publisher login github` (device flow) → `mcp-publisher publish`. Directory-round
   facts (researched 2026-07-14): **Glama already auto-lists this server unclaimed**
   (glama.ai/mcp/servers/ChunSam/kiwoom-mcp-server, grades A/A/A, stale "local-only"
-  blurb — personal-repo claim = GitHub login, no repo file); PulseMCP ingests the
+  blurb — **ownership = repo-root `glama.json` `{maintainers: ["ChunSam"]}`, shipped
+  2026-07-15; the research-round "claim button" does NOT exist on the live page**, the
+  glama.json crawl is the documented mechanism); PulseMCP ingests the
   official registry daily (also has /submit form); mcp.so = self-service form
   (Cloudflare-blocked for bots — human clicks); Smithery needs an MCPB bundle (deferred;
   avoid its Hosted flow — 2025-06 security incident + architecture mismatch). Name
   collision: an unrelated trading-capable "Kiwoom Securities" (kwonsw812) is on
-  PulseMCP — listing copy must lead with read-only/28 tools to differentiate. a SEOMIN ISA (한도 400만원) can hold a mix of
+  PulseMCP — listing copy must lead with read-only/28 tools to differentiate.
+- 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
   entry must be classified rather than treated uniformly.
