@@ -11,7 +11,10 @@ allowance.
 
 > ⚠️ **Security notice**
 >
-> - Run this server **locally only** — never expose it to an external network.
+> - The default run mode is **local stdio**. If you need remote access, expose the
+>   server only through the authenticated HTTP mode (see
+>   [Remote access](#remote-access-http-mode--claudeai-webmobile)) — never open it
+>   to an external network without auth (`--no-auth`).
 > - The AppKey/AppSecret in `.env` grant real-account inquiry access. **Never
 >   commit them** (`.env` is already in `.gitignore`).
 > - Order execution (buy/sell/modify/cancel) is **excluded by design**. This
