@@ -33,10 +33,12 @@ allowance.
 | `get_market_index` | KOSPI/KOSDAQ composite and sector indices | ka20003 |
 | `get_sector_price` | Sector index detail (breadth / 52-week range / intraday trend) | ka20001 |
 | `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
+| `get_sector_chart` | Sector index candles (daily/weekly/monthly/yearly/minute/tick) | ka20004~08, ka20019 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges | ka10016/17/19 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |
+| `get_investor_rank` | Top stocks net-bought/sold by foreigners & institutions / N-day buying streaks | ka90009, ka10131 |
 | `get_broker_activity` | Per-stock top-5 buying/selling brokers (member firms) | ka10002 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
@@ -65,7 +67,7 @@ allowance.
 
 | Tool | Description | Kiwoom TR |
 |---|---|---|
-| `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets | kt00001, kt00018 |
+| `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets + day/month/cumulative P&L | kt00001, kt00018, kt00004 |
 | `get_account_holdings` | Per-holding quantity / average cost / current price / valuation P&L | kt00018 |
 | `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount) | kt00015 |
 | `get_pending_orders` | Open/unfilled orders (order no., side, status, ordered/unfilled qty, price) | ka10075 |

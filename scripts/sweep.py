@@ -126,6 +126,8 @@ def main() -> int:
         ("get_market_index", {"market": "kospi"}),
         ("get_sector_price", {"sector_code": "001"}),
         ("get_sector_stocks", {"sector_code": "101", "limit": 5}),
+        ("get_sector_chart", {"sector_code": "001"}),  # ka20006 일봉
+        ("get_sector_chart", {"sector_code": "101", "period": "minute", "count": 5}),  # ka20005
         ("get_ranking", {"type": "volume", "top": 5}),
         ("get_market_movers", {"signal": "new_high", "top": 3}),
         ("get_market_movers", {"signal": "new_low", "top": 3}),
@@ -135,6 +137,8 @@ def main() -> int:
         ("get_market_movers", {"signal": "plunge", "top": 3}),
         ("get_vi_stocks", {"top": 5}),  # ka10054
         ("get_investor_trend", {"stock_code": "005930"}),
+        ("get_investor_rank", {"limit": 5}),  # ka90009 최근 거래일
+        ("get_investor_rank", {"view": "streak", "limit": 5}),  # ka10131 코스피 5일
         ("get_broker_activity", {"stock_code": "005930"}),  # ka10002
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_info", {"stock_code": "005930"}),  # non-ETF guard path (shared ka40002 discriminator)

@@ -323,6 +323,29 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   12h 캐시하는 마스터의 단건 조회일 뿐. 부수 발견: 마스터 행에 업종명(upName)/상장일(regDay)/
   감리구분/투자유의(orderWarning) 필드가 있어 search_stock/get_stock_price를 API 콜 없이 보강할
   여지가 있다 — **v0.15.0에서 구현 완료** (아래 마스터리스트 보강 불릿 참조).
+- 수급 랭킹/업종 차트 TRs (v0.20.0 batch; **mock-probed 2026-07-21 — 10콜 전부 rc=0, 배열 키
+  전부 스펙 일치; REAL probe PENDING before first publish**): ka90009 외국인기관매매상위
+  (`/api/dostk/rkinfo`, body `{mrkt_tp: 000/001/101 랭킹 코드, amt_qty_tp: "1"금액|"2"수량,
+  qry_dt_tp: "0"최근|"1"일자, date(옵션 yyyyMMdd), stex_tp: "1"}` → `frgnr_orgn_trde_upper[]`
+  25행) — **한 행 = 외인 순매도/순매수·기관 순매도/순매수 4개 독립 리스트의 같은 랭크가 나란히**
+  (4×{stk_cd,stk_nm,amt,qty} + 문서에 없는 `pipe1~3` 구분 필드; 순매도 값은 음수 부호 → 절대값
+  표시). **단위가 투자자 TR과 다르다: 금액 천만원/수량 천주** (mock에서 금액≈수량×주가 삼각
+  교차검증) — `get_investor_rank`가 천만원→억원(÷10) 환산 표시. ka10131 기관외국인연속매매현황
+  (`/api/dostk/frgnistt`, body `{dt: "1"|"3"|"5"|"10"|"20"|"120", strt_dt:"", end_dt:"",
+  mrkt_tp: "001"|"101" (**전체 000 없음** → 툴은 all이면 코스피 폴백+안내), netslmt_tp: "2"고정,
+  stk_inds_tp: "0"종목, amt_qty_tp: **"0"금액|"1"수량 — 코드가 다른 TR(1=금액)과 반대**,
+  stex_tp: "1"}` → `orgn_frgnr_cont_trde_prst[]` 100행/page, 1페이지만) — **amt_qty_tp는 정렬
+  기준일 뿐, 행에는 금액(백만원)/수량(주)이 항상 둘 다 온다** (역시 amt≈qty×주가로 단위 확정);
+  ka10061식 이중부호(`"--234680"`) 존재, **연속일수 음수 = 연속 순매도**. 업종 차트 6종 (모두
+  `/api/dostk/chart`; `upd_stkpc_tp` 없음 — 지수엔 수정주가 개념 없음): ka20004 틱/ka20005 분
+  (`{inds_cd, tic_scope}` — ka20005의 tic_scope는 분 단위 1/3/5/10/30, 문서 라벨은 둘 다 "틱범위"),
+  ka20006 일/ka20007 주/ka20008 월/ka20019 년 (`{inds_cd, base_dt}`) → 배열 키
+  `inds_{tic_chart,min_pole,dt_pole,stk_pole,mth_pole,yr_pole}_qry`, 행 구조가 주식 차트 TR과
+  동일해 `dailyChartItemSchema`/`minuteChartItemSchema` 재사용 (분봉 행은 문서에 없는
+  acc_trde_qty/pred_pre(_sig) 동반, 부호 접두). **지수값은 ×100 정수로 온다** ("674795" =
+  6747.95 — mock에서 ka20001/ka20003 현재가·시가·전일대비와 대조해 확정) → 표시 시 ÷100.
+  `get_sector_chart` 1개 툴이 6종 흡수 (get_stock_chart 패턴, 일/주/월/년은 첫 페이지
+  600/300/240/~40행).
 - 마스터리스트(ka10099) 보강 필드 (v0.15.0; **mock 실측 2026-07-11, 4,294행 전수 서베이**):
   `regDay` 상장일 = 전 행 예외 없이 yyyyMMdd. `auditInfo` 감리/상태 자유텍스트 — 실측값
   "정상"(4056)/"거래정지"(119)/"투자주의환기종목"(37)/"관리종목"(29)/"투자주의"(29)/
@@ -619,6 +642,20 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   avoid its Hosted flow — 2025-06 security incident + architecture mismatch). Name
   collision: an unrelated trading-capable "Kiwoom Securities" (kwonsw812) is on
   PulseMCP — listing copy must lead with read-only/28 tools to differentiate.
+- **v0.20.0 (2026-07-22) — 수급 랭킹 + 업종 차트 (feature pipeline resumes).** Owner
+  declined the PulseMCP escalation email (등재 재촉 안 함) and picked feature work; the
+  kiwoom_docs discovery diff (official repo, 16 category files, ~60 unreviewed read-only
+  TRs catalogued) selected this batch. Added `get_investor_rank` (ka90009 일자별 외인·기관
+  순매매 상위 + ka10131 연속매매현황 — view enum daily/streak; "오늘 외국인이 뭘 샀나"
+  질문 축을 처음으로 커버) and `get_sector_chart` (ka20004~08/ka20019 업종 틱/분/일/주/월/
+  년봉 — 주식 차트 스키마 재사용, ÷100 스케일; "코스피 최근 N개월 추이" 커버). Developed on
+  VIRTUAL per the dev loop (fixtures in `tests/investor-rank.test.ts` +
+  `tests/sector-chart.test.ts` captured verbatim from mockapi 2026-07-21 incl. the pipe1~3
+  separators and double-sign rows; 4-call stdio smoke + full sweep green). **REAL one-shot
+  probe still PENDING** (publish gate — 특히 업종 차트 ÷100 스케일과 ka90009 천만원 단위의
+  REAL 확인 필요). 227 tests / 21 files. `scripts/sweep.py` = 43 calls. **Server exposes
+  30 always-on tools (31 with ISA).** README(ko/en) tool tables updated (+2 rows, and the
+  get_account_balance row belatedly gained kt00004 — missed in v0.19.0).
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
