@@ -323,8 +323,14 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   12h 캐시하는 마스터의 단건 조회일 뿐. 부수 발견: 마스터 행에 업종명(upName)/상장일(regDay)/
   감리구분/투자유의(orderWarning) 필드가 있어 search_stock/get_stock_price를 API 콜 없이 보강할
   여지가 있다 — **v0.15.0에서 구현 완료** (아래 마스터리스트 보강 불릿 참조).
-- 수급 랭킹/업종 차트 TRs (v0.20.0 batch; **mock-probed 2026-07-21 — 10콜 전부 rc=0, 배열 키
-  전부 스펙 일치; REAL probe PENDING before first publish**): ka90009 외국인기관매매상위
+- 수급 랭킹/업종 차트 TRs (v0.20.0 batch; mock-probed 2026-07-21 — 10콜 전부 rc=0, 배열 키
+  전부 스펙 일치; **live-verified on REAL 2026-07-22** — owner-authorized one-shot read-only
+  probe 08:13 KST, 6콜 전부 rc=0, consumed-field gaps/blanks ZERO; **÷100 스케일 REAL 확정**
+  (ka20001 지수 6747.95 == ka20006 최신봉 674795÷100), **ka90009 단위 REAL 확정** (외인
+  순매수 1위 삼성전자 66,821천만/2,580천주 → 암시 주가 258,996원 ≈ 실제 주가); ka90009 REAL
+  행 값이 mock과 동일 — mock-mirrors-production 재확인; ka10131은 REAL에서 이중부호가 표시
+  필드(frgnr_nettrde_amt `"--25292"`)에도 나타남 — parseKiwoomNumber가 이미 처리):
+  ka90009 외국인기관매매상위
   (`/api/dostk/rkinfo`, body `{mrkt_tp: 000/001/101 랭킹 코드, amt_qty_tp: "1"금액|"2"수량,
   qry_dt_tp: "0"최근|"1"일자, date(옵션 yyyyMMdd), stex_tp: "1"}` → `frgnr_orgn_trde_upper[]`
   25행) — **한 행 = 외인 순매도/순매수·기관 순매도/순매수 4개 독립 리스트의 같은 랭크가 나란히**
@@ -651,9 +657,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   년봉 — 주식 차트 스키마 재사용, ÷100 스케일; "코스피 최근 N개월 추이" 커버). Developed on
   VIRTUAL per the dev loop (fixtures in `tests/investor-rank.test.ts` +
   `tests/sector-chart.test.ts` captured verbatim from mockapi 2026-07-21 incl. the pipe1~3
-  separators and double-sign rows; 4-call stdio smoke + full sweep green). **REAL one-shot
-  probe still PENDING** (publish gate — 특히 업종 차트 ÷100 스케일과 ka90009 천만원 단위의
-  REAL 확인 필요). 227 tests / 21 files. `scripts/sweep.py` = 43 calls. **Server exposes
+  separators and double-sign rows; 4-call stdio smoke + full sweep green), then
+  **live-verified on REAL 2026-07-22** (owner-authorized one-shot read-only probe, 6 calls:
+  rc=0, zero consumed-field gaps; ÷100 scale and 천만원/천주 units both CONFIRMED on REAL —
+  see the TR bullet above. Process note: the owner's first `!` line silently didn't execute
+  — no output, no result file — and the agent-side retry was classifier-blocked
+  [Production Reads] as the convention intends; owner re-ran from the bash-mode prompt).
+  227 tests / 21 files. `scripts/sweep.py` = 43 calls. **Server exposes
   30 always-on tools (31 with ISA).** README(ko/en) tool tables updated (+2 rows, and the
   get_account_balance row belatedly gained kt00004 — missed in v0.19.0).
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
