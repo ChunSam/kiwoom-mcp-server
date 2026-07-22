@@ -372,6 +372,52 @@ export const investorDailyItemSchema = z.looseObject({
 });
 export type InvestorDailyItem = z.infer<typeof investorDailyItemSchema>;
 
+// ── ka90009: 외국인·기관 매매 상위 ──
+// One row = rank i of FOUR independent lists side by side (외인 순매도/순매수,
+// 기관 순매도/순매수 — different stocks per column group). 순매도 amounts arrive
+// sign-prefixed negative. amt_qty_tp "1"=금액(천만원), "2"=수량(천주) — units
+// cross-checked on mock (금액≈수량×주가). Undocumented pipe1~3 separator fields
+// ride along; the loose schema ignores them.
+
+export const investorRankDailyItemSchema = z.looseObject({
+  for_netslmt_stk_cd: str(),
+  for_netslmt_stk_nm: str(),
+  for_netslmt_amt: str(),
+  for_netslmt_qty: str(),
+  for_netprps_stk_cd: str(),
+  for_netprps_stk_nm: str(),
+  for_netprps_amt: str(),
+  for_netprps_qty: str(),
+  orgn_netslmt_stk_cd: str(),
+  orgn_netslmt_stk_nm: str(),
+  orgn_netslmt_amt: str(),
+  orgn_netslmt_qty: str(),
+  orgn_netprps_stk_cd: str(),
+  orgn_netprps_stk_nm: str(),
+  orgn_netprps_amt: str(),
+  orgn_netprps_qty: str(),
+});
+export type InvestorRankDailyItem = z.infer<typeof investorRankDailyItemSchema>;
+
+// ── ka10131: 기관·외국인 연속매매현황 ──
+// Every row carries BOTH 금액(백만원) and 수량(주) fields regardless of
+// amt_qty_tp (it only picks the ranking metric; units cross-checked on mock —
+// amt/qty ≈ 주가). Doubles the sign like ka10061 ("--234680" = negative);
+// 연속일수 can be negative = 연속 순매도 streak.
+
+export const investorStreakItemSchema = z.looseObject({
+  rank: str(),
+  stk_cd: str(),
+  stk_nm: str(),
+  prid_stkpc_flu_rt: str(), // 기간중 주가 등락률(%)
+  orgn_nettrde_amt: str(), // 기관 순매매금액(백만원)
+  orgn_cont_netprps_dys: str(), // 기관 연속 순매수일수 (음수=연속 순매도)
+  frgnr_nettrde_amt: str(), // 외국인 순매매금액(백만원)
+  frgnr_cont_netprps_dys: str(),
+  tot_cont_netprps_dys: str(), // 합계 연속 순매수일수
+});
+export type InvestorStreakItem = z.infer<typeof investorStreakItemSchema>;
+
 // ── ka10027/ka10030/ka10032: 순위 TR item shapes ──
 
 export const priceChangeRankItemSchema = z.looseObject({

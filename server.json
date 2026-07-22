@@ -3,7 +3,7 @@
   "name": "io.github.ChunSam/kiwoom-mcp-server",
   "title": "Kiwoom Securities MCP Server",
   "description": "Read-only MCP server for the Kiwoom Securities REST API: market data, account inquiry, ISA tax tool",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "repository": {
     "url": "https://github.com/ChunSam/kiwoom-mcp-server",
     "source": "github"
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "kiwoom-mcp-server",
-      "version": "0.19.1",
+      "version": "0.20.0",
       "transport": {
         "type": "stdio"
       },

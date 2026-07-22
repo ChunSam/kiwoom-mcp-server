@@ -15,6 +15,8 @@ import {
   etfReturnItemSchema,
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
+  investorRankDailyItemSchema,
+  investorStreakItemSchema,
   investorTotalItemSchema,
   lendingTrendResponseSchema,
   limitStockItemSchema,
@@ -51,6 +53,8 @@ import {
   type ForeignHoldingItem,
   type IndexItem,
   type InvestorDailyItem,
+  type InvestorRankDailyItem,
+  type InvestorStreakItem,
   type InvestorTotalItem,
   type LendingTrendItem,
   type LimitStockItem,
@@ -315,6 +319,56 @@ export async function fetchTickChart(
   return parseArray(res.json, "stk_tic_chart_qry", minuteChartItemSchema);
 }
 
+const SECTOR_CHART_TRS: Record<ChartPeriod, { apiId: string; arrayKey: string }> = {
+  day: { apiId: "ka20006", arrayKey: "inds_dt_pole_qry" },
+  week: { apiId: "ka20007", arrayKey: "inds_stk_pole_qry" },
+  month: { apiId: "ka20008", arrayKey: "inds_mth_pole_qry" },
+  year: { apiId: "ka20019", arrayKey: "inds_yr_pole_qry" },
+};
+
+/**
+ * ka20006/07/08/19 업종 일·주·월·년봉 — row shape matches the stock chart TRs
+ * (dt/OHLC/trde_qty/trde_prica) so the schemas are shared. Index values arrive
+ * ×100 as integers ("674795" = 6747.95 — mock-verified against ka20001/ka20003);
+ * callers divide by 100 for display. No upd_stkpc_tp (indices have no 수정주가).
+ * Newest first, first page only (일 600 / 주 300 / 월 240 / 년 ~40 rows).
+ */
+export async function fetchSectorChart(
+  client: KiwoomClient,
+  indsCd: string,
+  period: ChartPeriod,
+  baseDate: string,
+): Promise<DailyChartItem[]> {
+  const { apiId, arrayKey } = SECTOR_CHART_TRS[period];
+  const res = await client.call({
+    path: CHART_PATH,
+    apiId,
+    body: { inds_cd: indsCd, base_dt: baseDate },
+  });
+  return parseArray(res.json, arrayKey, dailyChartItemSchema);
+}
+
+/**
+ * ka20005 업종 분봉 / ka20004 업종 틱차트 — cntr_tm rows like the stock
+ * minute/tick TRs (values ×100 like the other sector charts). ka20005의
+ * tic_scope는 분 단위, ka20004는 캔들당 틱 수 (doc labels both "틱범위").
+ * Newest first, first page (900 rows) only.
+ */
+export async function fetchSectorIntradayChart(
+  client: KiwoomClient,
+  indsCd: string,
+  kind: "minute" | "tick",
+  ticScope: string,
+): Promise<MinuteChartItem[]> {
+  const isTick = kind === "tick";
+  const res = await client.call({
+    path: CHART_PATH,
+    apiId: isTick ? "ka20004" : "ka20005",
+    body: { inds_cd: indsCd, tic_scope: ticScope },
+  });
+  return parseArray(res.json, isTick ? "inds_tic_chart_qry" : "inds_min_pole_qry", minuteChartItemSchema);
+}
+
 /** ka10004 주식호가 — 10-level orderbook; levels 2-10 live in the loose passthrough. */
 export async function fetchOrderbook(client: KiwoomClient, stockCode: string): Promise<OrderbookResponse> {
   const res = await client.call({
@@ -417,6 +471,60 @@ export async function fetchInvestorDaily(
     },
   });
   return parseArray(res.json, "stk_invsr_orgn", investorDailyItemSchema);
+}
+
+/**
+ * ka90009 외국인기관매매상위 — one row = rank i of four side-by-side lists
+ * (외인 순매도/순매수, 기관 순매도/순매수; 25 rows). amt_qty_tp "1"=금액(천만원),
+ * "2"=수량(천주). date 미지정(qry_dt_tp "0") = 최근 거래일.
+ */
+export async function fetchInvestorRankDaily(
+  client: KiwoomClient,
+  market: RankingMarket,
+  unit: InvestorUnit,
+  date?: string,
+): Promise<InvestorRankDailyItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka90009",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      amt_qty_tp: unit === "amount" ? "1" : "2",
+      qry_dt_tp: date ? "1" : "0",
+      ...(date ? { date } : {}),
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "frgnr_orgn_trde_upper", investorRankDailyItemSchema);
+}
+
+/**
+ * ka10131 기관외국인연속매매현황 — 순매수 상위 100행/page (page 1 only).
+ * mrkt_tp에 전체(000)가 없다 (001/101만). amt_qty_tp 코드가 다른 TR과 반대
+ * ("0"=금액, "1"=수량)이며 정렬 기준만 바꾼다 — 행에는 금액/수량이 항상 둘 다 온다.
+ * dt: 1/3/5/10/20/120일 (netslmt_tp "2"=순매수 고정, stk_inds_tp "0"=종목).
+ */
+export async function fetchInvestorStreak(
+  client: KiwoomClient,
+  market: "kospi" | "kosdaq",
+  days: string,
+  unit: InvestorUnit,
+): Promise<InvestorStreakItem[]> {
+  const res = await client.call({
+    path: FOREIGN_PATH,
+    apiId: "ka10131",
+    body: {
+      dt: days,
+      strt_dt: "",
+      end_dt: "",
+      mrkt_tp: market === "kospi" ? "001" : "101",
+      netslmt_tp: "2",
+      stk_inds_tp: "0",
+      amt_qty_tp: unit === "amount" ? "0" : "1",
+      stex_tp: "1",
+    },
+  });
+  return parseArray(res.json, "orgn_frgnr_cont_trde_prst", investorStreakItemSchema);
 }
 
 export type RankingMarket = "all" | "kospi" | "kosdaq";
