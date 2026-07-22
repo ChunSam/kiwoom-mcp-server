@@ -28,6 +28,7 @@ allowance.
 |---|---|---|
 | `search_stock` | Name → code search (KOSPI/KOSDAQ, incl. ETF/ETN) + trading-caution flags | ka10099 |
 | `get_stock_price` | Current price / change rate / volume / basic metrics + sector, listing date, caution flags | ka10001, ka10099 |
+| `get_stock_quotes` | Batch quotes for up to 30 stocks in one call — price, change, volume, value, market cap | ka10095, ka10099 |
 | `get_stock_chart` | Daily/weekly/monthly/yearly/minute/tick candles (adjusted price) | ka10079~83, ka10094 |
 | `get_orderbook` | 10-level ask/bid quotes and sizes | ka10004 |
 | `get_market_index` | KOSPI/KOSDAQ composite and sector indices | ka20003 |

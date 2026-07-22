@@ -118,6 +118,8 @@ def main() -> int:
         ("ping", {}),
         ("search_stock", {"query": "삼성전자"}),
         ("get_stock_price", {"stock_code": "005930"}),
+        ("get_stock_quotes", {"stock_codes": ["005930", "000660", "069500"]}),  # ka10095 멀티코드
+        ("get_stock_quotes", {"stock_codes": ["005930", "999999"]}),  # unknown-code filter path
         ("get_stock_chart", {"stock_code": "005930", "period": "day"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "minute", "minute_scope": "5"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "year"}),
