@@ -7,6 +7,7 @@ import {
   accountEvaluationResponseSchema,
   accountPeriodPlResponseSchema,
   allIndexResponseSchema,
+  batchQuoteItemSchema,
   brokerActivityResponseSchema,
   dailyChartItemSchema,
   depositResponseSchema,
@@ -44,6 +45,7 @@ import {
   watchlistGroupsResponseSchema,
   type AccountEvaluationResponse,
   type AccountPeriodPlResponse,
+  type BatchQuoteItem,
   type BrokerActivityResponse,
   type DailyChartItem,
   type DepositResponse,
@@ -125,6 +127,24 @@ export async function fetchStockInfo(client: KiwoomClient, stockCode: string): P
     });
   }
   return info;
+}
+
+/**
+ * ka10095 관심종목정보요청 — 이름과 달리 임의의 멀티코드 일괄 시세 TR.
+ * stk_cd에 `|`로 이어붙인 코드를 넘기면 요청 순서대로 한 코드당 한 행을 돌려준다
+ * (30코드 단일 콜 mock-probed 2026-07-22, cont-yn N). 미상장/오타 코드는 rc=0에
+ * 전 필드 공백 행으로 오므로 호출부에서 blank stk_cd 행을 걸러낸다.
+ */
+export async function fetchBatchQuotes(
+  client: KiwoomClient,
+  stockCodes: string[],
+): Promise<BatchQuoteItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10095",
+    body: { stk_cd: stockCodes.join("|") },
+  });
+  return parseArray(res.json, "atn_stk_infr", batchQuoteItemSchema);
 }
 
 /** kt00001 예수금상세현황요청 (qry_tp: 3=추정조회, 2=일반조회) */

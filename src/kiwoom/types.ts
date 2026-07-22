@@ -51,6 +51,27 @@ export const stockInfoResponseSchema = z.looseObject({
 
 export type StockInfoResponse = z.infer<typeof stockInfoResponseSchema>;
 
+// ── ka10095: 관심종목정보 = 멀티코드 일괄 시세 (subset) ──
+// Despite the "관심종목" name this TR quotes ARBITRARY codes: stk_cd takes
+// pipe-joined codes ("005930|000660", 30 codes mock-probed in one call,
+// cont-yn N) and returns one row per code in request order (array key
+// `atn_stk_infr`). An unknown code still gives rc=0 plus an ALL-BLANK row
+// (blank stk_cd) — callers filter blank rows (ka10170 precedent). Units
+// cross-checked on mock 2026-07-22: trde_prica 백만원, mac 억원.
+
+export const batchQuoteItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (부호 접두)
+  pred_pre: str(), // 전일대비
+  flu_rt: str(), // 등락률(%)
+  trde_qty: str(), // 거래량(주)
+  trde_prica: str(), // 거래대금(백만원)
+  mac: str(), // 시가총액(억원)
+});
+
+export type BatchQuoteItem = z.infer<typeof batchQuoteItemSchema>;
+
 // ── kt00001: 예수금상세현황 (subset) ──
 
 export const depositResponseSchema = z.looseObject({
