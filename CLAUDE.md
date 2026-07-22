@@ -353,7 +353,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `get_sector_chart` 1개 툴이 6종 흡수 (get_stock_chart 패턴, 일/주/월/년은 첫 페이지
   600/300/240/~40행).
 - ka10095 관심종목정보 = 멀티코드 일괄 시세 (v0.21.0; `/api/dostk/stkinfo`; **mock-probed
-  2026-07-22, 6콜 전부 rc=0; REAL 미프로브 — 첫 publish 전 one-shot 프로브 필요**): 이름과
+  2026-07-22 6콜 전부 rc=0, live-verified on REAL 2026-07-22** — owner-run one-shot
+  read-only probe 2콜: rc=0, consumed gaps/blanks ZERO, 무효 코드 공백 행 shape REAL에서도
+  동일, REAL row 값이 mock과 동일 — mock-mirrors-production 재확인): 이름과
   달리 HTS 관심종목과 무관한 **임의 코드 배치 시세 TR** — body `{stk_cd: "005930|000660|…"}`
   (`|` 구분, 공식 문서 명시; **30코드 단일 콜 실측 OK**, cont-yn N, 응답은 요청 순서 보존) →
   `atn_stk_infr[]` 60+필드 풀 시세 행 (호가 5단/예상체결/ELW 그리스 포함 — ELW 필드는 일반
@@ -682,7 +684,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   종목당 1콜(1.1s) 레이트리밋 병목을 제거. 포트폴리오/관심종목류 질문의 LLM-UX 개선이 목적.
   Developed on VIRTUAL per the dev loop (fixtures in `tests/stock-quotes.test.ts` captured
   verbatim from mockapi 2026-07-22 incl. the unknown-code all-blank row; 2-call stdio smoke
-  + full sweep green). **REAL 프로브 PENDING — publish 전 owner-run one-shot 필요.**
+  + full sweep green), then **live-verified on REAL 2026-07-22** (owner-run one-shot
+  read-only probe, 2 calls: rc=0, zero consumed-field gaps/blanks; unknown-code blank-row
+  shape confirmed on REAL; REAL rows identical to mock — mirror re-confirmed).
   232 tests / 22 files. `scripts/sweep.py` = 45 calls (+2: 멀티코드 + unknown-code 필터
   경로). **Server exposes 31 always-on tools (32 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
