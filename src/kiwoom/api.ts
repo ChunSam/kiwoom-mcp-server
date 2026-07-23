@@ -6,9 +6,11 @@ import { KiwoomApiError } from "./errors.js";
 import {
   accountEvaluationResponseSchema,
   accountPeriodPlResponseSchema,
+  accountReturnSummarySchema,
   allIndexResponseSchema,
   batchQuoteItemSchema,
   brokerActivityResponseSchema,
+  dailyAssetItemSchema,
   dailyChartItemSchema,
   depositResponseSchema,
   etfInfoResponseSchema,
@@ -45,8 +47,10 @@ import {
   watchlistGroupsResponseSchema,
   type AccountEvaluationResponse,
   type AccountPeriodPlResponse,
+  type AccountReturnSummary,
   type BatchQuoteItem,
   type BrokerActivityResponse,
+  type DailyAssetItem,
   type DailyChartItem,
   type DepositResponse,
   type EtfInfoResponse,
@@ -196,6 +200,50 @@ export async function fetchAccountPeriodPl(client: KiwoomClient): Promise<Accoun
     body: { qry_tp: "0", dmst_stex_tp: "KRX" },
   });
   return accountPeriodPlResponseSchema.parse(res.json);
+}
+
+/**
+ * kt00002 일별추정예탁자산현황요청 — [startDt, endDt] (yyyyMMdd) 일별 자산 추이.
+ * 모의투자 미지원(RC9000). 행은 주말·휴장일 포함 달력일 단위, 오래된 날짜부터
+ * (30일 = 30행, cont-yn N — REAL 프로브 2026-07-23). 페이지 크기가 미문서라
+ * 장기 조회 대비 kt00018과 같은 cont-yn 루프를 태운다.
+ */
+export async function fetchDailyAssetTrend(
+  client: KiwoomClient,
+  startDt: string,
+  endDt: string,
+): Promise<{ rows: DailyAssetItem[]; truncated: boolean }> {
+  const body = { start_dt: startDt, end_dt: endDt };
+
+  let res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00002", body });
+  const rows = parseArray(res.json, "daly_prsm_dpst_aset_amt_prst", dailyAssetItemSchema);
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00002", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...parseArray(res.json, "daly_prsm_dpst_aset_amt_prst", dailyAssetItemSchema));
+    pages += 1;
+  }
+
+  return { rows, truncated: res.hasNext };
+}
+
+/**
+ * kt00016 일별계좌수익률상세현황요청 — 이름과 달리 [frDt, toDt] 기간 요약 FLAT 응답
+ * (초/말 쌍 + 수익률/회전율/입출금 집계). 모의투자 미지원(RC9000).
+ */
+export async function fetchAccountReturnSummary(
+  client: KiwoomClient,
+  frDt: string,
+  toDt: string,
+): Promise<AccountReturnSummary> {
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "kt00016",
+    body: { fr_dt: frDt, to_dt: toDt },
+  });
+  return accountReturnSummarySchema.parse(res.json);
 }
 
 /**

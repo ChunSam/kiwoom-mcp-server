@@ -135,6 +135,46 @@ export const accountPeriodPlResponseSchema = z.looseObject({
 
 export type AccountPeriodPlResponse = z.infer<typeof accountPeriodPlResponseSchema>;
 
+// ── kt00002: 일별추정예탁자산현황 (subset) ──
+// 모의투자 미지원(RC9000) — 계약은 REAL 프로브(2026-07-23)로 확정. 행은 주말·휴장일을
+// 포함한 달력일 단위로 오래된 날짜부터 오며, 값은 12자리 zero-padded 무부호 문자열.
+// 신용 계열(grnt_use_amt/crd_loan/ls_grnt)은 현금계좌에서 전부 0이라 소비하지 않는다
+// (ka10085 스킵과 같은 근거 — 신용거래는 범위 밖).
+
+export const dailyAssetItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  entr: str(), // 예수금
+  repl_amt: str(), // 대용금
+  prsm_dpst_aset_amt: str(), // 추정예탁자산
+});
+
+export type DailyAssetItem = z.infer<typeof dailyAssetItemSchema>;
+
+// ── kt00016: 일별계좌수익률상세현황 (subset) ──
+// 이름과 달리 배열이 아닌 FLAT 기간 요약(초/말 쌍 + 기간 집계). 모의투자 미지원(RC9000).
+// prft_rt는 evltv_prft ÷ invt_bsamt × 100과 정확히 일치함을 REAL에서 확인(2026-07-23)
+// — 수익률 산출 기준은 투자원금평잔. 관리자/지점 필드(mang_empno 등)는 표시하지 않는다.
+
+export const accountReturnSummarySchema = z.looseObject({
+  ...envelope,
+  entr_fr: str(), // 예수금_초
+  entr_to: str(), // 예수금_말
+  scrt_evlt_amt_fr: str(), // 유가증권평가금액_초
+  scrt_evlt_amt_to: str(), // 유가증권평가금액_말
+  tot_amt_fr: str(), // 순자산액계_초
+  tot_amt_to: str(), // 순자산액계_말
+  invt_bsamt: str(), // 투자원금평잔
+  evltv_prft: str(), // 평가손익 (부호 유의미)
+  prft_rt: str(), // 수익률(%) (부호 유의미)
+  tern_rt: str(), // 회전율(%)
+  termin_tot_trns: str(), // 기간내총입금
+  termin_tot_pymn: str(), // 기간내총출금
+  termin_tot_inq: str(), // 기간내총입고
+  termin_tot_outq: str(), // 기간내총출고
+});
+
+export type AccountReturnSummary = z.infer<typeof accountReturnSummarySchema>;
+
 // ── kt00015: 위탁종합거래내역 (subset) ──
 // NOTE: trde_dt is the settlement date (D+2), not the trade date.
 
