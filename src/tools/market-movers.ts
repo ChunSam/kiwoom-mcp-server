@@ -6,10 +6,22 @@ import {
   fetchLimitStocks,
   fetchNewHighLow,
   fetchPriceJumps,
+  fetchVolumeSurge,
   type RankingMarket,
 } from "../kiwoom/api.js";
-import type { LimitStockItem, NewHighLowItem, PriceJumpItem } from "../kiwoom/types.js";
-import { formatNumber, formatPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import type {
+  LimitStockItem,
+  NewHighLowItem,
+  PriceJumpItem,
+  VolumeSurgeItem,
+} from "../kiwoom/types.js";
+import {
+  formatNumber,
+  formatPercent,
+  formatSigned,
+  parseKiwoomNumber,
+  parseKiwoomPrice,
+} from "../utils/num.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
@@ -24,6 +36,7 @@ const SIGNAL_LABELS = {
   lower_limit: "하한가",
   surge: "급등",
   plunge: "급락",
+  volume_surge: "거래량급증",
 } as const;
 export type MoverSignal = keyof typeof SIGNAL_LABELS;
 
@@ -51,7 +64,7 @@ function commonCells(
 export function formatMarketMovers(
   signal: MoverSignal,
   market: RankingMarket,
-  items: Array<NewHighLowItem | LimitStockItem | PriceJumpItem>,
+  items: Array<NewHighLowItem | LimitStockItem | PriceJumpItem | VolumeSurgeItem>,
   top: number,
   modeLabel: string,
   days?: string,
@@ -93,6 +106,21 @@ export function formatMarketMovers(
         ]),
       );
     });
+  } else if (signal === "volume_surge") {
+    lines.push(
+      "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 현재거래량 | 급증량 | 급증률(전일 대비) |",
+      "|---:|---|---|---:|---:|---:|---:|---:|",
+    );
+    (shown as VolumeSurgeItem[]).forEach((item, i) => {
+      lines.push(
+        row([
+          ...commonCells(i + 1, item),
+          formatNumber(parseKiwoomNumber(item.now_trde_qty)),
+          formatSigned(parseKiwoomNumber(item.sdnin_qty)),
+          formatPercent(parseKiwoomNumber(item.sdnin_rt)),
+        ]),
+      );
+    });
   } else {
     lines.push(
       "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 급등락률(기준가 대비) | 거래량 |",
@@ -117,12 +145,15 @@ export function registerMarketMoversTool(server: McpServer): void {
     {
       title: "시장 특이 종목 조회",
       description:
-        "시장 특이 종목을 조회합니다 (키움 ka10016/ka10017/ka10019). signal: " +
+        "시장 특이 종목을 조회합니다 (키움 ka10016/ka10017/ka10019/ka10023). signal: " +
         "new_high(신고가)/new_low(신저가)/upper_limit(상한가)/lower_limit(하한가)/" +
-        "surge(급등)/plunge(급락). market: all(전체, 기본)/kospi/kosdaq. " +
-        "신고/신저는 days(5/10/20/60/250일, 기본 5일) 기준, 급등/급락은 전일 대비입니다.",
+        "surge(급등)/plunge(급락)/volume_surge(거래량급증). market: all(전체, 기본)/kospi/kosdaq. " +
+        "신고/신저는 days(5/10/20/60/250일, 기본 5일) 기준, 급등/급락과 거래량급증은 전일 대비입니다 " +
+        "(거래량급증은 급증량 순, 5천주 이상).",
       inputSchema: {
-        signal: z.enum(["new_high", "new_low", "upper_limit", "lower_limit", "surge", "plunge"]).describe("특이 신호 종류"),
+        signal: z
+          .enum(["new_high", "new_low", "upper_limit", "lower_limit", "surge", "plunge", "volume_surge"])
+          .describe("특이 신호 종류"),
         market: z.enum(["all", "kospi", "kosdaq"]).optional().describe("시장 구분 (기본값: all)"),
         days: z
           .enum(DAYS_VALUES)
@@ -149,7 +180,9 @@ export function registerMarketMoversTool(server: McpServer): void {
             ? await fetchNewHighLow(client, m, signal === "new_high" ? "high" : "low", d)
             : signal === "upper_limit" || signal === "lower_limit"
               ? await fetchLimitStocks(client, m, signal === "upper_limit" ? "upper" : "lower")
-              : await fetchPriceJumps(client, m, signal);
+              : signal === "volume_surge"
+                ? await fetchVolumeSurge(client, m)
+                : await fetchPriceJumps(client, m, signal);
 
         return textResult(formatMarketMovers(signal, m, items, count, config.modeLabel, d));
       }),

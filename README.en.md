@@ -36,7 +36,7 @@ allowance.
 | `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
 | `get_sector_chart` | Sector index candles (daily/weekly/monthly/yearly/minute/tick) | ka20004~08, ka20019 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
-| `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges | ka10016/17/19 |
+| `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges | ka10016/17/19/23 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |
 | `get_investor_rank` | Top stocks net-bought/sold by foreigners & institutions / N-day buying streaks | ka90009, ka10131 |
