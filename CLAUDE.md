@@ -262,6 +262,15 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   tm_tp: "2", tm: "1"(전일 기준), …, updown_incls: "1", stex_tp: "1"}` → `pric_jmpflu[]` incl.
   `base_pric`/`jmp_rt` 기준가 대비 급등락률). mrkt_tp shares the ranking codes (000/001/101).
   All three wrapped by the single `get_market_movers` tool (signal enum, get_ranking pattern).
+  Fourth signal (v0.23.0): ka10023 거래량급증 — **`/api/dostk/rkinfo`, NOT stkinfo** (body
+  `{mrkt_tp 랭킹 코드, sort_tp: "1"급증량|"2"급증률|"3"급감량|"4"급감률, tm_tp: "1"분|"2"전일,
+  trde_qty_tp: "5"~"1000" 최소 거래량 필터 (**"전체" 옵션 없음 — "5"(5천주)가 최소**), tm(분
+  모드 전용), stk_cnd: "0", pric_tp: "0", stex_tp: "1"}` → `trde_qty_sdnin[]` of {stk_cd,
+  stk_nm, cur_prc, pred_pre(_sig), flu_rt, prev/now_trde_qty, sdnin_qty 급증량(부호),
+  sdnin_rt 급증률%(부호)}; 200행/page cont-yn Y — page-1 only, `top` 표시 제한). **툴은
+  sort "1" 급증량순 고정** — 급증률 정렬은 prev 극소 행이 상위를 도배 (mock 실측: 이전거래량
+  11주 → +49,709%); 급증률은 컬럼으로만 표시. mock-probed 2026-07-23 (4콜 전부 rc=0, 문서
+  10필드 전부 일치·초과 필드 없음); REAL probe pending pre-publish.
 - Sector TRs (both `/api/dostk/sect` like ka20003; **live-verified on REAL 2026-07-09** —
   owner-authorized one-shot read-only probe, both kospi/kosdaq variants: rc=0, array keys OK,
   zero consumed-field gaps, rows byte-identical to mock): ka20001 업종현재가 (body `{mrkt_tp, inds_cd}` → 22 flat fields — cur_prc/
@@ -721,6 +730,12 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   유지). 237 tests / 23 files. `scripts/sweep.py` = 46 calls (get_account_trend는 mock에서
   err(exp) — get_transactions RC9000과 같은 클래스). **Server exposes 32 always-on tools
   (33 with ISA).**
+- **v0.23.0 (2026-07-23) — 거래량급증 시그널.** `get_market_movers`가 ka10023 거래량급증을
+  `volume_surge` 시그널로 흡수 (**no new tool** — v0.12.0 차트 확장 선례; 상세는 위
+  Market-movers TR 불릿). "오늘 거래량 터진 종목" 질문 축 커버. Developed on VIRTUAL per
+  the dev loop (fixtures in `tests/market-movers.test.ts` captured verbatim from mockapi
+  2026-07-23; 급증량순 정렬 결정도 mock 실측 근거). 239 tests / 23 files. `scripts/sweep.py`
+  = 47 calls. **Server still exposes 32 always-on tools (33 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

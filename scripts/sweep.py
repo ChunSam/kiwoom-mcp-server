@@ -138,6 +138,7 @@ def main() -> int:
         ("get_market_movers", {"signal": "lower_limit", "top": 3}),
         ("get_market_movers", {"signal": "surge", "top": 3}),
         ("get_market_movers", {"signal": "plunge", "top": 3}),
+        ("get_market_movers", {"signal": "volume_surge", "top": 3}),  # ka10023
         ("get_vi_stocks", {"top": 5}),  # ka10054
         ("get_investor_trend", {"stock_code": "005930"}),
         ("get_investor_rank", {"limit": 5}),  # ka90009 최근 거래일

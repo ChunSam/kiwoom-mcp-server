@@ -840,6 +840,21 @@ export const priceJumpItemSchema = z.looseObject({
 });
 export type PriceJumpItem = z.infer<typeof priceJumpItemSchema>;
 
+// ── ka10023: 거래량급증 (mock-verified 2026-07-23) — array key `trde_qty_sdnin`,
+// 200 rows/page (cont-yn Y); sdnin_qty/sdnin_rt arrive sign-prefixed ("+8571012") ──
+
+export const volumeSurgeItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 부호 포함
+  pred_pre: str(), // 전일대비 (부호)
+  flu_rt: str(), // 등락률 (부호)
+  now_trde_qty: str(), // 현재거래량 (prev_trde_qty 미소비 — now − sdnin_qty로 유도 가능)
+  sdnin_qty: str(), // 급증량 (부호)
+  sdnin_rt: str(), // 급증률 % (부호)
+});
+export type VolumeSurgeItem = z.infer<typeof volumeSurgeItemSchema>;
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

@@ -4,6 +4,7 @@ import {
   limitStockItemSchema,
   newHighLowItemSchema,
   priceJumpItemSchema,
+  volumeSurgeItemSchema,
 } from "../src/kiwoom/types.js";
 import { formatMarketMovers } from "../src/tools/market-movers.js";
 
@@ -73,6 +74,35 @@ const surgeItems = [
   },
 ].map((i) => priceJumpItemSchema.parse(i));
 
+// ka10023 fixtures captured verbatim from mockapi 2026-07-23 (sort_tp "1" 급증량순,
+// trde_qty_tp "5", tm_tp "2"; first + last of the 200-row first page).
+const volumeSurgeItems = [
+  {
+    stk_cd: "252670",
+    stk_nm: "KODEX 200선물인버스2X",
+    cur_prc: "-95",
+    pred_pre_sig: "5",
+    pred_pre: "-5",
+    flu_rt: "-5.00",
+    prev_trde_qty: "2255526794",
+    now_trde_qty: "4048484876",
+    sdnin_qty: "+1792958082",
+    sdnin_rt: "+79.49",
+  },
+  {
+    stk_cd: "480310",
+    stk_nm: "TIGER 글로벌온디바이스AI",
+    cur_prc: "-21105",
+    pred_pre_sig: "5",
+    pred_pre: "-35",
+    flu_rt: "-0.17",
+    prev_trde_qty: "17510",
+    now_trde_qty: "47534",
+    sdnin_qty: "+30024",
+    sdnin_rt: "+171.47",
+  },
+].map((i) => volumeSurgeItemSchema.parse(i));
+
 describe("formatMarketMovers", () => {
   it("renders new_low with period high/low columns and the days suffix", () => {
     const text = formatMarketMovers("new_low", "all", newLowItems, 20, MODE, "10");
@@ -96,6 +126,24 @@ describe("formatMarketMovers", () => {
     expect(text).not.toContain("일 기준");
     expect(text).toContain("| 급등락률(기준가 대비) |");
     expect(text).toContain("| 1 | 금호에이치티 | 214330 | 9,030 | +29.93% | +253.42% | 578,745 |");
+  });
+
+  it("renders volume_surge with surge quantity/rate columns and no days suffix", () => {
+    const text = formatMarketMovers("volume_surge", "all", volumeSurgeItems, 20, MODE);
+    expect(text).toContain("[모의투자] 전체 거래량급증 종목 (2종목)");
+    expect(text).not.toContain("일 기준");
+    expect(text).toContain("| 현재거래량 | 급증량 | 급증률(전일 대비) |");
+    expect(text).toContain(
+      "| 1 | KODEX 200선물인버스2X | 252670 | 95 | -5.00% | 4,048,484,876 | +1,792,958,082 | +79.49% |",
+    );
+    expect(text).toContain(
+      "| 2 | TIGER 글로벌온디바이스AI | 480310 | 21,105 | -0.17% | 47,534 | +30,024 | +171.47% |",
+    );
+  });
+
+  it("renders a volume_surge empty-result message", () => {
+    const text = formatMarketMovers("volume_surge", "kosdaq", [], 20, MODE);
+    expect(text).toBe("[모의투자] 코스닥 거래량급증 종목 — 해당 종목이 없습니다.");
   });
 
   it("caps rows at top", () => {
