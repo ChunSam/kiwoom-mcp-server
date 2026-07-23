@@ -29,8 +29,9 @@ PROJ = Path(__file__).resolve().parents[1]
 DIST = PROJ / "dist" / "index.js"
 CALL_INTERVAL_S = 1.2  # Kiwoom rate limit is ~1 req/s per TR; stay under it
 
-# Tools whose failure is EXPECTED on VIRTUAL (mockapi does not serve kt00015).
-EXPECTED_MOCK_ERRORS = {"get_transactions"}
+# Tools whose failure is EXPECTED on VIRTUAL (mockapi does not serve
+# kt00015 / kt00002·kt00016 — RC9000).
+EXPECTED_MOCK_ERRORS = {"get_transactions", "get_account_trend"}
 
 
 def read_mode() -> str:
@@ -157,6 +158,7 @@ def main() -> int:
         ("get_theme_stocks", None),
         ("get_account_balance", {}),
         ("get_account_holdings", {}),
+        ("get_account_trend", {"days": 7}),  # kt00002+kt00016 — mock-unsupported RC9000 → err(exp)
         ("get_transactions", {}),
         ("get_pending_orders", {}),
         ("get_trading_journal", {}),

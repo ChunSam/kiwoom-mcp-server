@@ -70,6 +70,7 @@ allowance.
 |---|---|---|
 | `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets + day/month/cumulative P&L | kt00001, kt00018, kt00004 |
 | `get_account_holdings` | Per-holding quantity / average cost / current price / valuation P&L | kt00018 |
+| `get_account_trend` | Daily estimated-deposit-asset trend + period return / valuation P&L / cash-flow summary (default 30 days; not served on VIRTUAL) | kt00002, kt00016 |
 | `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount) | kt00015 |
 | `get_pending_orders` | Open/unfilled orders (order no., side, status, ordered/unfilled qty, price) | ka10075 |
 | `get_trading_journal` | The day's trading journal (per-stock buy/sell avg price, qty, realized P&L, totals) | ka10170 |

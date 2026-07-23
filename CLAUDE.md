@@ -85,7 +85,10 @@ foreign all populated). Mock-**unsupported** (do not develop against mock for th
 **kt00015 위탁종합거래내역** (RC9000 "모의투자에서는 해당업무가 제공되지 않습니다" → `get_transactions`
 and `calc_isa_tax_status` are dead on mock; **confirmed working on REAL 2026-07-08** —
 the owner's GUI test returned real transaction rows), **kt00010 주문인출가능금액** (RC7006 조회실패),
-**ka01690 일별잔고수익률** (8104 지원하지 않는 API). Account TRs respond but with empty/zero
+**ka01690 일별잔고수익률** (8104 지원하지 않는 API), **kt00002 일별추정예탁자산현황 + kt00016
+일별계좌수익률상세현황** (RC9000, probed 2026-07-23 → `get_account_trend` is dead on mock;
+**both confirmed working on REAL 2026-07-23** — the contract source for that tool).
+Account TRs respond but with empty/zero
 data on a fresh mock account (kt00018 0 holdings, ka10075 empty `oso`, ka10170 blank row);
 the mock HTS watchlist starts with 2 default groups. Full results:
 `mock-probe-results.json` in the 2026-07-08 session scratchpad (re-probe with a one-off
@@ -206,6 +209,25 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   expr_dt) + 결제잔고/청산가능수량; kt00018 already gives the same axis WITH 평가금액/
   평가손익/수익률/비중. Credit fields are blank for cash accounts and margin trading is
   out of scope. Revisit ka10085 only if margin-account support is ever requested.
+- 계좌 시계열 TRs (both `/api/dostk/acnt`; **mock-UNSUPPORTED — RC9000** on all tried
+  bodies, so unlike every prior round the contract was established by an EARLY owner-run
+  REAL probe, **live-verified 2026-07-23**: rc=0, zero consumed-field gaps, 3 calls):
+  kt00002 일별추정예탁자산현황 (body `{start_dt, end_dt}` yyyyMMdd → array
+  `daly_prsm_dpst_aset_amt_prst[]` of `{dt, entr 예수금, grnt_use_amt 담보대출금,
+  crd_loan 신용융자금, ls_grnt 대주담보금, repl_amt 대용금, prsm_dpst_aset_amt 추정예탁자산,
+  prsm_dpst_aset_amt_bncr_skip 수익증권제외}` — **행은 주말·휴장일 포함 달력일 단위,
+  오래된 날짜부터** (30일 조회 = 정확히 30행, cont-yn N; end_dt에 오늘을 넣어도 당일 행은
+  아직 없음), 값은 12자리 zero-padded 무부호; 신용 3필드는 현금계좌에서 전부 0이라 미소비
+  (ka10085 근거), page size 미문서라 kt00018식 cont-yn 루프 + truncated 플래그).
+  kt00016 일별계좌수익률상세현황 (body `{fr_dt, to_dt}` yyyyMMdd → **이름과 달리 배열이
+  없는 FLAT 기간 요약**: `_fr`/`_to` 초·말 쌍 13종 + `invt_bsamt 투자원금평잔,
+  evltv_prft 평가손익(부호), prft_rt 수익률(%), tern_rt 회전율(%), termin_tot_trns/pymn/
+  inq/outq 기간내총입금·출금·입고·출고` + 미소비 관리자 필드(mang_empno/mngr_nm/dept_nm —
+  계좌명/지점명 비표시 선례). **prft_rt == evltv_prft ÷ invt_bsamt × 100 정확 일치** (REAL
+  실측 — 수익률 산출 기준은 투자원금평잔). **kt00004의 all-zero 기간손익과 달리 kt00016은
+  살아있다**: 같은 계좌에서 30일 -5.56%/YTD -0.38% 등 실값 반환 — 계좌 기간손익 축은
+  kt00016으로 커버). Both wrapped by `get_account_trend` (days 2~90, 기본 30; 병렬 호출,
+  kt00016은 best-effort).
 - Market-data TRs (all live-verified 2026-07-06 with the exact bodies in
   `src/kiwoom/api.ts`): ka10099 종목마스터 (`{mrkt_tp: "0"코스피|"10"코스닥}`, single page
   ~2500 rows incl. ETF/ETN, **response fields are camelCase** — the only such TR);
@@ -689,6 +711,16 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   shape confirmed on REAL; REAL rows identical to mock — mirror re-confirmed).
   232 tests / 22 files. `scripts/sweep.py` = 45 calls (+2: 멀티코드 + unknown-code 필터
   경로). **Server exposes 31 always-on tools (32 with ISA).**
+- **v0.22.0 (2026-07-23) — 계좌 자산 추이 (마지막 strong-tier 항목).** Added
+  `get_account_trend` (kt00002 일별추정예탁자산 + kt00016 기간 수익률 요약 — 상세는 위
+  계좌 시계열 TR 불릿): "내 계좌가 지난 한 달간 어떻게 변했나" 축을 처음 커버. **두 TR 모두
+  mock-미지원(RC9000)이라 통상의 mock-first 루프를 뒤집어 EARLY owner REAL 프로브(3콜,
+  2026-07-23)로 계약을 먼저 확정** — kt00016이 kt00004의 all-zero 기간손익을 회복함을 확인
+  (30일 -5.56% 실값). Fixtures는 shape-true·value-synthetic (실계좌 잔고는 레포에 넣지
+  않음 — raw 캡처는 로컬 스크래치패드만; prft_rt와 evltv_prft÷invt_bsamt 관계는 fixture에서도
+  유지). 237 tests / 23 files. `scripts/sweep.py` = 46 calls (get_account_trend는 mock에서
+  err(exp) — get_transactions RC9000과 같은 클래스). **Server exposes 32 always-on tools
+  (33 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
