@@ -840,8 +840,9 @@ export const priceJumpItemSchema = z.looseObject({
 });
 export type PriceJumpItem = z.infer<typeof priceJumpItemSchema>;
 
-// ── ka10023: 거래량급증 (mock-verified 2026-07-23) — array key `trde_qty_sdnin`,
-// 200 rows/page (cont-yn Y); sdnin_qty/sdnin_rt arrive sign-prefixed ("+8571012") ──
+// ── ka10023: 거래량급증 (mock- + REAL-verified 2026-07-23) — array key `trde_qty_sdnin`,
+// 200 rows/page (cont-yn Y); sdnin_qty/sdnin_rt arrive sign-prefixed ("+8571012");
+// now_trde_qty caps at uint32 max like ka10030 (display verbatim) ──
 
 export const volumeSurgeItemSchema = z.looseObject({
   stk_cd: str(),

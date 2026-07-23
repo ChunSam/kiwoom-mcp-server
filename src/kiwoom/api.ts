@@ -1046,8 +1046,8 @@ export async function fetchPriceJumps(
 }
 
 /**
- * ka10023 거래량급증요청 — volume surges vs the previous day (mock-verified
- * 2026-07-23; REAL not yet probed). Path is /api/dostk/rkinfo (NOT stkinfo like
+ * ka10023 거래량급증요청 — volume surges vs the previous day (mock-verified +
+ * live-verified on REAL 2026-07-23). Path is /api/dostk/rkinfo (NOT stkinfo like
  * the other movers TRs). sort_tp "1"=급증량순 — 급증률(2) sort surfaces degenerate
  * micro-base rows (prev 11주 → +49709%). tm_tp "2"=전일 기준 (tm은 분 모드 전용).
  * trde_qty_tp "5"=5천주 이상 — 이 TR엔 "전체" 옵션이 없어 "5"가 최소 필터.

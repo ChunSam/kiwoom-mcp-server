@@ -270,7 +270,11 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   sdnin_rt 급증률%(부호)}; 200행/page cont-yn Y — page-1 only, `top` 표시 제한). **툴은
   sort "1" 급증량순 고정** — 급증률 정렬은 prev 극소 행이 상위를 도배 (mock 실측: 이전거래량
   11주 → +49,709%); 급증률은 컬럼으로만 표시. mock-probed 2026-07-23 (4콜 전부 rc=0, 문서
-  10필드 전부 일치·초과 필드 없음); REAL probe pending pre-publish.
+  10필드 전부 일치·초과 필드 없음); **live-verified on REAL 2026-07-23** (owner-run one-shot
+  read-only probe, 2콜 all/kospi: rc=0, 200행, consumed gaps/blanks ZERO, now−prev==sdnin_qty
+  정합 OK). **ka10023도 ka10030처럼 `now_trde_qty`를 uint32 max(4294967295)로 캡** — REAL에서
+  실측 (KODEX 인버스2X 1행); sdnin_qty는 캡된 now 기준으로 키움이 산출해 내부 정합은 유지되나
+  캡 행의 실제 거래량은 더 크다. 표시 그대로(verbatim), "고치지" 말 것.
 - Sector TRs (both `/api/dostk/sect` like ka20003; **live-verified on REAL 2026-07-09** —
   owner-authorized one-shot read-only probe, both kospi/kosdaq variants: rc=0, array keys OK,
   zero consumed-field gaps, rows byte-identical to mock): ka20001 업종현재가 (body `{mrkt_tp, inds_cd}` → 22 flat fields — cur_prc/
@@ -734,7 +738,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `volume_surge` 시그널로 흡수 (**no new tool** — v0.12.0 차트 확장 선례; 상세는 위
   Market-movers TR 불릿). "오늘 거래량 터진 종목" 질문 축 커버. Developed on VIRTUAL per
   the dev loop (fixtures in `tests/market-movers.test.ts` captured verbatim from mockapi
-  2026-07-23; 급증량순 정렬 결정도 mock 실측 근거). 239 tests / 23 files. `scripts/sweep.py`
+  2026-07-23; 급증량순 정렬 결정도 mock 실측 근거), then **live-verified on REAL 2026-07-23**
+  (owner-run one-shot read-only probe, 2콜: rc=0, zero consumed-field gaps/blanks; uint32 캡
+  실측 — 위 TR 불릿 참조). 239 tests / 23 files. `scripts/sweep.py`
   = 47 calls. **Server still exposes 32 always-on tools (33 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
