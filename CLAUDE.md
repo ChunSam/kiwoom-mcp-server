@@ -336,6 +336,26 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   양쪽 동일, 09:10 KST 관측 — 장 후반 증가 여부는 미확인). prm_* 값은 amt_qty_tp에 따라
   백만원/주 — 수량 모드도 필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading`
   (direction/unit/market enum, get_ranking 패턴).
+- 프로그램 추이 TRs (v0.24.0 batch, all `/api/dostk/mrkcond`; **mock-probed 2026-07-24** — 7콜
+  전부 rc=0, 배열 키 스펙 일치; REAL probe pending pre-publish): ka90010 프로그램매매추이 일자별 +
+  ka90005 시간대별 — **두 TR은 body·배열 키(`prm_trde_trnsn`)·행 구조가 완전히 동일**, 축만 다르다
+  (ka90005 = 당일 누적 분 단위 행 newest-first, 장중 단일 페이지 cont-yn N; ka90010 = 일자별
+  100행/page cont-yn Y, 당일 행 = 장중 누적 실시간 — ka90005 최신 행과 정확 일치 실측). Body
+  `{date 기준일, amt_qty_tp: "1" 고정(행에 금액(백만원)·수량(천주)이 항상 둘 다 옴), mrkt_tp:
+  ka90003과 같은 P-접두 코드(P00101/P10102), min_tic_tp: "1"분, stex_tp: "1"}`. 부호/지수 quirk:
+  **ka90005는 이중부호(`--55456`), ka90010은 단일부호에 양수 all_netprps가 무부호**;
+  **kospi200 필드는 ka90005에서 ×100 정수("+108970"=1089.70), ka90010에서는 소수 그대로
+  ("+1089.70")** — 코스닥 시장이면 필드명과 달리 코스닥 쪽 지수가 온다; basis는 양쪽 다 소수
+  (장 시작 직후 빈 값). 차익+비차익과 전체는 독립 반올림으로 ±1 차이 가능(mock 28/100행 실측) —
+  그대로 표시. ka90013 종목일별프로그램매매추이 (body `{amt_qty_tp: "1" 고정 — 행 내용 무영향,
+  ka10131 클래스(실측), stk_cd, date(빈값=최근일)}` → `stk_daly_prm_trde_trnsn[]` 20행/page
+  cont-yn Y — page-1 only + truncated, ka10008 선례): 단위 실측 *_amt 백만원/*_qty 주
+  (금액÷수량 ≈ 주가 교차검증, 005930); 이중부호(`--199471`); base_pric_tm/dbrt_trde_rpy_sum/
+  remn_rcvord_sum은 mock에서 공백 → 미소비 (대차는 get_stock_lending 소관). 세 TR 모두
+  `get_program_trading`의 `view` enum(top 기본/market_daily/market_intraday/stock_daily)으로
+  흡수 — **no new tool** (investor-rank view 선례). **ka90006 차익잔고추이/ka90007 누적추이/
+  ka90008 종목 시간별은 의도적 미노출** (차익잔고·누적은 niche 파생 축, 종목 시간별은 종목
+  일별(ka90013)에 열세 — 툴 수 절제, ka40010/ka10069 선례).
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
   owner-authorized one-shot read-only probe, 2 calls: rc=0, zero consumed-field gaps; REAL VI
   rows included a 동적 행 with static_* fields zeroed — the mirror image of mock's 정적 rows,
@@ -742,6 +762,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   (owner-run one-shot read-only probe, 2콜: rc=0, zero consumed-field gaps/blanks; uint32 캡
   실측 — 위 TR 불릿 참조). 239 tests / 23 files. `scripts/sweep.py`
   = 47 calls. **Server still exposes 32 always-on tools (33 with ISA).**
+- **v0.24.0 (2026-07-24) — 프로그램 매매 추이.** `get_program_trading`이 `view` enum으로
+  ka90010 일자별/ka90005 시간대별/ka90013 종목 일별 추이를 흡수 (**no new tool** —
+  investor-rank view 선례; 상세는 위 프로그램 추이 TR 불릿). "요즘 프로그램이 사고 있나 /
+  이 종목 프로그램 수급은?" 질문 축 커버. Developed on VIRTUAL per the dev loop (fixtures in
+  `tests/lending-program.test.ts` captured verbatim from mockapi 2026-07-24; ±1 반올림·이중부호·
+  ×100 지수 quirk 전부 mock 실측 근거), REAL probe pending pre-publish. 245 tests / 23 files.
+  `scripts/sweep.py` = 50 calls. **Server still exposes 32 always-on tools (33 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
