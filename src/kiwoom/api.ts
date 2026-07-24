@@ -30,12 +30,14 @@ import {
   priceChangeRankItemSchema,
   priceJumpItemSchema,
   programTradeItemSchema,
+  programTrendItemSchema,
   realizedPnlResponseSchema,
   sectorPriceResponseSchema,
   sectorStocksResponseSchema,
   shortSellingResponseSchema,
   stockInfoResponseSchema,
   stockListResponseSchema,
+  stockProgramTrendItemSchema,
   themeGroupsResponseSchema,
   tradingJournalResponseSchema,
   themeStocksResponseSchema,
@@ -72,12 +74,14 @@ import {
   type PriceChangeRankItem,
   type PriceJumpItem,
   type ProgramTradeItem,
+  type ProgramTrendItem,
   type RealizedPnlResponse,
   type SectorPriceResponse,
   type SectorStockItem,
   type ShortSellingItem,
   type StockInfoResponse,
   type StockListItem,
+  type StockProgramTrendItem,
   type ThemeGroupItem,
   type ThemeStocksResponse,
   type TradingJournalResponse,
@@ -939,6 +943,62 @@ export async function fetchProgramTrades(
     },
   });
   return parseArray(res.json, "prm_netprps_upper_50", programTradeItemSchema);
+}
+
+export type ProgramTrendGranularity = "daily" | "intraday";
+
+/**
+ * ka90010 (일자별) / ka90005 (시간대별) 프로그램매매추이 — market-wide program-trading
+ * trend. Both TRs share body + array key (`prm_trde_trnsn`); only the row axis
+ * differs (see programTrendItemSchema). date = 기준일 (rows run backwards from it;
+ * on ka90005 it selects the session day). amt_qty_tp fixed "1" — rows carry both
+ * 금액/수량 fields regardless; min_tic_tp "1"=분 (tick mode adds nothing for display).
+ * Page-1 only: ka90005 fits one page intraday (cont-yn N mid-session), ka90010 is
+ * 100 rows/page cont-yn Y → truncated flag.
+ */
+export async function fetchProgramTrend(
+  client: KiwoomClient,
+  granularity: ProgramTrendGranularity,
+  market: ProgramMarket,
+  baseDate: string,
+): Promise<{ items: ProgramTrendItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: granularity === "intraday" ? "ka90005" : "ka90010",
+    body: {
+      date: baseDate,
+      amt_qty_tp: "1",
+      mrkt_tp: PROGRAM_MARKET_CODES[market],
+      min_tic_tp: "1",
+      stex_tp: "1",
+    },
+  });
+  return {
+    items: parseArray(res.json, "prm_trde_trnsn", programTrendItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/**
+ * ka90013 종목일별프로그램매매추이 — per-stock daily program-trading trend.
+ * date = 기준일 (rows run backwards; blank = 최근일). amt_qty_tp fixed "1"
+ * (no effect on row content — mock-probed 2026-07-24). 20 rows/page cont-yn Y →
+ * page-1 only + truncated flag (ka10008 foreign-holding precedent).
+ */
+export async function fetchStockProgramTrend(
+  client: KiwoomClient,
+  stockCode: string,
+  baseDate: string,
+): Promise<{ items: StockProgramTrendItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka90013",
+    body: { amt_qty_tp: "1", stk_cd: stockCode, date: baseDate },
+  });
+  return {
+    items: parseArray(res.json, "stk_daly_prm_trde_trnsn", stockProgramTrendItemSchema),
+    truncated: res.hasNext,
+  };
 }
 
 /**

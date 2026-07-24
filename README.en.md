@@ -46,7 +46,7 @@ allowance.
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_foreign_holding` | Per-stock foreign holding trend (holdings / holding weight / limit-usage rate) | ka10008 |
-| `get_program_trading` | Today's top program-trading net buys / sells (KOSPI/KOSDAQ) | ka90003 |
+| `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
 
 **Watchlist** (interest-stock groups saved in the 영웅문 HTS client — read-only):
 

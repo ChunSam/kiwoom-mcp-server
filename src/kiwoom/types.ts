@@ -768,6 +768,48 @@ export const programTradeItemSchema = z.looseObject({
 
 export type ProgramTradeItem = z.infer<typeof programTradeItemSchema>;
 
+// ── ka90005/ka90010: 프로그램매매추이 시간대별/일자별 — /api/dostk/mrkcond ──
+// (mock-probed 2026-07-24) Both TRs share the SAME body and the SAME array key
+// (prm_trde_trnsn) with an identical row shape — only the row axis differs:
+// ka90005 = intraday rows CUMULATIVE for the day (cntr_tm HHmmss, newest-first,
+// single page while the session runs), ka90010 = daily rows (cntr_tm
+// yyyyMMdd000000, 100/page cont-yn Y; today's row is the live running total).
+// Sign quirks: ka90005 doubles the sign ("--55456"); ka90010 single-signs and a
+// positive all_netprps arrives UNSIGNED. Index quirk: kospi200 is a ×100 integer
+// on ka90005 ("+108970" = 1089.70) but a plain decimal on ka90010 ("+1089.70");
+// on the kosdaq market the field carries the kosdaq-side index despite its name.
+// 차익+비차익 may be ±1 off 전체 (independent rounding) — display verbatim.
+export const programTrendItemSchema = z.looseObject({
+  cntr_tm: str(), // 체결시간 — ka90005 HHmmss / ka90010 yyyyMMdd000000
+  dfrt_trde_netprps: str(), // 차익거래 순매수 (백만원, 부호)
+  ndiffpro_trde_netprps: str(), // 비차익거래 순매수 (백만원, 부호)
+  all_sel: str(), // 전체 매도 (백만원)
+  all_buy: str(), // 전체 매수 (백만원)
+  all_netprps: str(), // 전체 순매수 (백만원, 양수는 무부호로 올 수 있음)
+  kospi200: str(), // 지수 (ka90005 ×100 정수 / ka90010 소수; 코스닥 시장이면 코스닥 지수)
+  basis: str(), // BASIS (소수; 장 시작 직후 빈 값)
+});
+
+export type ProgramTrendItem = z.infer<typeof programTrendItemSchema>;
+
+// ── ka90013: 종목일별프로그램매매추이 — /api/dostk/mrkcond (mock-probed 2026-07-24) ──
+// amt_qty_tp does NOT change row content (금액/수량 fields are always both present —
+// ka10131 class), so it is fixed to "1". 단위 실측: *_amt 백만원, *_qty 주
+// (금액÷수량 ≈ 주가 교차검증, 005930). Double-signed values ("--199471").
+// base_pric_tm/dbrt_trde_rpy_sum/remn_rcvord_sum arrive blank on mock — unconsumed
+// (대차 데이터는 get_stock_lending이 담당). 20 rows/page, cont-yn Y.
+export const stockProgramTrendItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  cur_prc: str(), // 종가/현재가 (부호 방향)
+  flu_rt: str(), // 등락률(%)
+  prm_sell_amt: str(), // 프로그램 매도금액 (백만원)
+  prm_buy_amt: str(), // 프로그램 매수금액 (백만원)
+  prm_netprps_amt: str(), // 프로그램 순매수금액 (백만원, 부호)
+  prm_netprps_amt_irds: str(), // 순매수금액 증감 (백만원, 부호)
+});
+
+export type StockProgramTrendItem = z.infer<typeof stockProgramTrendItemSchema>;
+
 // ── ka10170: 당일매매일지 — /api/dostk/acnt (live-verified 2026-07-07) ──
 // NOTE: an empty trading day returns ONE all-blank row (not an empty array) — callers
 // must filter blank rows (empty stk_cd/stk_nm). A base_dt beyond ~2 months returns

@@ -153,6 +153,9 @@ def main() -> int:
         ("get_stock_lending", {"stock_code": "005930"}),  # ka20068 per-stock
         ("get_foreign_holding", {"stock_code": "005930", "limit": 5}),
         ("get_program_trading", {"top": 5}),  # ka90003 — pre-market may be an empty-state ok
+        ("get_program_trading", {"view": "market_daily", "top": 5}),  # ka90010
+        ("get_program_trading", {"view": "market_intraday", "top": 5}),  # ka90005 — pre-market empty ok
+        ("get_program_trading", {"view": "stock_daily", "stock_code": "005930", "top": 5}),  # ka90013
         ("get_watchlist_groups", {}),
         ("get_watchlist", None),
         ("get_theme_groups", {"limit": 5}),
