@@ -337,7 +337,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   백만원/주 — 수량 모드도 필드명은 그대로 `prm_*_amt`다. Wrapped by `get_program_trading`
   (direction/unit/market enum, get_ranking 패턴).
 - 프로그램 추이 TRs (v0.24.0 batch, all `/api/dostk/mrkcond`; **mock-probed 2026-07-24** — 7콜
-  전부 rc=0, 배열 키 스펙 일치; REAL probe pending pre-publish): ka90010 프로그램매매추이 일자별 +
+  전부 rc=0, 배열 키 스펙 일치; **live-verified on REAL 2026-07-26** — owner-run one-shot
+  read-only probe 3콜(주말 새벽, 금 07-24 데이터): rc=0, 220행 전수 consumed gaps/blanks ZERO,
+  ×100/소수 인코딩 분리·이중부호·ka90005 최신행==ka90010 당일행 정확 일치 전부 REAL 재확인.
+  **REAL 추가 발견: (a) ka90005도 전장 데이터가 쌓이면 100행/page cont-yn Y로 페이지네이션**
+  (mock 장중 실측은 55행 cont-yn N) — page-1 = 최신 100분, 시간외 18:05 행까지 포함 → page-1-only
+  설계 유지(생략 안내 동작); **(b) 주말/휴장일 date를 넣으면 빈 결과가 아니라 최근 거래일
+  데이터가 반환**된다 (3 TR 공통)): ka90010 프로그램매매추이 일자별 +
   ka90005 시간대별 — **두 TR은 body·배열 키(`prm_trde_trnsn`)·행 구조가 완전히 동일**, 축만 다르다
   (ka90005 = 당일 누적 분 단위 행 newest-first, 장중 단일 페이지 cont-yn N; ka90010 = 일자별
   100행/page cont-yn Y, 당일 행 = 장중 누적 실시간 — ka90005 최신 행과 정확 일치 실측). Body
@@ -767,7 +773,9 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   investor-rank view 선례; 상세는 위 프로그램 추이 TR 불릿). "요즘 프로그램이 사고 있나 /
   이 종목 프로그램 수급은?" 질문 축 커버. Developed on VIRTUAL per the dev loop (fixtures in
   `tests/lending-program.test.ts` captured verbatim from mockapi 2026-07-24; ±1 반올림·이중부호·
-  ×100 지수 quirk 전부 mock 실측 근거), REAL probe pending pre-publish. 245 tests / 23 files.
+  ×100 지수 quirk 전부 mock 실측 근거), then **live-verified on REAL 2026-07-26** (owner-run
+  one-shot read-only probe, 3콜: rc=0, zero consumed-field gaps/blanks; ka90005 페이지네이션 +
+  주말 date → 최근 거래일 반환 발견 — 위 TR 불릿 참조). 245 tests / 23 files.
   `scripts/sweep.py` = 50 calls. **Server still exposes 32 always-on tools (33 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
