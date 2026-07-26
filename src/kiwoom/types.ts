@@ -898,6 +898,54 @@ export const volumeSurgeItemSchema = z.looseObject({
 });
 export type VolumeSurgeItem = z.infer<typeof volumeSurgeItemSchema>;
 
+// ── ka10087: 시간외단일가 (종목별, mock-probed 2026-07-26) — flat 46 fields, no array.
+// 시간외 단일가 5단 호가(ovt_sigpric_sel_bid_{n}/_qty_{n}, buy도 동일)는 orderbook 선례대로
+// loose passthrough로 읽는다; *_jub_pre(직전대비) 계열 15필드는 미소비.
+// 총잔량이 세 쌍으로 온다: ovt_sigpric_* = 시간외 단일가, 무접두 = 정규장, ovt_* = 시간외.
+// ovt_sigpric_pred_pre/flu_rt의 기준은 전일이 아니라 **당일 종가** (ka10098 행과
+// 정확히 일치함을 실측 — 아래 afterHoursRankItemSchema 주석 참조) ──
+
+export const afterHoursQuoteResponseSchema = z.looseObject({
+  ...envelope,
+  bid_req_base_tm: str(), // 호가잔량기준시간 HHmmss — 키움 주의사항: 시간외가 아닌 정규장 시각
+  ovt_sigpric_cur_prc: str(), // 시간외단일가 현재가 (부호 접두)
+  ovt_sigpric_pred_pre: str(), // 당일 종가 대비 (부호)
+  ovt_sigpric_flu_rt: str(), // 당일 종가 대비 등락률 (부호)
+  ovt_sigpric_acc_trde_qty: str(), // 시간외단일가 누적거래량
+  ovt_sigpric_sel_bid_tot_req: str(), // 시간외단일가 매도호가 총잔량
+  ovt_sigpric_buy_bid_tot_req: str(),
+  sel_bid_tot_req: str(), // 정규장 매도호가 총잔량
+  buy_bid_tot_req: str(),
+  ovt_sel_bid_tot_req: str(), // 시간외 매도호가 총잔량
+  ovt_buy_bid_tot_req: str(),
+});
+
+export type AfterHoursQuoteResponse = z.infer<typeof afterHoursQuoteResponseSchema>;
+
+// ── ka10098: 시간외단일가 등락률 순위 (mock-probed 2026-07-26) — array key
+// `ovt_sigpric_flu_rt_rank`, 100 rows/page (cont-yn Y), page-1 only.
+// 실측 647행 전수 검증: pred_pre == |cur_prc| − tdy_close_pric, flu_rt ==
+// pred_pre ÷ tdy_close_pric × 100 → **필드명은 전일대비지만 기준은 당일 종가**.
+// tdy_close_pric_flu_rt만 정규장(전일 대비) 등락률. acc_trde_prica 단위는 백만원
+// (거래량×주가 교차검증 174/174). pred_pre_sig 미소비 (부호가 값에 이미 있음) ──
+
+export const afterHoursRankItemSchema = z.looseObject({
+  rank: str(),
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 시간외 단일가 (부호 접두)
+  pred_pre: str(), // 당일 종가 대비 (부호)
+  flu_rt: str(), // 당일 종가 대비 등락률 (부호)
+  sel_tot_req: str(), // 시간외 매도총잔량
+  buy_tot_req: str(),
+  acc_trde_qty: str(), // 시간외 누적거래량
+  acc_trde_prica: str(), // 시간외 누적거래대금 (백만원)
+  tdy_close_pric: str(), // 당일 종가 (정규장)
+  tdy_close_pric_flu_rt: str(), // 당일 종가의 전일 대비 등락률
+});
+
+export type AfterHoursRankItem = z.infer<typeof afterHoursRankItemSchema>;
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

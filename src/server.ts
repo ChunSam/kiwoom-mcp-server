@@ -4,6 +4,7 @@ import { isIsaEnabled } from "./config.js";
 import { registerAccountBalanceTool } from "./tools/account-balance.js";
 import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
 import { registerAccountTrendTool } from "./tools/account-trend.js";
+import { registerAfterHoursTool } from "./tools/after-hours.js";
 import { registerBrokerActivityTool } from "./tools/broker-activity.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
 import { registerEtfReturnsTool } from "./tools/etf-returns.js";
@@ -33,7 +34,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.24.0";
+export const SERVER_VERSION = "0.25.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -65,6 +66,7 @@ export function createServer(): McpServer {
   registerStockLendingTool(server);
   registerForeignHoldingTool(server);
   registerProgramTradingTool(server);
+  registerAfterHoursTool(server);
 
   // Watchlist (HTS 저장 관심종목 — read-only; ka01300/ka01301)
   registerWatchlistGroupsTool(server);

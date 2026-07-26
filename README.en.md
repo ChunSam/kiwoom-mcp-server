@@ -47,6 +47,7 @@ allowance.
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_foreign_holding` | Per-stock foreign holding trend (holdings / holding weight / limit-usage rate) | ka10008 |
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
+| `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |
 
 **Watchlist** (interest-stock groups saved in the 영웅문 HTS client — read-only):
 
