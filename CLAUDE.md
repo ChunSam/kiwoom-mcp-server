@@ -363,7 +363,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   ka90008 종목 시간별은 의도적 미노출** (차익잔고·누적은 niche 파생 축, 종목 시간별은 종목
   일별(ka90013)에 열세 — 툴 수 절제, ka40010/ka10069 선례).
 - 시간외 단일가 TRs (v0.25.0 batch; **mock-probed 2026-07-26** — 10콜 전부 rc=0, 두 TR 모두
-  응답 필드가 스펙과 정확히 일치(초과·누락 0)): ka10087 시간외단일가 (`/api/dostk/mrkcond`,
+  응답 필드가 스펙과 정확히 일치(초과·누락 0); **live-verified on REAL 2026-07-26** — owner-run
+  one-shot read-only probe 6콜(일요일 실행 → 직전 거래일 금 07-24 세션 값): rc=0, consumed
+  gaps/blanks ZERO, 아래 두 관계식 286행 전수 재확인, **REAL 행 값이 mock과 동일**해
+  mock-mirrors-production 재확인): ka10087 시간외단일가 (`/api/dostk/mrkcond`,
   body `{stk_cd}` → 배열 없는 flat 46필드 — 5단 호가 `ovt_sigpric_{sel,buy}_bid_{1..5}` +
   `_qty_{n}`, 시세 `ovt_sigpric_{cur_prc,pred_pre,flu_rt,acc_trde_qty}`, `bid_req_base_tm`
   (**키움 주의사항: 시간외가 아닌 정규장 기준 시각**); **총잔량이 세 쌍** — `ovt_sigpric_*`
@@ -384,6 +387,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   노출해 사용자가 거르게 했다 — 기본값은 필터 없음(verbatim). 시간외 단일가 체결·호가가 없는
   종목은 rc=0에 전부 0이 오고 `ovt_sigpric_cur_prc` 자리에 당일 종가가 실린다 → 총잔량 두
   필드가 모두 0이면 호가 사다리 대신 안내 문구(ka40009 NAV dormant-block 선례).
+  **OPEN: 005930/247540은 mock·REAL 양쪽에서 시간외 체결·호가가 0인데 069500은 값이 있다**
+  (같은 일요일 스냅샷, 두 소스 값이 동일) — 대형주가 시간외 단일가에서 0이라는 건 통상적이지
+  않아 이 TR의 종목 커버리지 또는 세션 종료 후 스냅샷 보존 방식에 의문이 남는다. 해소 경로:
+  평일 16:00~18:00 세션 중 같은 종목으로 재프로브 (순위 TR ka10098은 같은 시각에 정상 동작).
   둘 다 `get_after_hours` 한 툴이 흡수 (stock_code 지정→ka10087 / 생략→ka10098,
   get_stock_lending의 TR 스위치 선례).
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
@@ -806,7 +813,10 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   시간외 단일가 TR 불릿). "장 끝나고 시간외에서 뭐가 움직였나 / 이 종목 시간외 호가는?" 질문
   축을 처음 커버 — 기존 32툴은 전부 정규장 축이었다. Developed on VIRTUAL per the dev loop
   (fixtures in `tests/after-hours.test.ts` captured verbatim from mockapi 2026-07-26; 종가 기준
-  등락률·백만원 단위·1주 체결 상위 도배 전부 mock 실측 근거). 253 tests / 24 files.
+  등락률·백만원 단위·1주 체결 상위 도배 전부 mock 실측 근거), then **live-verified on REAL
+  2026-07-26** (owner-run one-shot read-only probe, 6콜: rc=0, zero consumed-field gaps/blanks,
+  종가대비·등락률 관계식 286행 전수 일치; REAL 값이 mock과 동일 — mirror 재확인; 대형주
+  시간외 0 커버리지 의문은 위 TR 불릿에 OPEN으로 기록). 253 tests / 24 files.
   `scripts/sweep.py` = 53 calls. **Server exposes 33 always-on tools (34 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
