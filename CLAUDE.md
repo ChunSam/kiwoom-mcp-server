@@ -362,6 +362,30 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   흡수 — **no new tool** (investor-rank view 선례). **ka90006 차익잔고추이/ka90007 누적추이/
   ka90008 종목 시간별은 의도적 미노출** (차익잔고·누적은 niche 파생 축, 종목 시간별은 종목
   일별(ka90013)에 열세 — 툴 수 절제, ka40010/ka10069 선례).
+- 시간외 단일가 TRs (v0.25.0 batch; **mock-probed 2026-07-26** — 10콜 전부 rc=0, 두 TR 모두
+  응답 필드가 스펙과 정확히 일치(초과·누락 0)): ka10087 시간외단일가 (`/api/dostk/mrkcond`,
+  body `{stk_cd}` → 배열 없는 flat 46필드 — 5단 호가 `ovt_sigpric_{sel,buy}_bid_{1..5}` +
+  `_qty_{n}`, 시세 `ovt_sigpric_{cur_prc,pred_pre,flu_rt,acc_trde_qty}`, `bid_req_base_tm`
+  (**키움 주의사항: 시간외가 아닌 정규장 기준 시각**); **총잔량이 세 쌍** — `ovt_sigpric_*`
+  시간외 단일가 / 무접두 `sel_bid_tot_req` 정규장 / `ovt_*` 시간외; `*_jub_pre` 직전대비
+  15필드는 미소비. 호가 5단은 get_orderbook 선례대로 loose passthrough로 읽는다) +
+  ka10098 시간외단일가등락율순위 (**`/api/dostk/rkinfo`**, body 6개 전부 필수
+  `{mrkt_tp 랭킹 코드 000/001/101, sort_base "1"상승률|"2"상승폭|"3"하락률|"4"하락폭|"5"보합,
+  stk_cnd "0", trde_qty_cnd "0"전체|10~10000 (10=백주…10000=10만주), crd_cnd "0",
+  trde_prica "0"}` → `ovt_sigpric_flu_rt_rank[]` 13필드, 100행/page cont-yn Y — page-1 only).
+  **핵심 실측(647행 전수): `pred_pre` == |cur_prc| − `tdy_close_pric`, `flu_rt` ==
+  pred_pre ÷ tdy_close_pric × 100 → 필드명은 전일대비지만 기준은 당일 종가**이고,
+  `tdy_close_pric_flu_rt`만 정규장(전일 대비) 등락률이다 — 표시 라벨을 "종가대비"로 쓰는 근거.
+  ka10001 당일종가 == ka10098 `tdy_close_pric` 정확 일치(3종목 교차검증)로 기준을 재확인했고,
+  **ka10087의 `ovt_sigpric_*` 값은 같은 종목의 ka10098 행과 완전히 동일**(cur/pred_pre/flu_rt/
+  acc_qty + 총잔량 쌍)하므로 두 TR은 같은 수치의 종목/시장 두 축이다. `acc_trde_prica` 단위는
+  백만원(거래량×주가 교차검증 174/174). 상승률 상위는 **거래량 1주짜리 체결이 도배**하므로
+  (ka10023 급증률 선례와 동종 문제) 정렬을 고정하는 대신 `min_volume`(trde_qty_cnd) 옵션을
+  노출해 사용자가 거르게 했다 — 기본값은 필터 없음(verbatim). 시간외 단일가 체결·호가가 없는
+  종목은 rc=0에 전부 0이 오고 `ovt_sigpric_cur_prc` 자리에 당일 종가가 실린다 → 총잔량 두
+  필드가 모두 0이면 호가 사다리 대신 안내 문구(ka40009 NAV dormant-block 선례).
+  둘 다 `get_after_hours` 한 툴이 흡수 (stock_code 지정→ka10087 / 생략→ka10098,
+  get_stock_lending의 TR 스위치 선례).
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
   owner-authorized one-shot read-only probe, 2 calls: rc=0, zero consumed-field gaps; REAL VI
   rows included a 동적 행 with static_* fields zeroed — the mirror image of mock's 정적 rows,
@@ -777,6 +801,13 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   one-shot read-only probe, 3콜: rc=0, zero consumed-field gaps/blanks; ka90005 페이지네이션 +
   주말 date → 최근 거래일 반환 발견 — 위 TR 불릿 참조). 245 tests / 23 files.
   `scripts/sweep.py` = 50 calls. **Server still exposes 32 always-on tools (33 with ISA).**
+- **v0.25.0 (2026-07-26) — 시간외 단일가.** Added `get_after_hours` (ka10087 종목별 5단 호가·
+  시세 + ka10098 등락률 순위, stock_code 유무로 TR 스위치 — get_stock_lending 선례; 상세는 위
+  시간외 단일가 TR 불릿). "장 끝나고 시간외에서 뭐가 움직였나 / 이 종목 시간외 호가는?" 질문
+  축을 처음 커버 — 기존 32툴은 전부 정규장 축이었다. Developed on VIRTUAL per the dev loop
+  (fixtures in `tests/after-hours.test.ts` captured verbatim from mockapi 2026-07-26; 종가 기준
+  등락률·백만원 단위·1주 체결 상위 도배 전부 mock 실측 근거). 253 tests / 24 files.
+  `scripts/sweep.py` = 53 calls. **Server exposes 33 always-on tools (34 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

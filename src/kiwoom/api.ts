@@ -7,6 +7,8 @@ import {
   accountEvaluationResponseSchema,
   accountPeriodPlResponseSchema,
   accountReturnSummarySchema,
+  afterHoursQuoteResponseSchema,
+  afterHoursRankItemSchema,
   allIndexResponseSchema,
   batchQuoteItemSchema,
   brokerActivityResponseSchema,
@@ -51,6 +53,8 @@ import {
   type AccountEvaluationResponse,
   type AccountPeriodPlResponse,
   type AccountReturnSummary,
+  type AfterHoursQuoteResponse,
+  type AfterHoursRankItem,
   type BatchQuoteItem,
   type BrokerActivityResponse,
   type DailyAssetItem,
@@ -1132,4 +1136,74 @@ export async function fetchVolumeSurge(
     },
   });
   return parseArray(res.json, "trde_qty_sdnin", volumeSurgeItemSchema);
+}
+
+/**
+ * ka10087 시간외단일가요청 — after-hours single-price session (16:00~18:00 KST)
+ * quote + 5-level book for one stock (mock-probed 2026-07-26). Flat response,
+ * no array. 시간외 단일가 체결이 없는 종목은 rc=0에 호가·거래량이 전부 0으로 온다
+ * (현재가에는 당일 종가가 실림).
+ */
+export async function fetchAfterHoursQuote(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<AfterHoursQuoteResponse> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka10087",
+    body: { stk_cd: stockCode },
+  });
+  return afterHoursQuoteResponseSchema.parse(res.json);
+}
+
+export type AfterHoursSort = "up_rate" | "up_amount" | "down_rate" | "down_amount" | "unchanged";
+
+const AFTER_HOURS_SORT_CODES: Record<AfterHoursSort, string> = {
+  up_rate: "1",
+  up_amount: "2",
+  down_rate: "3",
+  down_amount: "4",
+  unchanged: "5",
+};
+
+/** trde_qty_cnd 코드 — 시간외 단일가는 1주짜리 체결이 상위를 차지해 필터가 유용하다. */
+export type AfterHoursMinVolume = "all" | "100" | "500" | "1000" | "5000" | "10000" | "50000" | "100000";
+
+const AFTER_HOURS_VOLUME_CODES: Record<AfterHoursMinVolume, string> = {
+  all: "0",
+  "100": "10",
+  "500": "50",
+  "1000": "100",
+  "5000": "500",
+  "10000": "1000",
+  "50000": "5000",
+  "100000": "10000",
+};
+
+/**
+ * ka10098 시간외단일가등락율순위요청 — after-hours single-price movers
+ * (mock-probed 2026-07-26; path /api/dostk/rkinfo). All six body fields are
+ * required. 정렬은 당일 종가 대비 등락률/등락폭 기준이며, 행의 flu_rt도 같은 기준이다
+ * (전일 대비 등락률은 tdy_close_pric_flu_rt 쪽). Array key `ovt_sigpric_flu_rt_rank`,
+ * 100 rows/page (cont-yn Y) — page-1 only (movers 패턴).
+ */
+export async function fetchAfterHoursRank(
+  client: KiwoomClient,
+  market: RankingMarket,
+  sort: AfterHoursSort,
+  minVolume: AfterHoursMinVolume,
+): Promise<AfterHoursRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10098",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      sort_base: AFTER_HOURS_SORT_CODES[sort],
+      stk_cnd: "0",
+      trde_qty_cnd: AFTER_HOURS_VOLUME_CODES[minVolume],
+      crd_cnd: "0",
+      trde_prica: "0",
+    },
+  });
+  return parseArray(res.json, "ovt_sigpric_flu_rt_rank", afterHoursRankItemSchema);
 }
