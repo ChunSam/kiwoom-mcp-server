@@ -13,6 +13,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const MAX_CODES = 30;
@@ -68,7 +69,7 @@ export function registerStockQuotesTool(server: McpServer): void {
         "거래정지/관리종목/투자경고 같은 투자유의 상태도 비고에 표시됩니다.",
       inputSchema: {
         stock_codes: z
-          .array(z.string().regex(/^\d{6}$/, "6자리 숫자 종목코드여야 합니다 (예: 005930)"))
+          .array(z.string().regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다 (예: 005930)"))
           .min(1)
           .max(MAX_CODES)
           .describe(`조회할 6자리 종목코드 목록 (1~${MAX_CODES}개, 예: ["005930", "000660"])`),
@@ -77,7 +78,7 @@ export function registerStockQuotesTool(server: McpServer): void {
     async ({ stock_codes }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const codes = [...new Set(stock_codes)];
+        const codes = [...new Set(stock_codes.map((c) => c.toUpperCase()))];
         // 마스터 조회는 best-effort 부가정보(비고) — 실패해도 시세 응답은 그대로 나간다.
         // 캐시가 따뜻하면 추가 API 콜 없음(12h TTL), 콜드면 ka10099 2콜이 병렬로 얹힌다.
         const [items, nameIndex] = await Promise.all([

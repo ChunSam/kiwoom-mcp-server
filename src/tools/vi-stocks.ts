@@ -5,6 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchViStocks, type RankingMarket, type ViDirection, type ViType } from "../kiwoom/api.js";
 import type { ViStockItem } from "../kiwoom/types.js";
 import { formatNumber, formatPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
@@ -96,7 +97,7 @@ export function registerViStocksTool(server: McpServer): void {
         vi_type: z.enum(["all", "static", "dynamic"]).optional().describe("VI 유형 (기본값: all)"),
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("특정 종목의 발동 내역만 조회 (생략 시 전체)"),
         top: z
@@ -114,8 +115,9 @@ export function registerViStocksTool(server: McpServer): void {
         const m: RankingMarket = market ?? "all";
         const d: ViDirection = direction ?? "all";
         const t: ViType = vi_type ?? "all";
-        const items = await fetchViStocks(client, m, d, t, stock_code);
-        return textResult(formatViStocks(items, m, d, t, stock_code, top ?? DEFAULT_TOP, config.modeLabel));
+        const code = stock_code?.toUpperCase();
+        const items = await fetchViStocks(client, m, d, t, code);
+        return textResult(formatViStocks(items, m, d, t, code, top ?? DEFAULT_TOP, config.modeLabel));
       }),
   );
 }

@@ -12,6 +12,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_GROUP_LIMIT = 30;
@@ -115,7 +116,7 @@ export function registerThemeGroupsTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("특정 종목이 편입된 테마만 검색할 6자리 종목코드"),
         limit: z
@@ -130,10 +131,11 @@ export function registerThemeGroupsTool(server: McpServer): void {
     async ({ stock_code, limit }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const groups = await fetchThemeGroups(client, stock_code);
+        const code = stock_code?.toUpperCase();
+        const groups = await fetchThemeGroups(client, code);
         return textResult(
           formatThemeGroups(groups, config.modeLabel, {
-            stockCode: stock_code,
+            stockCode: code,
             limit: limit ?? DEFAULT_GROUP_LIMIT,
           }),
         );

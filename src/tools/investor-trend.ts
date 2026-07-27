@@ -6,6 +6,7 @@ import { fetchInvestorDaily, fetchInvestorTotal, type InvestorUnit } from "../ki
 import type { InvestorDailyItem, InvestorTotalItem } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatNumber, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -84,7 +85,7 @@ export function registerInvestorTrendTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("6자리 종목코드 (예: 005930)"),
         from_date: z
           .string()

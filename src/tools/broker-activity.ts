@@ -5,6 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchBrokerActivity } from "../kiwoom/api.js";
 import type { BrokerActivityResponse } from "../kiwoom/types.js";
 import { formatKRW, formatNumber, formatPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 export function formatBrokerActivity(data: BrokerActivityResponse, stockCode: string, modeLabel: string): string {
@@ -57,15 +58,16 @@ export function registerBrokerActivityTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("조회할 6자리 종목코드"),
       },
     },
     async ({ stock_code }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const data = await fetchBrokerActivity(client, stock_code);
-        return textResult(formatBrokerActivity(data, stock_code, config.modeLabel));
+        const code = stock_code.toUpperCase();
+        const data = await fetchBrokerActivity(client, code);
+        return textResult(formatBrokerActivity(data, code, config.modeLabel));
       }),
   );
 }

@@ -6,6 +6,7 @@ import { fetchLendingTrend } from "../kiwoom/api.js";
 import type { LendingTrendItem } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatNumber, formatSigned, parseKiwoomNumber } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -60,7 +61,7 @@ export function registerStockLendingTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("6자리 종목코드 (생략 시 시장 전체 대차 추이)"),
         from_date: z
@@ -79,7 +80,7 @@ export function registerStockLendingTool(server: McpServer): void {
       runTool(async () => {
         const { client, config } = getKiwoomContext();
         const query: LendingQuery = {
-          stockCode: stock_code,
+          stockCode: stock_code?.toUpperCase(),
           fromDate: (from_date ?? kstDaysAgo(DEFAULT_LOOKBACK_DAYS)).replaceAll("-", ""),
           toDate: (to_date ?? todayInKst()).replaceAll("-", ""),
         };

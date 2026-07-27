@@ -6,6 +6,7 @@ import { fetchTransactions } from "../kiwoom/api.js";
 import { normalizeStockCode, type TransactionRow } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatKRW, parseKiwoomNumber } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -95,7 +96,7 @@ export function registerTransactionsTool(server: McpServer): void {
           .describe("조회 종료일 (기본값: 오늘)"),
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("특정 종목만 조회할 때의 6자리 종목코드"),
       },
@@ -106,7 +107,7 @@ export function registerTransactionsTool(server: McpServer): void {
         const query: TransactionsQuery = {
           fromDate: (from_date ?? kstDaysAgo(DEFAULT_LOOKBACK_DAYS)).replaceAll("-", ""),
           toDate: (to_date ?? todayInKst()).replaceAll("-", ""),
-          stockCode: stock_code,
+          stockCode: stock_code?.toUpperCase(),
         };
         assertDateRange(query.fromDate, query.toDate);
         const { rows, truncated } = await fetchTransactions(client, query.fromDate, query.toDate);

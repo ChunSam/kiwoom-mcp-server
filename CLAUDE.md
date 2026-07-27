@@ -818,6 +818,26 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   종가대비·등락률 관계식 286행 전수 일치; REAL 값이 mock과 동일 — mirror 재확인; 대형주
   시간외 0 커버리지 의문은 위 TR 불릿에 OPEN으로 기록). 253 tests / 24 files.
   `scripts/sweep.py` = 53 calls. **Server exposes 33 always-on tools (34 with ISA).**
+- **v0.25.1 (2026-07-27) — `stock_code` 정규식 통일** (fixes-only patch; no new tool/TR, no
+  REAL probe needed). v0.25.0의 ka10098 프로브가 **실존하는 6자리 알파넘 종목코드**(`0156T0`,
+  `33626K`, `38380K`, `0197X0`)를 노출시켰는데, 툴 12개가 `/^\d{6}$/`(숫자 전용)로 검증하고
+  있어 같은 코드를 get_orderbook은 받고 get_short_selling은 거부하는 분열 상태였다 (나머지 6개는
+  이미 알파넘). 새 `src/utils/stock-code.ts`의 **`STOCK_CODE_PATTERN` = `/^[0-9A-Z]{6}$/i`**
+  하나로 **18곳 전부**를 통일하고, 핸들러는 선례(orderbook)대로 `toUpperCase()`로 정규화한다 —
+  키움과 ka10099 마스터는 대문자를 쓰고, 여러 툴이 `normalizeStockCode(row.stk_cd) === code`로
+  **비교**하기 때문에 대문자화가 없으면 소문자 입력이 조용히 0건을 반환한다 (isa `overrides`
+  맵 키와 `get_stock_quotes`의 중복 제거도 대문자화 이후에 수행). 변경 전 12곳의 다운스트림을
+  전수 확인 — 전부 fetch 바디/표시/비교용 불투명 식별자이고 zero-padding·산술 의존 없음.
+  **시각 포맷용 `/^\d{6}$/` 2곳(pending-orders HHmmss, sector)은 종목코드가 아니라 그대로 둔다.**
+  `search_stock`은 이미 정규화 후 `i.code.toLowerCase() === q`로 비교해 수정 불필요.
+  주의: zod v4가 내보내는 JSON Schema `pattern`은 `i` 플래그를 표현하지 못해 `^[0-9A-Z]{6}$`
+  (대문자)로 광고된다 — 서버(zod)는 소문자를 받지만 스키마를 선검증하는 클라이언트는 소문자
+  알파넘을 거를 수 있다. 정규형이 대문자이므로 수용. 새 `tests/stock-code.test.ts` 20건:
+  패턴 단위 테스트 + **`tools/list` 드리프트 가드**(실제 등록 스키마를 읽어 17개 `stock_code`
+  입력이 전부 공유 패턴인지 확인 — 소스 텍스트가 아니라 스키마를 보므로 자체 패턴을 손으로 쓴
+  새 툴을 잡는다; 한 툴에 결함을 되돌려 가드 3건이 실제로 실패함을 확인). 273 tests / 25 files.
+  `scripts/sweep.py` = 53 calls (변경 없음 — 새 콜 없음). **Server still exposes 33 always-on
+  tools (34 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each
