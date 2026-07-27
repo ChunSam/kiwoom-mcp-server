@@ -6,6 +6,7 @@ import { fetchForeignHolding } from "../kiwoom/api.js";
 import { type ForeignHoldingItem } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, formatRatioPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_DISPLAY_DAYS = 15;
@@ -60,7 +61,7 @@ export function registerForeignHoldingTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("조회할 6자리 종목코드"),
         limit: z
           .number()
@@ -74,8 +75,9 @@ export function registerForeignHoldingTool(server: McpServer): void {
     async ({ stock_code, limit }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const rows = await fetchForeignHolding(client, stock_code);
-        return textResult(formatForeignHolding(rows, stock_code, config.modeLabel, limit ?? DEFAULT_DISPLAY_DAYS));
+        const code = stock_code.toUpperCase();
+        const rows = await fetchForeignHolding(client, code);
+        return textResult(formatForeignHolding(rows, code, config.modeLabel, limit ?? DEFAULT_DISPLAY_DAYS));
       }),
   );
 }

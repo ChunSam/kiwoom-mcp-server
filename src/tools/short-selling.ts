@@ -6,6 +6,7 @@ import { fetchShortSelling } from "../kiwoom/api.js";
 import { normalizeStockCode, type ShortSellingItem } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, formatRatioPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
@@ -62,7 +63,7 @@ export function registerShortSellingTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("조회할 6자리 종목코드"),
         from_date: z
           .string()
@@ -80,7 +81,7 @@ export function registerShortSellingTool(server: McpServer): void {
       runTool(async () => {
         const { client, config } = getKiwoomContext();
         const query: ShortSellingQuery = {
-          stockCode: stock_code,
+          stockCode: stock_code.toUpperCase(),
           fromDate: (from_date ?? kstDaysAgo(DEFAULT_LOOKBACK_DAYS)).replaceAll("-", ""),
           toDate: (to_date ?? todayInKst()).replaceAll("-", ""),
         };

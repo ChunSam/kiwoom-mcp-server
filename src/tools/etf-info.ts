@@ -14,6 +14,7 @@ import {
   parseKiwoomPrice,
 } from "../utils/num.js";
 import { formatNonEtfNotice } from "./etf-returns.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 export function formatEtfInfo(
@@ -75,7 +76,7 @@ export function registerEtfInfoTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("6자리 ETF 종목코드 (예: 069500)"),
       },
     },

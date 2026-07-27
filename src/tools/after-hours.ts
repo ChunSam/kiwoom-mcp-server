@@ -11,6 +11,7 @@ import {
 } from "../kiwoom/api.js";
 import type { AfterHoursQuoteResponse, AfterHoursRankItem } from "../kiwoom/types.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
@@ -178,7 +179,7 @@ export function registerAfterHoursTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("6자리 종목코드 (생략 시 시장 전체 시간외 단일가 등락률 순위)"),
         market: z

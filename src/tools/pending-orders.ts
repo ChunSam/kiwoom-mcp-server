@@ -5,6 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchPendingOrders } from "../kiwoom/api.js";
 import { normalizeStockCode, type PendingOrderItem } from "../kiwoom/types.js";
 import { formatKRW, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 /** HHmmss → HH:MM:SS; passes through empty/unknown formats unchanged. */
@@ -73,7 +74,7 @@ export function registerPendingOrdersTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("특정 종목만 조회할 때의 6자리 종목코드"),
       },
@@ -81,8 +82,9 @@ export function registerPendingOrdersTool(server: McpServer): void {
     async ({ stock_code }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const rows = await fetchPendingOrders(client, stock_code);
-        return textResult(formatPendingOrders(rows, config.modeLabel, stock_code));
+        const code = stock_code?.toUpperCase();
+        const rows = await fetchPendingOrders(client, code);
+        return textResult(formatPendingOrders(rows, config.modeLabel, code));
       }),
   );
 }

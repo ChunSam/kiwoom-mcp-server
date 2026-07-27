@@ -12,6 +12,7 @@ import { loadMasterList } from "../kiwoom/master-list.js";
 import { normalizeStockCode, type TransactionRow } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatKRW, formatSignedKRW, parseKiwoomNumber } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DIVIDEND_PATTERN = /배당|분배|이자/;
@@ -213,7 +214,7 @@ export function registerIsaTaxStatusTool(server: McpServer): void {
             z.object({
               stock_code: z
                 .string()
-                .regex(/^\d{6}$/, "6자리 숫자 종목코드여야 합니다")
+                .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
                 .describe("6자리 종목코드"),
               tax_type: z
                 .enum(["TAXABLE", "DOMESTIC_EQUITY"])
@@ -239,7 +240,7 @@ export function registerIsaTaxStatusTool(server: McpServer): void {
         assertDateRange(fromDate, toDate);
 
         const overrideMap = new Map<string, TaxType>(
-          (overrides ?? []).map((o) => [o.stock_code, o.tax_type]),
+          (overrides ?? []).map((o) => [o.stock_code.toUpperCase(), o.tax_type]),
         );
 
         // Distinct TRs — per-TR rate limits allow parallel calls. loadEtfCodeSet

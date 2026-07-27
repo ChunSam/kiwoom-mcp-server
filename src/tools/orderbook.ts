@@ -5,6 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchOrderbook } from "../kiwoom/api.js";
 import type { OrderbookResponse } from "../kiwoom/types.js";
 import { formatNumber, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 /** Levels 2-10 sit in the loose passthrough under sel_/buy_{n}th_pre_* keys. */
@@ -59,7 +60,7 @@ export function registerOrderbookTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("6자리 종목코드 (예: 005930)"),
       },
     },

@@ -5,6 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { ETF_RETURN_PERIODS, fetchEtfInfo, fetchEtfReturns } from "../kiwoom/api.js";
 import type { EtfReturnItem } from "../kiwoom/types.js";
 import { formatPercent, formatSigned, parseKiwoomNumber } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 import { sectorLabel } from "./sector.js";
 
@@ -86,7 +87,7 @@ export function registerEtfReturnsTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^[0-9A-Z]{6}$/i, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .describe("6자리 ETF 종목코드 (예: 069500)"),
         benchmark_index_code: z
           .string()

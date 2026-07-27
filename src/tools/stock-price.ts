@@ -6,6 +6,7 @@ import { fetchStockInfo } from "../kiwoom/api.js";
 import { loadMasterList, masterItemWarnings } from "../kiwoom/master-list.js";
 import type { StockInfoResponse, StockListItem } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import {
   formatKRW,
   formatPercent,
@@ -93,19 +94,20 @@ export function registerStockPriceTool(server: McpServer): void {
       inputSchema: {
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 숫자 종목코드여야 합니다 (예: 005930)")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다 (예: 005930)")
           .describe("6자리 종목코드 (예: 삼성전자 005930, KODEX 200 069500)"),
       },
     },
     async ({ stock_code }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
+        const code = stock_code.toUpperCase();
         // 마스터 조회는 best-effort 부가정보 — 실패해도 시세 응답은 그대로 나간다.
         // 캐시가 따뜻하면 추가 API 콜 없음(12h TTL), 콜드면 ka10099 2콜이 병렬로 얹힌다.
         const [info, master] = await Promise.all([
-          fetchStockInfo(client, stock_code),
+          fetchStockInfo(client, code),
           loadMasterList(client)
-            .then((items) => items.find((i) => i.code === stock_code))
+            .then((items) => items.find((i) => i.code === code))
             .catch(() => undefined),
         ]);
         return textResult(formatStockInfo(info, config.modeLabel, master));

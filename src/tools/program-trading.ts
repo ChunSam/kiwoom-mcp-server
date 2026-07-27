@@ -13,6 +13,7 @@ import {
 import type { ProgramTradeItem, ProgramTrendItem, StockProgramTrendItem } from "../kiwoom/types.js";
 import { formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
@@ -201,7 +202,7 @@ export function registerProgramTradingTool(server: McpServer): void {
         market: z.enum(["kospi", "kosdaq"]).optional().describe("시장 구분 (기본값: kospi)"),
         stock_code: z
           .string()
-          .regex(/^\d{6}$/, "6자리 종목코드여야 합니다")
+          .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
           .optional()
           .describe("view=stock_daily 전용 — 조회할 6자리 종목코드"),
         base_date: z
@@ -237,8 +238,9 @@ export function registerProgramTradingTool(server: McpServer): void {
           if (!stock_code) {
             throw new Error("view=stock_daily에는 stock_code(6자리 종목코드)가 필요합니다.");
           }
-          const { items, truncated } = await fetchStockProgramTrend(client, stock_code, dateParam ?? "");
-          return textResult(formatStockProgramTrend(items, stock_code, dateParam, cap, truncated, config.modeLabel));
+          const code = stock_code.toUpperCase();
+          const { items, truncated } = await fetchStockProgramTrend(client, code, dateParam ?? "");
+          return textResult(formatStockProgramTrend(items, code, dateParam, cap, truncated, config.modeLabel));
         }
 
         const granularity: ProgramTrendGranularity = v === "market_intraday" ? "intraday" : "daily";
