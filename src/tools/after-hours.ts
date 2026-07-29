@@ -9,7 +9,8 @@ import {
   type AfterHoursSort,
   type RankingMarket,
 } from "../kiwoom/api.js";
-import type { AfterHoursQuoteResponse, AfterHoursRankItem } from "../kiwoom/types.js";
+import { loadMasterList } from "../kiwoom/master-list.js";
+import type { AfterHoursQuoteResponse, AfterHoursRankItem, StockListItem } from "../kiwoom/types.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult } from "./helpers.js";
@@ -48,6 +49,18 @@ const SESSION_NOTE = "시간외 단일가 매매는 16:00~18:00(KST) 세션입�
 /** 등락률 기준이 전일이 아니라 당일 종가라는 사실은 실측으로 확인됐다 (types.ts 주석). */
 const BASE_NOTE = "시간외 단일가의 대비·등락률은 전일이 아니라 **당일 종가** 기준입니다";
 
+/**
+ * 넥스트레이드(NXT) 거래가능 종목은 이 두 TR의 사각지대다. REAL 전수 실측
+ * (2026-07-29, 시간외 세션 종료 후): ka10098 순위 유니버스 2,026종목 중
+ * 마스터리스트 `nxtEnable === "Y"`인 606종목은 **0개** 포함 — 예외 없는 완전 분리.
+ * 삼성전자/SK하이닉스 등 대형주가 전부 여기 해당해서, 안내 없이는 "시간외 거래가
+ * 없었다"는 거짓 결론을 부르므로 구분해서 알린다. `_NX`/`_AL` 접미사 코드로
+ * 우회 조회하는 것도 불가(rc=0에 전 필드 공백 — 같은 프로브에서 실측).
+ */
+const NXT_BLIND_SPOT_NOTE =
+  "이 종목은 **넥스트레이드(NXT) 거래가능 종목**이라 키움 시간외 단일가 TR이 데이터를 제공하지 않습니다 — " +
+  "위 0값은 “시간외 거래가 없었다”가 아니라 “이 API로는 조회되지 않는다”는 뜻입니다.";
+
 /** 5단 호가는 loose passthrough로 읽는다 (ka10004 get_orderbook 선례). */
 function passthroughField(quote: AfterHoursQuoteResponse, key: string): string | null {
   const value = (quote as Record<string, unknown>)[key];
@@ -62,6 +75,7 @@ export function formatAfterHoursQuote(
   quote: AfterHoursQuoteResponse,
   stockCode: string,
   modeLabel: string,
+  master?: StockListItem,
 ): string {
   const price = (raw: string | null) => formatNumber(parseKiwoomPrice(raw));
   const qty = (raw: string | null) => formatNumber(parseKiwoomNumber(raw));
@@ -96,6 +110,9 @@ export function formatAfterHoursQuote(
       );
     }
     lines.push("", `시간외 단일가 총잔량 — 매도 ${formatNumber(selTot)} / 매수 ${formatNumber(buyTot)}`);
+  } else if (master?.nxtEnable === "Y") {
+    // 호가·체결이 모두 0이고 NXT 종목이면, "거래 없음"이 아니라 TR 사각지대다.
+    lines.push("", `⚠️ ${NXT_BLIND_SPOT_NOTE}`);
   } else {
     lines.push(
       "",
@@ -154,6 +171,8 @@ export function formatAfterHoursRank(
   lines.push(
     "",
     `※ ${BASE_NOTE} (정규장등락률만 전일 대비). ${SESSION_NOTE}.`,
+    "※ 넥스트레이드(NXT) 거래가능 종목(삼성전자·SK하이닉스 등 대형주 다수)은 이 순위에 " +
+      "포함되지 않습니다 — 키움 TR의 사각지대이지 거래가 없다는 뜻이 아닙니다.",
   );
   if (minVolume === "all") {
     lines.push("※ 거래량 1~2주짜리 체결도 순위에 오릅니다 — min_volume으로 걸러낼 수 있습니다.");
@@ -208,8 +227,15 @@ export function registerAfterHoursTool(server: McpServer): void {
         const { client, config } = getKiwoomContext();
         if (stock_code) {
           const code = stock_code.toUpperCase();
-          const quote = await fetchAfterHoursQuote(client, code);
-          return textResult(formatAfterHoursQuote(quote, code, config.modeLabel));
+          // 마스터 조회는 best-effort — NXT 사각지대 판별에만 쓰이고, 실패해도 시세는 그대로 나간다.
+          // 캐시가 따뜻하면 추가 API 콜 없음(12h TTL), 콜드면 ka10099 2콜이 병렬로 얹힌다.
+          const [quote, master] = await Promise.all([
+            fetchAfterHoursQuote(client, code),
+            loadMasterList(client)
+              .then((items) => items.find((i) => i.code === code))
+              .catch(() => undefined),
+          ]);
+          return textResult(formatAfterHoursQuote(quote, code, config.modeLabel, master));
         }
         const m: RankingMarket = market ?? "all";
         const s: AfterHoursSort = sort ?? "up_rate";

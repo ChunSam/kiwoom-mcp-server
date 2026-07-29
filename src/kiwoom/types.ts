@@ -253,6 +253,7 @@ export const stockListItemSchema = z.looseObject({
   name: str(),
   lastPrice: str(), // 전일종가, zero-padded
   marketName: str(), // "거래소" | "코스닥" | "ETF" | ...
+  nxtEnable: str(), // 넥스트레이드 거래가능 "Y"/"N" — 시간외 단일가 TR의 사각지대 판별에 사용
   upName: str(), // 업종명 (ETF/ETN은 빈 값)
   upSizeName: str(), // 대형주/중형주/소형주 (우선주/ETF 등은 빈 값)
   state: str(), // "증거금20%|담보대출|신용가능"

@@ -387,10 +387,25 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   노출해 사용자가 거르게 했다 — 기본값은 필터 없음(verbatim). 시간외 단일가 체결·호가가 없는
   종목은 rc=0에 전부 0이 오고 `ovt_sigpric_cur_prc` 자리에 당일 종가가 실린다 → 총잔량 두
   필드가 모두 0이면 호가 사다리 대신 안내 문구(ka40009 NAV dormant-block 선례).
-  **OPEN: 005930/247540은 mock·REAL 양쪽에서 시간외 체결·호가가 0인데 069500은 값이 있다**
-  (같은 일요일 스냅샷, 두 소스 값이 동일) — 대형주가 시간외 단일가에서 0이라는 건 통상적이지
-  않아 이 TR의 종목 커버리지 또는 세션 종료 후 스냅샷 보존 방식에 의문이 남는다. 해소 경로:
-  평일 16:00~18:00 세션 중 같은 종목으로 재프로브 (순위 TR ka10098은 같은 시각에 정상 동작).
+  **대형주-zero OPEN — RESOLVED 2026-07-29 (REAL 전수 실측, 원인은 넥스트레이드(NXT)):**
+  005930/247540이 0이고 069500만 값이 있던 건 ka10087의 결함도, 스냅샷 아티팩트도 아니었다.
+  **두 TR 모두 `nxtEnable="Y"`(넥스트레이드 거래가능) 종목을 통째로 누락한다.** 근거 체인
+  (전부 REAL, 수요일 세션 종료 후 22:2x KST): ① ka10098 순위에 오른 종목을 ka10087로 되짚으면
+  **거래량·현재가가 4/4 정확히 일치** (일반주식 002990·058730, ETF 122630·알파넘 0193W0) →
+  ka10087 자체는 정상; ② ka10098을 코스피·코스닥 × 상승률/하락률/보합 전 정렬축에서 `cont-yn=N`
+  까지 전수 페이지네이션한 유니버스 = **2,026종목**, 여기에 005930/247540 없음. `mrkt_tp="000"`
+  전수도 **동일한 2,026종목**(001∪101과 차집합 0)이라 시장 필터 탓이 아님; ③ ka10099 마스터
+  4,296행과 교차표: **`nxtEnable="Y"` 606종목 중 유니버스 포함 0개 / `"N"` 3,690종목 중 2,026개
+  (54.9%) — 예외 없는 완전 분리**. 대형주 20종목 중 유일하게 포함된 카카오가 정확히 유일한
+  `nxtEnable="N"` 종목이라 이상치까지 설명된다; ④ 우회 불가 — `005930_NX`/`_AL` 접미사 코드는
+  rc=0이지만 **전 필드 공백**(종가조차 0)으로 온다. ⑤ 부수 확인: `ovt_sigpric_*` 블록은 세션마다
+  갱신된다 (069500 금 07-24 `106755/+390/34,069주` → 수 07-29 `90100/+495/96,339주`), 즉 값이
+  고정된 게 아니라 NXT 종목만 빠지는 것. **따라서 NXT 종목의 0을 "거래 없음"으로 안내하면
+  거짓**이며, v0.25.2가 마스터 `nxtEnable`을 best-effort 병렬 조회해 종목 안내와 순위 각주를
+  분기한다. 시간외 단일가 체결·호가가 없는 (NXT 아닌) 종목은 여전히 rc=0에 전부 0이 오고
+  `ovt_sigpric_cur_prc` 자리에 당일 종가가 실린다 → 총잔량 두 필드가 모두 0이면 호가 사다리 대신
+  안내 문구(ka40009 NAV dormant-block 선례). 미해결로 남는 것은 **키움이 왜 NXT 종목을 빼는지의
+  사유**(시장구조/데이터 권한 소관)뿐이고, 관측 사실과 툴 동작은 확정이다.
   둘 다 `get_after_hours` 한 툴이 흡수 (stock_code 지정→ka10087 / 생략→ka10098,
   get_stock_lending의 TR 스위치 선례).
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
@@ -748,11 +763,23 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   blurb — **ownership = repo-root `glama.json` `{maintainers: ["ChunSam"]}`, shipped
   2026-07-15; the research-round "claim button" does NOT exist on the live page**, the
   glama.json crawl is the documented mechanism); PulseMCP ingests the
-  official registry daily (also has /submit form); mcp.so = self-service form
+  official registry daily (also has /submit form) — **but that claim is now measured FALSE:
+  see the dormancy verdict below**; mcp.so = self-service form
   (Cloudflare-blocked for bots — human clicks); Smithery needs an MCPB bundle (deferred;
   avoid its Hosted flow — 2025-06 security incident + architecture mismatch). Name
   collision: an unrelated trading-capable "Kiwoom Securities" (kwonsw812) is on
   PulseMCP — listing copy must lead with read-only/28 tools to differentiate.
+- **PulseMCP 자동 인제스트 = DORMANT (판정 확정 2026-07-29, 실험 종료).** "공식 registry를
+  매일 인제스트한다"는 PulseMCP의 주장을 **제3자 대조군**으로 검증했다: 무관한 서버
+  `io.github.gejyn14/kiwoom-mcp`가 공식 registry에 **2026-07-22 v0.1.2로 등재**됐고
+  (registry API로 직접 확인, isLatest=True), 그로부터 **7일 뒤인 2026-07-29까지도 PulseMCP
+  검색 결과는 "Showing 1 - 1 of 1"로 kwonsw812 항목 하나뿐**이었다 (판독 6회: 07-27 부재,
+  07-29 부재). 대조군을 쓴 이유는 우리 서버의 미등재만으로는 "인제스트가 죽었다"와 "우리만
+  누락됐다"를 구분할 수 없기 때문. **결론: registry 등재만으로 PulseMCP에 실리기를 기다리는 것은
+  무의미하다** — 추적 중단. 오너가 등재 재촉 메일을 영구 거절했으므로(seq 21) 이건 후속 조치가
+  아니라 진단 기록이며, PulseMCP는 이제 visibility 계획에서 빠진다. 대조적으로 **Glama의
+  `glama.json` 소유권 경로는 작동이 확인됨** (크롤이 `564313b` → `4ea226b`(v0.23.0) →
+  `f765b87`(v0.25.0)로 전진, 고질적 "local-only" 블러브도 정확한 read-only 설명으로 교체).
 - **v0.20.0 (2026-07-22) — 수급 랭킹 + 업종 차트 (feature pipeline resumes).** Owner
   declined the PulseMCP escalation email (등재 재촉 안 함) and picked feature work; the
   kiwoom_docs discovery diff (official repo, 16 category files, ~60 unreviewed read-only
@@ -838,6 +865,23 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   새 툴을 잡는다; 한 툴에 결함을 되돌려 가드 3건이 실제로 실패함을 확인). 273 tests / 25 files.
   `scripts/sweep.py` = 53 calls (변경 없음 — 새 콜 없음). **Server still exposes 33 always-on
   tools (34 with ISA).**
+- **v0.25.2 (2026-07-29) — 시간외 단일가 NXT 사각지대 안내** (fixes-only patch; no new tool/TR).
+  v0.25.0이 OPEN으로 남긴 대형주-zero 의문을 **REAL 전수 실측으로 해소**했고(원인·근거 체인은 위
+  시간외 단일가 TR 불릿), 그 결과 드러난 **거짓 안내를 고쳤다**: `nxtEnable="Y"` 606종목(삼성전자·
+  SK하이닉스·에코프로비엠 등 대형주 다수)에 대해 툴이 "시간외 단일가 호가가 없습니다 (해당 세션에
+  접수된 호가 없음)"라고 단정하고 있었는데, 실제로는 키움 TR이 해당 종목을 아예 제공하지 않는
+  것이라 **"거래가 없었다"는 사실과 다른 진술**이었다. `stockListItemSchema`에 `nxtEnable` 추가
+  (loose 스키마라 미선언 상태였음; `str()` 기본값 `""` 덕에 구형/부분 응답은 조용히 기존 문구로
+  폴백), `get_after_hours`의 종목 조회가 `loadMasterList`를 **best-effort 병렬** 조회해
+  (get_stock_price 선례 — 캐시 warm이면 추가 콜 0, cold면 ka10099 2콜, 실패 시 기존 문구 유지)
+  NXT 종목이면 사각지대 문구로 분기하고, 순위 출력에는 "NXT 종목은 이 순위에 포함되지 않습니다"
+  각주를 상시 추가한다. 호가가 **있는** 종목은 NXT여도 기존 사다리 그대로(분기는 all-zero일 때만).
+  테스트 4건 추가(273→277): NXT 분기 / 비NXT 유지 / master 없음·빈 값 폴백 / 호가 있으면 미표시 —
+  **분기 조건에 sentinel을 넣어 되돌리는 역검증으로 정확히 1건만 실패함을 확인**(v0.25.1의
+  드리프트 가드 선례; 나머지 3건은 폴백 경로라 통과하는 게 정상). `masterItem()` 픽스처는 실제
+  `stockListItemSchema.parse`를 거치므로 스키마에서 필드가 빠지면 테스트가 먼저 깨진다.
+  277 tests / 25 files. `scripts/sweep.py` = 53 calls (변경 없음 — 새 콜 없음). **Server still
+  exposes 33 always-on tools (34 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

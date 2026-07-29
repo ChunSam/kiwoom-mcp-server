@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { afterHoursQuoteResponseSchema, afterHoursRankItemSchema } from "../src/kiwoom/types.js";
+import {
+  afterHoursQuoteResponseSchema,
+  afterHoursRankItemSchema,
+  stockListItemSchema,
+} from "../src/kiwoom/types.js";
 import { formatAfterHoursQuote, formatAfterHoursRank } from "../src/tools/after-hours.js";
 
 const MODE = "모의투자";
+
+/**
+ * ka10099 마스터 행 — nxtEnable만 케이스별로 바꾼다. 실제 스키마로 parse 하므로
+ * nxtEnable이 스키마에서 빠지면(혹은 기본값이 바뀌면) 이 테스트가 먼저 깨진다.
+ * `""`는 필드가 없는 구형/부분 응답을 나타낸다(str() 기본값).
+ */
+const masterItem = (nxtEnable: string) =>
+  stockListItemSchema.parse({ code: "005930", name: "삼성전자", nxtEnable });
 
 // Fixtures captured verbatim from mockapi ka10087/ka10098 on 2026-07-26.
 
@@ -187,6 +199,41 @@ describe("formatAfterHoursQuote", () => {
     expect(out).not.toContain("| 매도1 |");
     // 정규장/시간외 총잔량은 호가가 없어도 그대로 보여준다.
     expect(out).toContain("참고 총잔량 — 정규장 매도 362,425 / 매수 2,463,919, 시간외 매도 0 / 매수 22,062");
+  });
+
+  // REAL 전수 실측 2026-07-29: nxtEnable="Y" 606종목은 ka10098 유니버스 2,026종목에
+  // 0개 포함(완전 분리). 그래서 NXT 종목의 0값은 "거래 없음"이 아니라 TR 사각지대다.
+  it("explains the NXT blind spot instead of claiming no trading, for an NXT-enabled stock", () => {
+    const out = formatAfterHoursQuote(quoteWithoutBook, "005930", MODE, masterItem("Y"));
+
+    expect(out).toContain("넥스트레이드(NXT) 거래가능 종목");
+    expect(out).toContain("이 API로는 조회되지 않는다");
+    // 거짓 안내가 사라져야 한다 — 이게 이 수정의 요점.
+    expect(out).not.toContain("해당 세션에 접수된 호가 없음");
+  });
+
+  it("keeps the plain no-book notice for a non-NXT stock", () => {
+    const out = formatAfterHoursQuote(quoteWithoutBook, "002990", MODE, masterItem("N"));
+
+    expect(out).toContain("시간외 단일가 호가가 없습니다");
+    expect(out).not.toContain("넥스트레이드");
+  });
+
+  it("falls back to the plain notice when the master lookup failed or lacks the field", () => {
+    // loadMasterList 실패 시 master는 undefined; 구형 응답이면 nxtEnable이 ""로 기본값.
+    expect(formatAfterHoursQuote(quoteWithoutBook, "005930", MODE)).toContain(
+      "시간외 단일가 호가가 없습니다",
+    );
+    expect(formatAfterHoursQuote(quoteWithoutBook, "005930", MODE, masterItem(""))).toContain(
+      "시간외 단일가 호가가 없습니다",
+    );
+  });
+
+  it("does not show the NXT notice when the stock actually has an after-hours book", () => {
+    const out = formatAfterHoursQuote(quoteWithBook, "069500", MODE, masterItem("Y"));
+
+    expect(out).toContain("| 매도1 |");
+    expect(out).not.toContain("넥스트레이드");
   });
 });
 
