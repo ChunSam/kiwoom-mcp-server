@@ -408,6 +408,25 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   사유**(시장구조/데이터 권한 소관)뿐이고, 관측 사실과 툴 동작은 확정이다.
   둘 다 `get_after_hours` 한 툴이 흡수 (stock_code 지정→ka10087 / 생략→ka10098,
   get_stock_lending의 TR 스위치 선례).
+- 체결강도 TRs (v0.26.0; 둘 다 `/api/dostk/mrkcond`; **mock-probed 2026-07-29** — 8콜 전부 rc=0,
+  응답 필드가 스펙과 정확히 일치(누락·초과 0); **live-verified on REAL 2026-07-29** — 읽기 전용
+  5콜: rc=0, **consumed gaps/blanks 전부 0**, 60행·cont-yn Y 동일, 아래 `trde_qty` 공백 quirk와
+  `acc_trde_qty`==ka10001 거래량 교차검증까지 REAL 재확인, **005930 첫 행이 mock과 완전히 동일**해
+  mock-mirrors-production 재확인): ka10046 체결강도추이 시간별 + ka10047 일별 —
+  **body가 `{stk_cd}` 하나뿐**(지금까지 라운드 중 파라미터 최소)이고, 배열 키(`cntr_str_tm` /
+  `cntr_str_daly`)와 시간축 필드(`cntr_tm` HHmmss / `dt` yyyyMMdd)만 다르고 나머지 행 구조는
+  동일해 **하나의 `executionStrengthItemSchema`를 공유**한다 (ka10068/ka20068 선례). 각 **60행,
+  cont-yn Y** → page-1 only (시간별=최근 60분 1분 간격, 일별=최근 60거래일, **둘 다 최신순**;
+  ka10008/ka90013 선례). `cntr_str` 체결강도 = 매수체결량÷매도체결량×100으로 **100이 균형**,
+  실측 범위 66~164. **`cntr_str_5min`/`_20min`/`_60min`은 필드명이 같지만 ka10047에서는
+  5일/20일/60일 이동평균**(스펙 명시) — 표시 헤더를 뷰별로 바꾸는 근거.
+  **핵심 quirk: ka10047은 `trde_qty`가 60행 전부 공백**이고 그날 거래량은 `acc_trde_qty`에 실린다
+  (005930 07-29 `65,555,523`이 ka10001 당일 거래량과 **정확히 일치**해 확정) — 폴백 없이 그대로
+  쓰면 거래량 열이 통째로 0이 된다. ka10046은 `trde_qty`가 분당 거래량, `acc_trde_qty`가 누적.
+  `acc_trde_prica` 단위는 백만원(거래량×주가 교차검증). 부호는 **단일부호**(이중부호 없음, 실측).
+  없는 종목코드는 rc=0 + 빈 배열. **시간외 단일가 TR과 달리 NXT 종목도 정상 제공**(005930으로
+  실측 — 60행) → 사각지대 안내 불필요. `get_execution_strength` 한 툴이 `view` enum
+  (daily 기본/intraday)으로 흡수 (get_stock_lending TR 스위치 선례).
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
   owner-authorized one-shot read-only probe, 2 calls: rc=0, zero consumed-field gaps; REAL VI
   rows included a 동적 행 with static_* fields zeroed — the mirror image of mock's 정적 rows,
@@ -882,6 +901,20 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   `stockListItemSchema.parse`를 거치므로 스키마에서 필드가 빠지면 테스트가 먼저 깨진다.
   277 tests / 25 files. `scripts/sweep.py` = 53 calls (변경 없음 — 새 콜 없음). **Server still
   exposes 33 always-on tools (34 with ISA).**
+- **v0.26.0 (2026-07-29) — 체결강도 + NXT 사각지대 범위 확정.** Added `get_execution_strength`
+  (ka10046 시간별 + ka10047 일별, `view` enum daily 기본/intraday — 상세는 위 체결강도 TR 불릿):
+  "이 종목에 매수세가 붙고 있나" 축을 처음 커버한다. 기존 수급 툴은 투자자 **주체별**
+  (get_investor_trend/get_investor_rank)이거나 **프로그램**(get_program_trading) 축이라, 체결
+  자체의 매수/매도 우열은 볼 수 없었다. 출력은 100 균형 기준 한 줄 해석 + 5/20/60 이동평균 테이블.
+  Developed on VIRTUAL per the dev loop (fixtures in `tests/execution-strength.test.ts` captured
+  verbatim from mockapi 2026-07-29 — `trde_qty` 공백 행 포함), then **live-verified on REAL
+  2026-07-29** (5콜 ALL GREEN — 위 TR 불릿). **일별 거래량 폴백(acc_trde_qty)에 역검증 적용**:
+  폴백을 제거해 되돌리자 정확히 그 테스트 1건만 실패함을 확인(v0.25.1/v0.25.2 선례).
+  같은 세션에서 **NXT 사각지대의 범위도 확정**했다 — per-stock 툴 13종을 NXT(005930) vs
+  비NXT(002990)로 stdio 전수 호출한 결과 **사각지대는 시간외 단일가 TR에 국한**되고 나머지 12축
+  (기본시세/배치시세/호가/일봉/분봉/거래원/투자자동향/공매도/외국인/대차/프로그램/VI)은 NXT
+  종목도 정상 제공한다 → v0.25.2 수정이 완결됐다는 뜻이며 추가 안내는 불필요. 286 tests /
+  26 files. `scripts/sweep.py` = 55 calls (+2). **Server exposes 34 always-on tools (35 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

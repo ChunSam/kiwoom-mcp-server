@@ -156,6 +156,8 @@ def main() -> int:
         ("get_program_trading", {"view": "market_daily", "top": 5}),  # ka90010
         ("get_program_trading", {"view": "market_intraday", "top": 5}),  # ka90005 — pre-market empty ok
         ("get_program_trading", {"view": "stock_daily", "stock_code": "005930", "top": 5}),  # ka90013
+        ("get_execution_strength", {"stock_code": "005930", "count": 3}),  # ka10047 일별
+        ("get_execution_strength", {"stock_code": "005930", "view": "intraday", "count": 3}),  # ka10046 시간별
         ("get_after_hours", {"stock_code": "005930"}),  # ka10087 per-stock (호가 없는 종목 경로일 수 있음)
         ("get_after_hours", {"top": 3}),  # ka10098 상승률 순위
         ("get_after_hours", {"sort": "down_rate", "market": "kosdaq", "min_volume": "1000", "top": 3}),

@@ -18,6 +18,8 @@ import {
   etfInfoResponseSchema,
   etfNavItemSchema,
   etfReturnItemSchema,
+  executionStrengthDailyResponseSchema,
+  executionStrengthIntradayResponseSchema,
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
@@ -63,6 +65,7 @@ import {
   type EtfInfoResponse,
   type EtfNavItem,
   type EtfReturnItem,
+  type ExecutionStrengthItem,
   type ForeignHoldingItem,
   type IndexItem,
   type InvestorDailyItem,
@@ -804,6 +807,34 @@ export async function fetchThemeStocks(
  * ka10014 공매도추이요청 — per-stock daily short-selling trend over [fromDate, toDate].
  * All fields live-verified 2026-07-07. tm_tp "1" = 일별. Rows newest-first.
  */
+/**
+ * ka10046 체결강도 시간별 / ka10047 체결강도 일별 (둘 다 `/api/dostk/mrkcond`,
+ * body는 `{stk_cd}` 하나뿐). Mock-probed 2026-07-29: rc=0, 배열 키·필드가 스펙과
+ * 정확히 일치(누락·초과 0), 각 60행 최신순, `cont-yn=Y`.
+ *
+ * **페이지 1만 조회**한다 — 시간별은 최근 60분, 일별은 최근 60거래일이면 충분하고,
+ * 이건 ka10008(외국인)/ka90013(프로그램 종목별)과 같은 판단이다.
+ *
+ * 없는 종목코드는 rc=0 + 빈 배열로 온다 (실측) → 호출부에서 빈 목록 안내.
+ * 시간외 단일가 TR(ka10087/ka10098)과 달리 **NXT 종목도 정상 제공**한다 (005930으로 실측).
+ */
+export type ExecutionStrengthView = "intraday" | "daily";
+
+export async function fetchExecutionStrength(
+  client: KiwoomClient,
+  stockCode: string,
+  view: ExecutionStrengthView,
+): Promise<ExecutionStrengthItem[]> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: view === "intraday" ? "ka10046" : "ka10047",
+    body: { stk_cd: stockCode },
+  });
+  return view === "intraday"
+    ? executionStrengthIntradayResponseSchema.parse(res.json).cntr_str_tm
+    : executionStrengthDailyResponseSchema.parse(res.json).cntr_str_daly;
+}
+
 export async function fetchShortSelling(
   client: KiwoomClient,
   stockCode: string,
