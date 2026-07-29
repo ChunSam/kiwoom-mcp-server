@@ -636,6 +636,49 @@ export type ThemeStocksResponse = z.infer<typeof themeStocksResponseSchema>;
 
 // ── ka10014: 공매도추이 — /api/dostk/shsa (all fields live-verified 2026-07-07) ──
 
+// ── ka10046/ka10047: 체결강도 추이 (시간별/일별 — 행 구조가 거의 동일) ──
+
+/**
+ * 체결강도 행. 두 TR이 시간축 필드(ka10046 `cntr_tm` HHmmss / ka10047 `dt` yyyyMMdd)와
+ * 배열 키만 다르고 나머지는 같아 하나의 스키마를 공유한다 (ka10068/ka20068 선례).
+ * `str()` 기본값 `""` 덕에 쓰지 않는 쪽 시간 필드는 자연히 빈 값이 된다.
+ *
+ * 단위/인코딩 (mock 실측 2026-07-29, 005930/002990/069500):
+ * - `cntr_str` 체결강도(%) — 100이 균형, 실측 범위 66~164. 5/20/60 이동평균 동반
+ *   (**ka10047에서는 5일/20일/60일**, ka10046에서는 5분/20분/60분 — 필드명은 동일하게 `_5min` 등).
+ * - `acc_trde_prica` 백만원 (거래량×주가로 교차검증).
+ * - **ka10047은 `trde_qty`가 전 행 공백**이고 그날 거래량은 `acc_trde_qty`에 실린다
+ *   (005930 07-29 `65,555,523` == ka10001 당일 거래량 — 정확 일치로 확인). ka10046은
+ *   `trde_qty`가 분당 거래량, `acc_trde_qty`가 누적.
+ * - 부호는 단일부호 (이중부호 없음 — 실측).
+ */
+export const executionStrengthItemSchema = z.looseObject({
+  cntr_tm: str(), // ka10046 체결시간 HHmmss (ka10047에서는 빈 값)
+  dt: str(), // ka10047 일자 yyyyMMdd (ka10046에서는 빈 값)
+  cur_prc: str(), // 현재가/종가 (부호는 방향)
+  pred_pre: str(), // 전일대비 (부호 유의미)
+  flu_rt: str(), // 등락률(%)
+  trde_qty: str(), // ka10046 분당 거래량 / **ka10047은 항상 공백**
+  acc_trde_prica: str(), // 누적거래대금 (백만원)
+  acc_trde_qty: str(), // 누적거래량 — ka10047에서는 그날 총 거래량
+  cntr_str: str(), // 체결강도(%)
+  cntr_str_5min: str(), // 체결강도 5분(ka10046)/5일(ka10047)
+  cntr_str_20min: str(), // 20분/20일
+  cntr_str_60min: str(), // 60분/60일
+});
+
+export type ExecutionStrengthItem = z.infer<typeof executionStrengthItemSchema>;
+
+export const executionStrengthIntradayResponseSchema = z.looseObject({
+  ...envelope,
+  cntr_str_tm: z.array(executionStrengthItemSchema).default([]),
+});
+
+export const executionStrengthDailyResponseSchema = z.looseObject({
+  ...envelope,
+  cntr_str_daly: z.array(executionStrengthItemSchema).default([]),
+});
+
 export const shortSellingItemSchema = z.looseObject({
   dt: str(), // 일자 yyyyMMdd
   close_pric: str(), // 종가 (부호 방향)
