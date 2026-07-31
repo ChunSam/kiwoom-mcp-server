@@ -427,6 +427,14 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   없는 종목코드는 rc=0 + 빈 배열. **시간외 단일가 TR과 달리 NXT 종목도 정상 제공**(005930으로
   실측 — 60행) → 사각지대 안내 불필요. `get_execution_strength` 한 툴이 `view` enum
   (daily 기본/intraday)으로 흡수 (get_stock_lending TR 스위치 선례).
+  **ka10003 체결정보는 문서화된 스킵 확정 (2026-07-31)** — 위 ka10046/47이 상위호환이다.
+  ka10003 (`/api/dostk/stkinfo`, body `{stk_cd}` → `cntr_infr[]` of `{tm, cur_prc, pred_pre, pre_rt,
+  pri_sel_bid_unit, pri_buy_bid_unit, cntr_trde_qty, sign, acc_trde_qty, acc_trde_prica, cntr_str,
+  stex_tp}`)는 `get_orderbook`(호가 사다리)이나 `get_stock_price`(스냅샷)의 중복이 **아니라** 원시
+  체결 스트림이지만, 기존 툴이 못 주는 유일한 컬럼이 **`cntr_str` 하나**다 — 그리고 그 `cntr_str`을
+  ka10046/47이 **5/20/60 이동평균까지 얹어서** 준다 (`get_execution_strength`, v0.26.0). 즉 열세가
+  추정이 아니라 **컬럼 단위로 측정된** 케이스라 툴을 늘릴 근거가 없다. 툴 수 절제 선례
+  (ka10100/ka40010/ka10069/ka90012/ka10077/ka10085/ka90006~08)에 합류.
 - VI/거래원 TRs (v0.14.0 batch, both `/api/dostk/stkinfo`; **live-verified on REAL 2026-07-10** —
   owner-authorized one-shot read-only probe, 2 calls: rc=0, zero consumed-field gaps; REAL VI
   rows included a 동적 행 with static_* fields zeroed — the mirror image of mock's 정적 rows,
