@@ -246,6 +246,43 @@ export const pendingOrdersResponseSchema = z.looseObject({
 
 export type PendingOrdersResponse = z.infer<typeof pendingOrdersResponseSchema>;
 
+// ── ka10076: 체결요청 — 계좌의 체결 내역 (ka10075 미체결의 반대편) ──
+// Envelope + the `cntr` array key are live-verified (mock 2026-07-31, 5 bodies, rc=0, cont-yn N).
+// Item VALUES are unobservable without placing an order (out of scope by design), so the field
+// set below is spec-sourced — the same provisional status ka10075's `oso` item has carried
+// since v0.6.0. Treat row shape as provisional until a real fill is observed.
+
+export const executionItemSchema = z.looseObject({
+  ord_no: str(), // 주문번호
+  orig_ord_no: str(), // 원주문번호 (정정·취소의 원주문)
+  stk_cd: str(), // 종목코드 ("A005930"처럼 접두 가능)
+  stk_nm: str(), // 종목명
+  ord_stt: str(), // 주문상태 ("체결"/"확인" 등)
+  io_tp_nm: str(), // 주문구분 ("매수"/"매도"/"정정" 등)
+  trde_tp: str(), // 매매구분
+  ord_qty: str(), // 주문수량
+  ord_pric: str(), // 주문가격
+  cntr_qty: str(), // 체결수량
+  cntr_pric: str(), // 체결가격
+  oso_qty: str(), // 미체결수량
+  tdy_trde_cmsn: str(), // 당일매매수수료
+  tdy_trde_tax: str(), // 당일매매세금
+  ord_tm: str(), // 주문시각 (HHmmss)
+  stop_pric: str(), // 스톱가
+  sor_yn: str(), // SOR 여부 ("Y"/"N")
+  stex_tp: str(), // 거래소구분 코드
+  stex_tp_txt: str(), // 거래소구분 표기
+});
+
+export type ExecutionItem = z.infer<typeof executionItemSchema>;
+
+export const executionsResponseSchema = z.looseObject({
+  ...envelope,
+  cntr: z.array(executionItemSchema).default([]),
+});
+
+export type ExecutionsResponse = z.infer<typeof executionsResponseSchema>;
+
 // ── ka10099: 종목정보요약 — NOTE: this TR answers in camelCase (live-verified) ──
 
 export const stockListItemSchema = z.looseObject({

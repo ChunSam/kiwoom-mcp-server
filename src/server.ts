@@ -15,6 +15,7 @@ import { registerInvestorTrendTool } from "./tools/investor-trend.js";
 import { registerIsaTaxStatusTool } from "./tools/isa-tax-status.js";
 import { registerMarketIndexTool } from "./tools/market-index.js";
 import { registerMarketMoversTool } from "./tools/market-movers.js";
+import { registerOrderExecutionsTool } from "./tools/order-executions.js";
 import { registerOrderbookTool } from "./tools/orderbook.js";
 import { registerPendingOrdersTool } from "./tools/pending-orders.js";
 import { registerPingTool } from "./tools/ping.js";
@@ -35,7 +36,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.26.0";
+export const SERVER_VERSION = "0.27.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -84,6 +85,7 @@ export function createServer(): McpServer {
   registerAccountTrendTool(server);
   registerTransactionsTool(server);
   registerPendingOrdersTool(server);
+  registerOrderExecutionsTool(server);
   registerTradingJournalTool(server);
 
   // ISA tax tool — opt-in, general-account-first. Enable with ISA_ENABLED=true

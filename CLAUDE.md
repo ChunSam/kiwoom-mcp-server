@@ -168,6 +168,21 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   wrapper-sourced (dongbin300 .NET model) and NOT live-verified — order execution is
   out of scope so no pending order could be generated to observe. Treat the item shape
   as provisional (like dividend rows).**
+- ka10076 체결요청 (v0.27.0; `/api/dostk/acnt` — ka10075 미체결의 반대편, 즉 **체결된** 주문;
+  **mock-probed 2026-07-31** 5개 body 전부 rc=0; **live-verified on REAL 2026-07-31** — 에이전트
+  실행 읽기 전용 5콜, rc=0, 8050 미발생). Body `{qry_tp: "0"전체|"1"종목, sell_tp: "0"전체|"1"매도|
+  "2"매수, stex_tp}` **3개 필수** + `{stk_cd, ord_no}` 옵션 (툴은 ka10075와 같은 `stex_tp: "0"통합`
+  고정) → array key **`cntr`**, cont-yn **N**. **`cntr` 배열 키와 봉투는 mock·REAL 양쪽 live-verified
+  이지만 행은 두 환경 모두 0건**(모의계좌엔 주문이 없고, REAL 검증 계좌에도 조회 시점 체결이 없었다) —
+  따라서 **19개 item 필드(`ord_no`/`orig_ord_no`/`stk_cd`/`stk_nm`/`ord_stt`/`io_tp_nm`/`trde_tp`/
+  `ord_qty`/`ord_pric`/`cntr_qty`/`cntr_pric`/`oso_qty`/`tdy_trde_cmsn`/`tdy_trde_tax`/`ord_tm`/
+  `stop_pric`/`sor_yn`/`stex_tp`/`stex_tp_txt`)는 spec-sourced(계좌.md:601)이고 값은 관측 불가 —
+  ka10075 `oso`와 동일한 provisional 상태다** (주문 실행이 설계상 out of scope라 체결을 만들어낼 수
+  없다; 실제 체결이 생기면 재확인할 것). **기간 파라미터가 없다** — 조회 범위(당일인지 그 이상인지)는
+  키움 소관이며 0건 응답만으로는 판별 불가라, 툴은 범위를 단정하지 않고 get_trading_journal(당일 집계)/
+  get_transactions(기간)로 안내한다. 표시상 주의: `orig_ord_no`는 원주문이 없을 때 **`"0000000"`
+  전부-0 센티널**이 올 수 있어 정정·취소 각주 판정에 제로스트립이 필요하다 (negative control로 확인 —
+  제거하면 관련 테스트 3건이 전부 실패). `get_order_executions` 툴이 흡수 (side enum all/sell/buy).
 - More TRs used by `calc_isa_tax_status` (both on `/api/dostk/acnt`): ka10074
   (일자별실현손익, body `{strt_dt, end_dt}` yyyyMMdd — `rlzt_pl` total used as a
   cross-check); kt00015 (위탁종합거래내역, body `{strt_dt, end_dt, tp: "0", gds_tp: "0",
@@ -923,6 +938,20 @@ confirmation flow + owner sign-off), not merely a safety guard — see the Proje
   (기본시세/배치시세/호가/일봉/분봉/거래원/투자자동향/공매도/외국인/대차/프로그램/VI)은 NXT
   종목도 정상 제공한다 → v0.25.2 수정이 완결됐다는 뜻이며 추가 안내는 불필요. 286 tests /
   26 files. `scripts/sweep.py` = 55 calls (+2). **Server exposes 34 always-on tools (35 with ISA).**
+- **v0.27.0 (2026-07-31) — 체결 내역 + ka10003 문서화 스킵.** Added `get_order_executions`
+  (ka10076 체결요청 — 상세는 위 TR 불릿): `get_pending_orders`(미체결)와 `get_trading_journal`
+  (당일 종목별 집계) 사이의 빈 축 — "내 주문이 **얼마에 몇 주** 체결됐나"를 주문 단위로 처음 커버한다
+  (당일매매일지는 종목 단위 집계라 개별 체결·주문번호·정정 관계가 보이지 않는다). side enum
+  (all 기본/sell/buy) + stock_code + order_no 필터. Developed on VIRTUAL per the dev loop
+  (mock 5콜 rc=0, 배열 키 `cntr` 확인 — **행 0건이라 빈 봉투만 verbatim 픽스처로 사용하고 행
+  픽스처는 spec-shaped·provisional로 명시**), then **live-verified on REAL 2026-07-31**
+  (에이전트 실행 읽기 전용 5콜: rc=0, `cntr`/cont-yn N 확인, 8050 미발생 — **REAL에서도 0건**이라
+  item 값은 계획대로 provisional 유지, ka10075 v0.6.0 선례와 동일). 제로스트립 가드에 **negative
+  control 적용** — 되돌리자 원주문번호 관련 3건이 정확히 전부 실패하고 무관한 테스트는 0건
+  (v0.25.1/v0.25.2/v0.26.0 선례). 같은 릴리스에서 **ka10003 체결정보를 문서화된 스킵으로 확정**
+  (위 체결강도 불릿 참조 — 유일한 차별 컬럼 `cntr_str`을 v0.26.0의 ka10046/47이 이동평균까지 얹어
+  제공하므로 컬럼 단위로 측정된 열세). 299 tests / 27 files. `scripts/sweep.py` = 57 calls (+2).
+  **Server exposes 35 always-on tools (36 with ISA).**
 - 과세유형 분류가 실제로 필요한 이유: a SEOMIN ISA (한도 400만원) can hold a mix of
   taxable-type ETFs (해외지수형/채권형) and 국내주식형 ETFs, so realized history mixes
   과세대상 (해외지수 ETF 매도차익) and 비과세/손실차감 (국내주식형 ETF 매도차익) — each

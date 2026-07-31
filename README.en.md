@@ -75,6 +75,7 @@ allowance.
 | `get_account_trend` | Daily estimated-deposit-asset trend + period return / valuation P&L / cash-flow summary (default 30 days; not served on VIRTUAL) | kt00002, kt00016 |
 | `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount) | kt00015 |
 | `get_pending_orders` | Open/unfilled orders (order no., side, status, ordered/unfilled qty, price) | ka10075 |
+| `get_order_executions` | Filled orders (order no., side, status, ordered/filled qty, prices, fees+tax; side/stock/order-no filters) | ka10076 |
 | `get_trading_journal` | The day's trading journal (per-stock buy/sell avg price, qty, realized P&L, totals) | ka10170 |
 | `calc_isa_tax_status` | ISA aggregated net gain vs. the tax-free allowance (realized + full-liquidation scenario) | kt00015, ka10074, kt00018 |
 
