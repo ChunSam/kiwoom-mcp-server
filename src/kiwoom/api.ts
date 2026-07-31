@@ -20,6 +20,7 @@ import {
   etfReturnItemSchema,
   executionStrengthDailyResponseSchema,
   executionStrengthIntradayResponseSchema,
+  executionsResponseSchema,
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
@@ -65,6 +66,7 @@ import {
   type EtfInfoResponse,
   type EtfNavItem,
   type EtfReturnItem,
+  type ExecutionItem,
   type ExecutionStrengthItem,
   type ForeignHoldingItem,
   type IndexItem,
@@ -323,6 +325,32 @@ export async function fetchPendingOrders(
     },
   });
   return pendingOrdersResponseSchema.parse(res.json).oso;
+}
+
+/**
+ * ka10076 체결요청 — 계좌의 체결 내역 (ka10075 미체결의 반대편).
+ *
+ * qry_tp/sell_tp/stex_tp are all required; stk_cd/ord_no are optional filters.
+ * stex_tp "0"=통합 matches ka10075 in the same account family.
+ * Mock-probed 2026-07-31: rc=0 on all five body combinations, array key `cntr`, cont-yn N.
+ */
+export async function fetchOrderExecutions(
+  client: KiwoomClient,
+  options: { stockCode?: string; side?: "all" | "sell" | "buy"; orderNo?: string } = {},
+): Promise<ExecutionItem[]> {
+  const { stockCode, side = "all", orderNo } = options;
+  const res = await client.call({
+    path: ACCOUNT_PATH,
+    apiId: "ka10076",
+    body: {
+      qry_tp: stockCode ? "1" : "0",
+      sell_tp: side === "sell" ? "1" : side === "buy" ? "2" : "0",
+      stk_cd: stockCode ?? "",
+      ord_no: orderNo ?? "",
+      stex_tp: "0",
+    },
+  });
+  return executionsResponseSchema.parse(res.json).cntr;
 }
 
 /**

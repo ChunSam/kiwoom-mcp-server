@@ -170,6 +170,8 @@ def main() -> int:
         ("get_account_trend", {"days": 7}),  # kt00002+kt00016 — mock-unsupported RC9000 → err(exp)
         ("get_transactions", {}),
         ("get_pending_orders", {}),
+        ("get_order_executions", {}),  # ka10076 — 모의계좌엔 주문이 없어 빈 목록 경로
+        ("get_order_executions", {"stock_code": "005930", "side": "buy"}),
         ("get_trading_journal", {}),
     ]
 

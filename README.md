@@ -72,6 +72,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_account_trend` | 일별 추정예탁자산 추이 + 기간 수익률/평가손익/입출금 요약 (기본 30일, 모의투자 미지원) | kt00002, kt00016 |
 | `get_transactions` | 기간별 거래내역 (체결일·단가·정산금액) | kt00015 |
 | `get_pending_orders` | 미체결 주문 (주문번호·구분·상태·주문/미체결수량·주문가격) | ka10075 |
+| `get_order_executions` | 체결 내역 (주문번호·구분·상태·주문/체결 수량·가격·수수료+세금, side/종목/주문번호 필터) | ka10076 |
 | `get_trading_journal` | 당일매매일지 (종목별 매수/매도 평균가·수량·실현손익, 총손익) | ka10170 |
 | `calc_isa_tax_status` | ISA 손익통산 순이익의 비과세 한도 대비 현황 (확정 + 전량매도 시나리오) | kt00015, ka10074, kt00018 |
 
