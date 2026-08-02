@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getKiwoomContext } from "../context.js";
 import { fetchSectorPrice, fetchSectorStocks } from "../kiwoom/api.js";
+import { resolveSectorCode, sectorNameFromCache } from "../kiwoom/sector-list.js";
 import type { SectorPriceResponse, SectorStockItem, SectorTimeRow } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import {
@@ -19,7 +20,11 @@ const DEFAULT_STOCK_LIMIT = 30;
 const MAX_STOCK_LIMIT = 100;
 const TIME_ROWS_SHOWN = 10;
 
-/** 잘 알려진 업종 코드 라벨 — 전체 코드 목록은 get_market_index로 조회. */
+/**
+ * ka10101 마스터 캐시가 따뜻하면 실제 업종명(124개)을, 아니면 아래 하드코딩 폴백을 쓴다.
+ * 포맷터에서 부르므로 동기여야 한다 — 핸들러가 resolveSectorCode를 먼저 거치면서 캐시를
+ * 채우고, 포맷터를 직접 부르는 테스트에서는 폴백 라벨이 그대로 나온다.
+ */
 const SECTOR_LABELS: Record<string, string> = {
   "001": "코스피 종합",
   "002": "코스피 대형주",
@@ -27,7 +32,8 @@ const SECTOR_LABELS: Record<string, string> = {
   "201": "KOSPI200",
 };
 
-export const sectorLabel = (code: string): string => SECTOR_LABELS[code] ?? `업종 ${code}`;
+export const sectorLabel = (code: string): string =>
+  sectorNameFromCache(code) ?? SECTOR_LABELS[code] ?? `업종 ${code}`;
 
 /** "153220" → "15:32:20"; 시각이 아닌 값(장마감 센티널 999999/888888 등)은 null. */
 function formatSectorTime(tm: string): string | null {
@@ -139,10 +145,18 @@ export function formatSectorStocks(
   return lines.join("\n");
 }
 
+/**
+ * 업종 코드 3자리 또는 업종명. 이름은 ka10101 마스터에서 찾아 코드로 바꾸는데, 시장 간
+ * 동명 업종이 많아("화학" = 코스피 008 / 코스닥 119) 후보가 둘 이상이면 코드 목록을 담은
+ * 에러가 돌아온다.
+ */
 const sectorCodeSchema = z
   .string()
-  .regex(/^\d{3}$/)
-  .describe("업종 코드 3자리 (예: 001 코스피 종합, 101 코스닥 종합 — get_market_index의 '코드' 값)");
+  .min(1)
+  .describe(
+    "업종 코드 3자리(예: 001 코스피 종합, 101 코스닥 종합) 또는 업종명(예: 증권, 반도체). " +
+      "이름이 여러 시장에 있으면 후보 코드를 알려 주는 에러가 돌아옵니다",
+  );
 
 export function registerSectorPriceTool(server: McpServer): void {
   server.registerTool(
@@ -152,7 +166,8 @@ export function registerSectorPriceTool(server: McpServer): void {
       description:
         "업종(섹터) 지수의 현재가 상세를 조회합니다 (키움 ka20001) — 지수·시/고/저가·거래량·" +
         "상승/하락 종목수·52주 고저·시간대별 추이. sector_code는 get_market_index가 보여주는 " +
-        "업종 코드입니다 (001 코스피 종합, 002 코스피 대형주, 101 코스닥 종합, 201 KOSPI200 등).",
+        "업종 코드이며(001 코스피 종합, 002 코스피 대형주, 101 코스닥 종합, 201 KOSPI200 등) " +
+        "'증권'처럼 업종명을 그대로 넣어도 됩니다.",
       inputSchema: {
         sector_code: sectorCodeSchema,
       },
@@ -160,8 +175,9 @@ export function registerSectorPriceTool(server: McpServer): void {
     async ({ sector_code }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const res = await fetchSectorPrice(client, sector_code);
-        return textResult(formatSectorPrice(res, sector_code, config.modeLabel));
+        const code = await resolveSectorCode(client, sector_code);
+        const res = await fetchSectorPrice(client, code);
+        return textResult(formatSectorPrice(res, code, config.modeLabel));
       }),
   );
 }
@@ -173,7 +189,8 @@ export function registerSectorStocksTool(server: McpServer): void {
       title: "업종별 종목 시세 조회",
       description:
         "특정 업종에 속한 종목들의 시세를 조회합니다 (키움 ka20002). 종목코드순 정렬이며 " +
-        "첫 페이지(최대 100종목)만 가져옵니다. sector_code는 get_market_index의 업종 코드입니다.",
+        "첫 페이지(최대 100종목)만 가져옵니다. sector_code는 get_market_index의 업종 코드이거나 " +
+        "업종명입니다.",
       inputSchema: {
         sector_code: sectorCodeSchema,
         limit: z
@@ -188,9 +205,10 @@ export function registerSectorStocksTool(server: McpServer): void {
     async ({ sector_code, limit }) =>
       runTool(async () => {
         const { client, config } = getKiwoomContext();
-        const { items, truncated } = await fetchSectorStocks(client, sector_code);
+        const code = await resolveSectorCode(client, sector_code);
+        const { items, truncated } = await fetchSectorStocks(client, code);
         return textResult(
-          formatSectorStocks(items, truncated, sector_code, limit ?? DEFAULT_STOCK_LIMIT, config.modeLabel),
+          formatSectorStocks(items, truncated, code, limit ?? DEFAULT_STOCK_LIMIT, config.modeLabel),
         );
       }),
   );

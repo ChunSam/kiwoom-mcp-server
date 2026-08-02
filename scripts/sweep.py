@@ -134,6 +134,9 @@ def main() -> int:
         ("get_sector_stocks", {"sector_code": "101", "limit": 5}),
         ("get_sector_chart", {"sector_code": "001"}),  # ka20006 일봉
         ("get_sector_chart", {"sector_code": "101", "period": "minute", "count": 5}),  # ka20005
+        ("get_sector_flow", {"top": 5}),  # ka10051 코스피 금액
+        ("get_sector_flow", {"market": "kosdaq", "unit": "quantity", "sort": "institution", "top": 5}),
+        ("get_sector_price", {"sector_code": "증권"}),  # ka10101 이름→코드 해석 경로
         ("get_ranking", {"type": "volume", "top": 5}),
         ("get_market_movers", {"signal": "new_high", "top": 3}),
         ("get_market_movers", {"signal": "new_low", "top": 3}),

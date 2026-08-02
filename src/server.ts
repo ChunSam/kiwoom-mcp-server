@@ -23,6 +23,7 @@ import { registerPingTool } from "./tools/ping.js";
 import { registerProgramTradingTool } from "./tools/program-trading.js";
 import { registerRankingTool } from "./tools/ranking.js";
 import { registerSectorChartTool } from "./tools/sector-chart.js";
+import { registerSectorFlowTool } from "./tools/sector-flow.js";
 import { registerSectorPriceTool, registerSectorStocksTool } from "./tools/sector.js";
 import { registerShortSellingTool } from "./tools/short-selling.js";
 import { registerStockChartTool } from "./tools/stock-chart.js";
@@ -37,7 +38,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.28.0";
+export const SERVER_VERSION = "0.29.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -58,6 +59,7 @@ export function createServer(): McpServer {
   registerSectorPriceTool(server);
   registerSectorStocksTool(server);
   registerSectorChartTool(server);
+  registerSectorFlowTool(server);
   registerRankingTool(server);
   registerMarketMoversTool(server);
   registerViStocksTool(server);

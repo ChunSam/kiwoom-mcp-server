@@ -1086,6 +1086,57 @@ export const dailySessionResponseSchema = z.looseObject({
   daly_trde_dtl: z.array(dailySessionItemSchema).default([]),
 });
 
+// ── ka10051: 업종별투자자순매수 — /api/dostk/sect (mock + REAL 실측 2026-08-03).
+// 코스피 28행 / 코스닥 32행, cont-yn=N (단일 페이지). 20필드 전부 값이 온다.
+// **cur_prc·pred_pre·flu_rt가 전부 지수 ×100 정수**다 — 같은 시각 ka20003이 준
+// 종합(KOSPI) "+6595.45"/"+1001.89"/"+17.91"이 여기서는 659545/100189/1791로 온다.
+// trde_qty만 ka20003과 값이 같다(천주). inds_cd는 stex_tp에 따라 접미사가 붙는데
+// "3"(통합)이면 `001_AL`, "1"(KRX)이면 `001` — 서버의 다른 업종 TR과 맞춰 "1"을 쓴다.
+// natn_netprps(국가)는 전 행 0이지만 그건 실제 매매가 없어서지 미제공이 아니다 ──
+
+export const sectorNetBuyItemSchema = z.looseObject({
+  inds_cd: str(), // 업종코드 3자리
+  inds_nm: str(), // 업종명
+  cur_prc: str(), // 업종 지수 ×100
+  flu_rt: str(), // 등락률(%) ×100
+  trde_qty: str(), // 거래량 (천주)
+  ind_netprps: str(), // 개인
+  frgnr_netprps: str(), // 외국인
+  orgn_netprps: str(), // 기관계
+  sc_netprps: str(), // 증권
+  insrnc_netprps: str(), // 보험
+  invtrt_netprps: str(), // 투신
+  bank_netprps: str(), // 은행
+  endw_netprps: str(), // 기금
+  samo_fund_netprps: str(), // 사모펀드
+  etc_corp_netprps: str(), // 기타법인
+});
+
+export type SectorNetBuyItem = z.infer<typeof sectorNetBuyItemSchema>;
+
+export const sectorNetBuyResponseSchema = z.looseObject({
+  ...envelope,
+  inds_netprps: z.array(sectorNetBuyItemSchema).default([]),
+});
+
+// ── ka10101: 업종코드 리스트 — /api/dostk/stkinfo. ka10099와 마찬가지로 **camelCase로
+// 답한다**. mrkt_tp 0/1/2/4/7 = 코스피 31 / 코스닥 34 / KOSPI200 28 / KOSPI100 2 /
+// KRX100 29행 (실측 2026-08-03, mock·REAL 동일). code는 전부 3자리로 기존 업종 tool이
+// 받는 값과 그대로 맞는다. group은 시장 내 일련번호라 소비하지 않는다 ──
+
+export const sectorCodeItemSchema = z.looseObject({
+  marketCode: str(),
+  code: str(),
+  name: str(),
+});
+
+export type SectorCodeItem = z.infer<typeof sectorCodeItemSchema>;
+
+export const sectorCodeListResponseSchema = z.looseObject({
+  ...envelope,
+  list: z.array(sectorCodeItemSchema).default([]),
+});
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");
