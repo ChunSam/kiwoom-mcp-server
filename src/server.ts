@@ -6,6 +6,7 @@ import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
 import { registerAccountTrendTool } from "./tools/account-trend.js";
 import { registerAfterHoursTool } from "./tools/after-hours.js";
 import { registerBrokerActivityTool } from "./tools/broker-activity.js";
+import { registerDailyTradingTool } from "./tools/daily-trading.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
 import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerExecutionStrengthTool } from "./tools/execution-strength.js";
@@ -36,7 +37,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.27.0";
+export const SERVER_VERSION = "0.28.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -51,6 +52,7 @@ export function createServer(): McpServer {
   registerStockPriceTool(server);
   registerStockQuotesTool(server);
   registerStockChartTool(server);
+  registerDailyTradingTool(server);
   registerOrderbookTool(server);
   registerMarketIndexTool(server);
   registerSectorPriceTool(server);
