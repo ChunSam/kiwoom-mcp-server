@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { getKiwoomContext } from "../context.js";
+import { resolveSectorCode } from "../kiwoom/sector-list.js";
 import { fetchSectorChart, fetchSectorIntradayChart, type ChartPeriod } from "../kiwoom/api.js";
 import type { DailyChartItem, MinuteChartItem } from "../kiwoom/types.js";
 import { formatDateDashed, todayInKst } from "../utils/date.js";
@@ -95,13 +96,16 @@ export function registerSectorChartTool(server: McpServer): void {
       description:
         "업종(섹터) 지수의 캔들 차트를 조회합니다 (키움 ka20004~ka20008/ka20019). " +
         "period: day(일봉, 기본)/week(주봉)/month(월봉)/year(년봉)/minute(분봉)/tick(틱봉). " +
-        "sector_code는 get_market_index의 업종 코드입니다 " +
+        "sector_code는 get_market_index의 업종 코드이거나 업종명입니다 " +
         "(001 코스피 종합, 002 코스피 대형주, 101 코스닥 종합, 201 KOSPI200 등).",
       inputSchema: {
         sector_code: z
           .string()
-          .regex(/^\d{3}$/)
-          .describe("업종 코드 3자리 (예: 001 코스피 종합, 101 코스닥 종합 — get_market_index의 '코드' 값)"),
+          .min(1)
+          .describe(
+            "업종 코드 3자리(예: 001 코스피 종합, 101 코스닥 종합) 또는 업종명(예: 증권, 반도체). " +
+              "이름이 여러 시장에 있으면 후보 코드를 알려 주는 에러가 돌아옵니다",
+          ),
         period: z
           .enum(["day", "week", "month", "year", "minute", "tick"])
           .optional()
@@ -127,19 +131,20 @@ export function registerSectorChartTool(server: McpServer): void {
       runTool(async () => {
         const { client, config } = getKiwoomContext();
         const n = count ?? DEFAULT_COUNT;
+        const code = await resolveSectorCode(client, sector_code);
 
         if (period === "minute" || period === "tick") {
           const isTick = period === "tick";
           const scope = isTick ? (tick_scope ?? "30") : (minute_scope ?? "5");
-          const items = await fetchSectorIntradayChart(client, sector_code, period, scope);
+          const items = await fetchSectorIntradayChart(client, code, period, scope);
           return textResult(
-            formatSectorMinuteChart(items, sector_code, `${scope}${isTick ? "틱" : "분"}`, n, config.modeLabel),
+            formatSectorMinuteChart(items, code, `${scope}${isTick ? "틱" : "분"}`, n, config.modeLabel),
           );
         }
 
         const p: ChartPeriod = period ?? "day";
-        const items = await fetchSectorChart(client, sector_code, p, todayInKst());
-        return textResult(formatSectorDailyChart(items, sector_code, p, n, config.modeLabel));
+        const items = await fetchSectorChart(client, code, p, todayInKst());
+        return textResult(formatSectorDailyChart(items, code, p, n, config.modeLabel));
       }),
   );
 }

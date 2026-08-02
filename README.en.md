@@ -36,6 +36,7 @@ allowance.
 | `get_sector_price` | Sector index detail (breadth / 52-week range / intraday trend) | ka20001 |
 | `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
 | `get_sector_chart` | Sector index candles (daily/weekly/monthly/yearly/minute/tick) | ka20004~08, ka20019 |
+| `get_sector_flow` | Investor net buying by sector across the whole market — retail / foreign / institution plus securities, trusts, pension funds, PE | ka10051 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges | ka10016/17/19/23 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |

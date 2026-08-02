@@ -39,6 +39,8 @@ import {
   programTradeItemSchema,
   programTrendItemSchema,
   realizedPnlResponseSchema,
+  sectorCodeListResponseSchema,
+  sectorNetBuyResponseSchema,
   sectorPriceResponseSchema,
   sectorStocksResponseSchema,
   shortSellingResponseSchema,
@@ -89,6 +91,8 @@ import {
   type ProgramTradeItem,
   type ProgramTrendItem,
   type RealizedPnlResponse,
+  type SectorCodeItem,
+  type SectorNetBuyItem,
   type SectorPriceResponse,
   type SectorStockItem,
   type ShortSellingItem,
@@ -1332,4 +1336,60 @@ export async function fetchDailySession(
     body: { stk_cd: stockCode, strt_dt: baseDate },
   });
   return dailySessionResponseSchema.parse(res.json).daly_trde_dtl;
+}
+
+/** ka10051 amt_qty_tp: "0"=금액, "1"=수량 — ka10086(indc_tp)과도, 순위 TR(amt_qty_tp)과도 코드가 다르다. */
+const SECTOR_NET_BUY_UNIT_CODES: Record<InvestorUnit, string> = { amount: "0", quantity: "1" };
+
+export type SectorMarket = "kospi" | "kosdaq";
+
+const SECTOR_MARKET_CODES: Record<SectorMarket, string> = { kospi: "0", kosdaq: "1" };
+
+/**
+ * ka10051 업종별투자자순매수요청 — 한 콜로 시장 전체 업종의 투자자 주체별 순매수를
+ * 준다. mock/REAL 실측 2026-08-03: rc=0, 배열 키 `inds_netprps`, 코스피 28행 /
+ * 코스닥 32행, cont-yn=N(단일 페이지), 20필드 전부 값 있음.
+ *
+ * `stex_tp: "1"`(KRX)은 서버의 다른 업종 TR과 맞춘 값이자 `inds_cd`를 접미사 없는
+ * 3자리로 받기 위한 조건이다 — "3"(통합)으로 부르면 `001_AL` 꼴로 온다.
+ *
+ * `base_dt`는 빈 문자열이면 최근 거래일. 값을 넣으면 그 날짜 기준으로 바뀐다(실측).
+ */
+export async function fetchSectorNetBuy(
+  client: KiwoomClient,
+  market: SectorMarket,
+  unit: InvestorUnit,
+  baseDate: string,
+): Promise<SectorNetBuyItem[]> {
+  const res = await client.call({
+    path: SECTOR_PATH,
+    apiId: "ka10051",
+    body: {
+      mrkt_tp: SECTOR_MARKET_CODES[market],
+      amt_qty_tp: SECTOR_NET_BUY_UNIT_CODES[unit],
+      base_dt: baseDate,
+      stex_tp: "1",
+    },
+  });
+  return sectorNetBuyResponseSchema.parse(res.json).inds_netprps;
+}
+
+/** ka10101 업종코드 리스트의 mrkt_tp — 5개 그룹을 합쳐야 전체 업종 코드가 된다. */
+export const SECTOR_CODE_MARKETS = ["0", "1", "2", "4", "7"] as const;
+
+/**
+ * ka10101 업종코드 리스트요청 — 시장구분 하나당 업종 코드/이름 목록.
+ * ka10099처럼 **camelCase로 답한다**. 실측 2026-08-03: 코스피 31 / 코스닥 34 /
+ * KOSPI200 28 / KOSPI100 2 / KRX100 29행, 모두 cont-yn=N.
+ */
+export async function fetchSectorCodes(
+  client: KiwoomClient,
+  marketTp: string,
+): Promise<SectorCodeItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10101",
+    body: { mrkt_tp: marketTp },
+  });
+  return sectorCodeListResponseSchema.parse(res.json).list;
 }
