@@ -14,6 +14,8 @@ import {
   brokerActivityResponseSchema,
   dailyAssetItemSchema,
   dailyChartItemSchema,
+  dailyFlowResponseSchema,
+  dailySessionResponseSchema,
   depositResponseSchema,
   etfInfoResponseSchema,
   etfNavItemSchema,
@@ -62,6 +64,8 @@ import {
   type BrokerActivityResponse,
   type DailyAssetItem,
   type DailyChartItem,
+  type DailyFlowItem,
+  type DailySessionItem,
   type DepositResponse,
   type EtfInfoResponse,
   type EtfNavItem,
@@ -1265,4 +1269,67 @@ export async function fetchAfterHoursRank(
     },
   });
   return parseArray(res.json, "ovt_sigpric_flu_rt_rank", afterHoursRankItemSchema);
+}
+
+export type DailyTradingView = "flow" | "session";
+
+/** indc_tp: "0"=수량(주), "1"=금액(백만원) — 순위 TR의 amt_qty_tp와 코드가 반대다. */
+const DAILY_FLOW_UNIT_CODES: Record<InvestorUnit, string> = { quantity: "0", amount: "1" };
+
+/**
+ * ka10086 일별주가요청 — 일자별 OHLC + 개인/기관/외국인 순매수 + 외국계·프로그램 +
+ * 신용비율을 **한 행에** 담아 주는 유일한 TR. mock/REAL 실측 2026-08-03 (005930):
+ * rc=0, 배열 키 `daly_stkpc`, 22필드 전부 채워짐, 20행/page, cont-yn=Y.
+ *
+ * `unit`은 개인/기관/외국계/프로그램 열의 단위만 바꾼다 — **외국인 순매수는 두 모드에서
+ * 값이 같다**. 키움 스펙의 주의사항("외국인순매수 데이터는 거래소로부터 금액데이터가
+ * 제공되지 않고 수량으로만 조회됩니다")을 양 환경에서 실측 확인했다.
+ *
+ * 20행/page라 30일치도 2페이지가 필요하다 → 필요한 행 수를 채울 때까지만 이어 받는다.
+ */
+export async function fetchDailyFlow(
+  client: KiwoomClient,
+  stockCode: string,
+  baseDate: string,
+  unit: InvestorUnit,
+  minRows: number,
+): Promise<{ rows: DailyFlowItem[]; truncated: boolean }> {
+  const body = { stk_cd: stockCode, qry_dt: baseDate, indc_tp: DAILY_FLOW_UNIT_CODES[unit] };
+
+  let res = await client.call({ path: MRKCOND_PATH, apiId: "ka10086", body });
+  const rows = [...dailyFlowResponseSchema.parse(res.json).daly_stkpc];
+
+  let pages = 1;
+  while (rows.length < minRows && res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: MRKCOND_PATH, apiId: "ka10086", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...dailyFlowResponseSchema.parse(res.json).daly_stkpc);
+    pages += 1;
+  }
+
+  // 요청한 행 수를 못 채우고 상한에서 멈춘 경우에만 잘렸다고 본다.
+  return { rows, truncated: rows.length < minRows && res.hasNext };
+}
+
+/**
+ * ka10015 일별거래상세요청 — 일자별 거래량을 **장전/장중/장후로 쪼개서** 주는 TR.
+ * mock/REAL 실측 2026-08-03 (005930): rc=0, 배열 키 `daly_trde_dtl`, 100행/page.
+ *
+ * 스펙상 이 TR에도 체결강도·투자자 순매수·프로그램·신용잔고율 컬럼이 있지만 **모의·실전
+ * 양쪽 모두 전 행이 공백**이다 (ka40009 blank-NAV와 같은 부류). 그 축은 ka10086이
+ * 채워서 주므로 여기서는 세션별 분포만 소비한다.
+ *
+ * 100행이면 어떤 기본값보다 넉넉해 페이지 1만 조회한다.
+ */
+export async function fetchDailySession(
+  client: KiwoomClient,
+  stockCode: string,
+  baseDate: string,
+): Promise<DailySessionItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10015",
+    body: { stk_cd: stockCode, strt_dt: baseDate },
+  });
+  return dailySessionResponseSchema.parse(res.json).daly_trde_dtl;
 }

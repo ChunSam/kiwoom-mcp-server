@@ -30,6 +30,7 @@ allowance.
 | `get_stock_price` | Current price / change rate / volume / basic metrics + sector, listing date, caution flags | ka10001, ka10099 |
 | `get_stock_quotes` | Batch quotes for up to 30 stocks in one call — price, change, volume, value, market cap | ka10095, ka10099 |
 | `get_stock_chart` | Daily/weekly/monthly/yearly/minute/tick candles (adjusted price) | ka10079~83, ka10094 |
+| `get_daily_trading` | Per-day trading and flows — close, value traded, retail/institution/foreign net buying, program, margin ratio; or the pre-market / regular / post-market volume split | ka10086, ka10015 |
 | `get_orderbook` | 10-level ask/bid quotes and sizes | ka10004 |
 | `get_market_index` | KOSPI/KOSDAQ composite and sector indices | ka20003 |
 | `get_sector_price` | Sector index detail (breadth / 52-week range / intraday trend) | ka20001 |

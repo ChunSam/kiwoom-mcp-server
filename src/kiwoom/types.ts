@@ -1027,6 +1027,65 @@ export const afterHoursRankItemSchema = z.looseObject({
 
 export type AfterHoursRankItem = z.infer<typeof afterHoursRankItemSchema>;
 
+// ── ka10086: 일별주가 — /api/dostk/mrkcond (mock + REAL 실측 2026-08-03, 005930).
+// 배열 키 `daly_stkpc`, 20행/page (cont-yn Y), 최신 일자가 위. 22필드 전부 값이 온다.
+// 중복 컬럼 확인: ind==ind_netprps, orgn==orgn_netprps, for_qty==for_netprps,
+// crd_rt==crd_remn_rt, for_rt==for_poss==for_wght (양 환경 동일) → 각 조에서 하나만 쓴다.
+// pred_rt는 이름이 '전일비'지만 값은 전일대비 '금액'이라 미소비 (flu_rt로 충분).
+// 외인 보유비중(for_wght 조)은 get_foreign_holding(ka10008)이 이미 담당하고,
+// 외국계 창구(frgn)는 개인/기관/외국인 3주체 + 프로그램이라는 표의 축과 결이 달라 뺐다 ──
+
+export const dailyFlowItemSchema = z.looseObject({
+  date: str(), // 날짜 yyyyMMdd
+  open_pric: str(), // 시가 (부호 = 전일대비 방향)
+  high_pric: str(),
+  low_pric: str(),
+  close_pric: str(),
+  flu_rt: str(), // 등락률(%)
+  trde_qty: str(), // 거래량(주)
+  amt_mn: str(), // 거래대금 (백만원)
+  crd_rt: str(), // 신용비율(%)
+  ind_netprps: str(), // 개인 순매수
+  orgn_netprps: str(), // 기관 순매수
+  for_netprps: str(), // 외국인 순매수 — indc_tp와 무관하게 항상 수량(주)
+  prm: str(), // 프로그램 순매수
+});
+
+export type DailyFlowItem = z.infer<typeof dailyFlowItemSchema>;
+
+export const dailyFlowResponseSchema = z.looseObject({
+  ...envelope,
+  daly_stkpc: z.array(dailyFlowItemSchema).default([]),
+});
+
+// ── ka10015: 일별거래상세 — /api/dostk/stkinfo (mock + REAL 실측 2026-08-03, 005930).
+// 배열 키 `daly_trde_dtl`, 100행/page, 최신 일자가 위.
+// **수급 9필드(cntr_str, for_poss, for_wght, for_netprps, orgn_netprps, ind_netprps,
+// frgn, crd_remn_rt, prm)는 모의·실전 양쪽 모두 전 행 공백**이라 선언조차 하지 않는다 —
+// 그 축은 ka10086이 제대로 채워서 준다. 여기서 쓰는 건 장전/장중/장후 분포뿐이다.
+// trde_prica 단위는 백만원 (같은 날 ka10086 amt_mn과 값이 정확히 일치) ──
+
+export const dailySessionItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  close_pric: str(), // 종가 (부호 = 전일대비 방향)
+  flu_rt: str(), // 등락률(%)
+  trde_qty: str(), // 거래량(주)
+  trde_prica: str(), // 거래대금 (백만원)
+  bf_mkrt_trde_qty: str(), // 장전 거래량
+  bf_mkrt_trde_wght: str(), // 장전 거래비중(%)
+  opmr_trde_qty: str(), // 장중 거래량
+  opmr_trde_wght: str(), // 장중 거래비중(%)
+  af_mkrt_trde_qty: str(), // 장후 거래량
+  af_mkrt_trde_wght: str(), // 장후 거래비중(%)
+});
+
+export type DailySessionItem = z.infer<typeof dailySessionItemSchema>;
+
+export const dailySessionResponseSchema = z.looseObject({
+  ...envelope,
+  daly_trde_dtl: z.array(dailySessionItemSchema).default([]),
+});
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-키움증권 REST API를 **읽기 전용**으로 노출하는 MCP 서버. TypeScript(ESM, NodeNext) + `@modelcontextprotocol/sdk` + zod. 기본 35개 tool, ISA 세금 tool 1개는 opt-in.
+키움증권 REST API를 **읽기 전용**으로 노출하는 MCP 서버. TypeScript(ESM, NodeNext) + `@modelcontextprotocol/sdk` + zod. 기본 36개 tool, ISA 세금 tool 1개는 opt-in.
 
 ## 명령어
 

@@ -125,6 +125,9 @@ def main() -> int:
         ("get_stock_chart", {"stock_code": "005930", "period": "minute", "minute_scope": "5"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "year"}),
         ("get_stock_chart", {"stock_code": "005930", "period": "tick", "tick_scope": "30"}),
+        ("get_daily_trading", {"stock_code": "005930", "count": 5}),  # ka10086 수급 (수량)
+        ("get_daily_trading", {"stock_code": "005930", "unit": "amount", "count": 5}),  # ka10086 금액
+        ("get_daily_trading", {"stock_code": "005930", "view": "session", "count": 5}),  # ka10015
         ("get_orderbook", {"stock_code": "005930"}),
         ("get_market_index", {"market": "kospi"}),
         ("get_sector_price", {"sector_code": "001"}),
