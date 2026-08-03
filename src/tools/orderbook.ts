@@ -6,7 +6,7 @@ import { fetchOrderbook } from "../kiwoom/api.js";
 import type { OrderbookResponse } from "../kiwoom/types.js";
 import { formatNumber, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { KRX_ONLY_NOTE, runTool, textResult } from "./helpers.js";
 
 /** Levels 2-10 sit in the loose passthrough under sel_/buy_{n}th_pre_* keys. */
 function passthroughField(book: OrderbookResponse, key: string): string | null {
@@ -45,6 +45,8 @@ export function formatOrderbook(book: OrderbookResponse, stockCode: string, mode
   lines.push(
     "",
     `총잔량 — 매도 ${qty(book.tot_sel_req)} / 매수 ${qty(book.tot_buy_req)}`,
+    "",
+    KRX_ONLY_NOTE,
   );
   return lines.join("\n");
 }

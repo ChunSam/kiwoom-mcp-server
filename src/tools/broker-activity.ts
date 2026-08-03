@@ -6,7 +6,7 @@ import { fetchBrokerActivity } from "../kiwoom/api.js";
 import type { BrokerActivityResponse } from "../kiwoom/types.js";
 import { formatKRW, formatNumber, formatPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { KRX_ONLY_NOTE, runTool, textResult } from "./helpers.js";
 
 export function formatBrokerActivity(data: BrokerActivityResponse, stockCode: string, modeLabel: string): string {
   // (매수명, 매수량, 매도명, 매도량) 순위 1~5 — 이름이 전부 비면 데이터 없음.
@@ -43,7 +43,7 @@ export function formatBrokerActivity(data: BrokerActivityResponse, stockCode: st
     lines.push(`| ${cells.join(" | ")} |`);
   });
 
-  lines.push("", "※ 당일 거래원(증권사)별 누적 매수/매도 수량 상위 5개사입니다.");
+  lines.push("", "※ 당일 거래원(증권사)별 누적 매수/매도 수량 상위 5개사입니다.", KRX_ONLY_NOTE);
   return lines.join("\n");
 }
 
