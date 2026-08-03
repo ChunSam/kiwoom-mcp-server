@@ -173,6 +173,9 @@ describe("formatOrderbook", () => {
     expect(text).toContain("| 매도2 | 310,500 | 210,957 |");
     expect(text).toContain("| 매수2 | 309,000 | 51,476 |");
     expect(text).toContain("총잔량 — 매도 1,219,054 / 매수 372,132");
+    // 호가는 통합 조회가 불가능해 KRX로 남았다 — 같은 종목의 get_stock_price(통합)와
+    // 기준이 다르다는 사실이 응답 자체에 적혀 있어야 한다.
+    expect(text).toContain("KRX 기준");
     // Missing deeper levels degrade to "-", never throw.
     expect(text).toContain("| 매도10 | - | - |");
   });
