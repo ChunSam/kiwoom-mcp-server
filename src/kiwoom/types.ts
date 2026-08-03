@@ -602,6 +602,31 @@ export const etfNavItemSchema = z.looseObject({
 
 export type EtfNavItem = z.infer<typeof etfNavItemSchema>;
 
+// ── ka40004: ETF전체시세 (array key etfall_mrpr, REAL·VIRTUAL 실측 2026-08-03) ──
+// 전 행 공백 5필드(txbs·dvid_bf_base·pred_dvida·drng·trace_idex_cd)는 1155행 전체에서
+// 빈 문자열이라 선언하지 않는다. trace_idex/trace_flu_rt도 뺐다 — 이름과 달리 추적지수가
+// 아니라 close_pric/pre_rt의 복제본이었다(1155/1155행 완전 일치).
+// stk_cls(19/20/22/23…)는 txon_type 갈래와 동치라 중복이다.
+// 괴리율 필드는 없다 — 종가와 NAV가 같은 단위(원)임을 ka10001로 대조 확인했으므로 계산한다.
+
+export const etfAllPriceItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(), // "KODEX 200"처럼 항상 "브랜드 공백 이름" 꼴 (1155/1155행)
+  close_pric: str(), // 종가 — 부호는 전일대비 방향, 값은 절대값 (parseKiwoomPrice)
+  pre_rt: str(), // 전일대비 등락률(%) — 부호 유의미
+  trde_qty: str(), // 거래량(주). 2^32−1 포화값 실재 (KODEX 200선물인버스2X)
+  nav: str(), // NAV(원) — close_pric과 같은 부호 규약 (parseKiwoomPrice)
+  trace_eor_rt: str(), // 추적오차율(%) — 괴리율이 아니다 (ka40009의 dispty_rt와 별개 지표)
+  trace_idex_nm: str(), // 추적지수명. 1155행 중 317행만 채워짐 — 빈 값이 정상
+});
+
+export type EtfAllPriceItem = z.infer<typeof etfAllPriceItemSchema>;
+
+export const etfAllPriceResponseSchema = z.looseObject({
+  ...envelope,
+  etfall_mrpr: z.array(etfAllPriceItemSchema).default([]),
+});
+
 // ── ka01300/ka01301: 관심종목 그룹 (HTS 저장 그룹, live-verified 2026-07-06) ──
 // NOTE: array keys are nofi(그룹)/nofj(종목); item fields are terse (gcod/name,
 // cod2/bgb) and differ from the usual snake_case TRs. The response also carries

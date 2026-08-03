@@ -47,6 +47,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_broker_activity` | 종목별 거래원(증권사) 매수/매도 상위 5 | ka10002 |
 | `get_etf_info` | ETF 추적지수·과세유형·시세·NAV/괴리율 | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF 기간별(1주/1개월/6개월/1년) 수익률 vs 대상지수 | ka40001 |
+| `get_etf_rank` | 상장 ETF 전 종목 스크리너 — 괴리율(고평가/저평가)·등락률·거래량·추적오차 정렬 + 과세유형·운용사·추적지수 필터 | ka40004 |
 | `get_short_selling` | 종목별 일자별 공매도 추이 (공매도량·비중·평균가) | ka10014 |
 | `get_stock_lending` | 대차거래 추이 (체결·상환·증감·잔고) — 종목별 또는 시장 전체 | ka10068, ka20068 |
 | `get_credit_trend` | 신용융자·대주 잔고 추이 (신규·상환·잔고·공여율·잔고율) | ka10013 |

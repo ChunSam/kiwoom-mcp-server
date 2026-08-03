@@ -50,6 +50,7 @@ allowance.
 | `get_broker_activity` | Per-stock top-5 buying/selling brokers (member firms) | ka10002 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
+| `get_etf_rank` | Market-wide ETF screener — sort by disparity (premium/discount), change, volume or tracking error; filter by tax type, manager brand or tracked index | ka40004 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
