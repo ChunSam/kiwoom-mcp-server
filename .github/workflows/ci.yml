@@ -30,6 +30,10 @@ jobs:
 
       - run: npm ci
 
+      # 버전 4곳 동기화 + CLAUDE.md 실측 카운트. pre-commit은 카운트를 경고로만
+      # 넘기므로, 머지 전에 막는 건 여기다.
+      - run: npm run check
+
       - run: npm run typecheck
 
       - run: npm test

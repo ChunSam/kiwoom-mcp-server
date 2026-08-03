@@ -14,7 +14,7 @@ python3 scripts/sweep.py          # 전체 tool 실전 스윕 (VIRTUAL 기본, .
 python3 scripts/sweep.py --real    # REAL 모드 명시 허용
 ```
 
-`npm run typecheck && npm test && npm run build` 세 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)만 `err(exp)`.
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 4곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)만 `err(exp)`.
 
 ## 아키텍처
 
