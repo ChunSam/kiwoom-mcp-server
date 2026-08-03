@@ -1326,6 +1326,71 @@ export const valuationRankResponseSchema = z.looseObject({
   high_low_per: z.array(valuationRankItemSchema).default([]),
 });
 
+// ── ka10025: 매물대집중 — /api/dostk/stkinfo (mock + REAL 실측 2026-08-03).
+// 배열 키 `prps_cnctr`, 200행/page.
+//
+// 행 단위가 '종목'이 아니라 **종목 × 매물대 구간**이다 — 같은 종목이 서로 다른 가격대로
+// 두 번 나올 수 있다(실측 200행 중 1종목). `pric_strt`~`pric_end`가 그 구간이고
+// `prps_rt`는 구간에 몰린 매물 비중(%)이다.
+
+export const supplyConcentrationItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (부호 = 전일대비 방향)
+  pred_pre_sig: str(), // 대비기호
+  pred_pre: str(), // 전일대비 (부호 유의미)
+  flu_rt: str(), // 등락률(%)
+  now_trde_qty: str(), // 거래량 (주)
+  pric_strt: str(), // 매물대 구간 시작가 (부호 없음)
+  pric_end: str(), // 매물대 구간 종료가 (부호 없음)
+  prps_qty: str(), // 매물량 (주)
+  prps_rt: str(), // 매물비율(%) — "+50.00"처럼 부호가 붙지만 항상 양수다
+});
+
+export type SupplyConcentrationItem = z.infer<typeof supplyConcentrationItemSchema>;
+
+export const supplyConcentrationResponseSchema = z.looseObject({
+  ...envelope,
+  prps_cnctr: z.array(supplyConcentrationItemSchema).default([]),
+});
+
+// ── kt00017: 계좌별당일현황 — /api/dostk/acnt (REAL 실측 2026-08-03).
+// **배열이 없는 플랫 응답**(스칼라 25필드)이고, 파라미터도 필요 없다(빈 body로 rc=0).
+// 모의투자는 RC9000으로 미제공 — kt00015·kt00002와 같은 부류다.
+//
+// 금액은 전부 "000000525569"처럼 12자리 zero-pad 문자열로 온다 (원 단위).
+
+export const accountTodayStatusSchema = z.looseObject({
+  ...envelope,
+  d2_entra: str(), // D+2 추정예수금
+  gnrl_stk_evlt_amt_d2: str(), // D+2 일반주식 평가금액
+  dpst_grnt_use_amt_d2: str(), // D+2 예탁담보대출금
+  crd_stk_evlt_amt_d2: str(), // D+2 신용주식 평가금액
+  crd_loan_d2: str(), // D+2 신용융자금
+  crd_loan_evlta_d2: str(), // D+2 신용융자 평가금
+  crd_ls_grnt_d2: str(), // D+2 신용대주 담보금
+  crd_ls_evlta_d2: str(), // D+2 신용대주 평가금
+  ina_amt: str(), // 당일 입금금액
+  outa: str(), // 당일 출금금액
+  inq_amt: str(), // 당일 입고금액
+  outq_amt: str(), // 당일 출고금액
+  sell_amt: str(), // 당일 매도금액
+  buy_amt: str(), // 당일 매수금액
+  cmsn: str(), // 당일 수수료
+  tax: str(), // 당일 세금
+  crd_int_amt: str(), // 당일 신용이자
+  crd_int_npay_gold: str(), // 신용이자 미납금
+  etc_loana: str(), // 기타 대여금
+  stk_pur_cptal_loan_amt: str(), // 주식매입자금 대출금
+  sel_prica_grnt_loan_int_amt_amt: str(), // 매도대금 담보대출 이자
+  rp_evlt_amt: str(), // RP 평가금액
+  bd_evlt_amt: str(), // 채권 평가금액
+  elsevlt_amt: str(), // ELS 평가금액
+  dvida_amt: str(), // 배당금액
+});
+
+export type AccountTodayStatus = z.infer<typeof accountTodayStatusSchema>;
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

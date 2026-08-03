@@ -37,6 +37,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_sector_flow` | 업종별 투자자 순매수 — 시장 전체 업종의 개인/외국인/기관계 + 증권·투신·연기금·사모 | ka10051 |
 | `get_ranking` | 상승률/하락률/거래량/거래대금 상위 | ka10027/30/32 |
 | `get_valuation_rank` | PER·PBR·ROE 고저 순위 (시장 전체 밸류에이션 스크리닝) | ka10026 |
+| `get_supply_concentration` | 매물대집중 종목 — 특정 가격대에 거래가 몰린 종목과 그 구간 | ka10025 |
 | `get_market_movers` | 신고가/신저가/상한가/하한가/급등/급락/거래량급증 특이 종목 | ka10016/17/19/23 |
 | `get_vi_stocks` | 당일 VI(변동성완화장치) 발동 종목 (발동가·괴리율·시각) | ka10054 |
 | `get_expected_execution` | 동시호가 예상체결 순위 (개장 전 08:30~09:00 / 마감 전 15:20~15:30) | ka10029 |
@@ -76,6 +77,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 |---|---|---|
 | `get_account_balance` | 예수금 + 총평가금액/총평가손익/추정예탁자산 + 당일/당월/누적 손익 | kt00001, kt00018, kt00004 |
 | `get_account_holdings` | 보유 종목별 수량/평균단가/현재가/평가손익 | kt00018 |
+| `get_account_today` | 계좌 당일 현황 — 매매대금·수수료·세금·입출금 + D+2 추정 (실전 전용) | kt00017 |
 | `get_account_trend` | 일별 추정예탁자산 추이 + 기간 수익률/평가손익/입출금 요약 (기본 30일, 모의투자 미지원) | kt00002, kt00016 |
 | `get_transactions` | 기간별 거래내역 (체결일·단가·정산금액) | kt00015 |
 | `get_pending_orders` | 미체결 주문 (주문번호·구분·상태·주문/미체결수량·주문가격) | ka10075 |

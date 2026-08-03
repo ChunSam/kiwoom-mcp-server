@@ -8,6 +8,7 @@ import {
   accountEvaluationResponseSchema,
   accountPeriodPlResponseSchema,
   accountReturnSummarySchema,
+  accountTodayStatusSchema,
   afterHoursQuoteResponseSchema,
   afterHoursRankItemSchema,
   allIndexResponseSchema,
@@ -58,6 +59,7 @@ import {
   tradingJournalResponseSchema,
   themeStocksResponseSchema,
   transactionsResponseSchema,
+  supplyConcentrationResponseSchema,
   valuationRankResponseSchema,
   valueRankItemSchema,
   viStockItemSchema,
@@ -68,6 +70,7 @@ import {
   type AccountEvaluationResponse,
   type AccountPeriodPlResponse,
   type AccountReturnSummary,
+  type AccountTodayStatus,
   type AfterHoursQuoteResponse,
   type AfterHoursRankItem,
   type BatchQuoteItem,
@@ -117,6 +120,7 @@ import {
   type ThemeStocksResponse,
   type TradingJournalResponse,
   type TransactionRow,
+  type SupplyConcentrationItem,
   type ValuationRankItem,
   type ValueRankItem,
   type ViStockItem,
@@ -1688,4 +1692,68 @@ export async function fetchValuationRank(
     },
   });
   return valuationRankResponseSchema.parse(res.json).high_low_per;
+}
+
+export type SupplyMarket = "all" | "kospi" | "kosdaq";
+
+/** ka10025 mrkt_tp — 순위 TR과 달리 "000"(전체)을 받는다 (실측). */
+const SUPPLY_MARKET_CODES: Record<SupplyMarket, string> = { all: "000", kospi: "001", kosdaq: "101" };
+
+/**
+ * ka10025 매물대집중요청 — 특정 가격대에 거래가 몰린(매물대) 종목 스크리닝.
+ *
+ * 실측 2026-08-03 (REAL·VIRTUAL 동일): 경로 `/api/dostk/stkinfo`, 배열 키 `prps_cnctr`,
+ * 200행/page. 파라미터 6개가 **전부 필수**인데 이름이 `cycl_tp`가 아니라 **`cycle_tp`**다
+ * — 틀리면 rc=2와 함께 `필수입력 파라미터=cycle_tp`가 메시지에 찍힌다(이 메시지가 이름을
+ * 알려준 단서였다).
+ *
+ * `prps_cnctr_rt`는 **매물비율 하한(%)**이다 — 결과의 `prps_rt`가 전부 그 값 이상으로 왔다
+ * (20→최소 20.00, 50→최소 50.00, 90→최소 90.17). 다만 **20 미만은 빈 결과**다: "0"과 "10"에
+ * 0행이 왔다. 데이터가 없는 게 아니라 하한 자체가 먹지 않는 구간이라, tool 입력을 20부터로
+ * 막는다.
+ *
+ * 행 단위가 종목이 아니라 종목 × 매물대 구간이고, 응답은 매물비율 순으로 정렬돼 있지 않다
+ * (전 행이 하한 근처부터 섞여 온다). 그래서 페이지를 모두 모은 뒤 포맷터가 정렬한다.
+ */
+export async function fetchSupplyConcentration(
+  client: KiwoomClient,
+  market: SupplyMarket,
+  minRatio: number,
+  zoneCount: number,
+  periodDays: number,
+  currentPriceOnly: boolean,
+): Promise<{ rows: SupplyConcentrationItem[]; truncated: boolean }> {
+  const body = {
+    mrkt_tp: SUPPLY_MARKET_CODES[market],
+    prps_cnctr_rt: String(minRatio),
+    cur_prc_entry: currentPriceOnly ? "1" : "0",
+    prpscnt: String(zoneCount),
+    cycle_tp: String(periodDays),
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: STOCK_INFO_PATH, apiId: "ka10025", body });
+  const rows = [...supplyConcentrationResponseSchema.parse(res.json).prps_cnctr];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: STOCK_INFO_PATH, apiId: "ka10025", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...supplyConcentrationResponseSchema.parse(res.json).prps_cnctr);
+    pages += 1;
+  }
+
+  return { rows, truncated: res.hasNext };
+}
+
+/**
+ * kt00017 계좌별당일현황요청 — 당일 입출금·입출고·매매대금·수수료·세금 + D+2 추정 예수금/평가금액.
+ *
+ * 실측 2026-08-03: 경로 `/api/dostk/acnt`, **빈 body로 rc=0**이고 배열 없이 스칼라 25필드만
+ * 온다. `qry_tp`·`dmst_stex_tp`를 넣어도 응답이 같아 아무것도 보내지 않는다.
+ * 모의투자는 RC9000(미제공) — kt00015·kt00002와 같은 부류라 실패가 아니라 mock 한계다.
+ */
+export async function fetchAccountTodayStatus(client: KiwoomClient): Promise<AccountTodayStatus> {
+  const res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00017", body: {} });
+  return accountTodayStatusSchema.parse(res.json);
 }

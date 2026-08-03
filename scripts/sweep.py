@@ -30,8 +30,8 @@ DIST = PROJ / "dist" / "index.js"
 CALL_INTERVAL_S = 1.2  # Kiwoom rate limit is ~1 req/s per TR; stay under it
 
 # Tools whose failure is EXPECTED on VIRTUAL (mockapi does not serve
-# kt00015 / kt00002·kt00016 — RC9000).
-EXPECTED_MOCK_ERRORS = {"get_transactions", "get_account_trend"}
+# kt00015 / kt00002·kt00016 / kt00017 — RC9000).
+EXPECTED_MOCK_ERRORS = {"get_transactions", "get_account_trend", "get_account_today"}
 
 
 def read_mode() -> str:
@@ -140,6 +140,8 @@ def main() -> int:
         ("get_ranking", {"type": "volume", "top": 5}),
         ("get_valuation_rank", {"top": 5}),  # ka10026 저PER
         ("get_valuation_rank", {"metric": "low_roe", "top": 5}),  # per 필드에 ROE가 담기는 경로
+        ("get_supply_concentration", {"top": 5}),  # ka10025 전체·매물비율 50% 이상
+        ("get_supply_concentration", {"market": "kosdaq", "min_ratio": 70, "current_price_only": True, "top": 5}),
         ("get_market_movers", {"signal": "new_high", "top": 3}),
         ("get_market_movers", {"signal": "new_low", "top": 3}),
         ("get_market_movers", {"signal": "upper_limit", "top": 3}),
@@ -182,6 +184,7 @@ def main() -> int:
         ("get_theme_stocks", None),
         ("get_account_balance", {}),
         ("get_account_holdings", {}),
+        ("get_account_today", {}),  # kt00017 — mock-unsupported RC9000 → err(exp)
         ("get_account_trend", {"days": 7}),  # kt00002+kt00016 — mock-unsupported RC9000 → err(exp)
         ("get_transactions", {}),
         ("get_pending_orders", {}),
