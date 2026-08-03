@@ -6,7 +6,7 @@ import { fetchViStocks, type RankingMarket, type ViDirection, type ViType } from
 import type { ViStockItem } from "../kiwoom/types.js";
 import { formatNumber, formatPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
 const MAX_TOP = 50;
@@ -78,6 +78,7 @@ export function formatViStocks(
   }
 
   lines.push("", "※ VI(변동성완화장치) = 급등락 시 단일가 매매로 전환되는 안전장치. 해제시각 '-'는 아직 해제되지 않았거나 기록이 없는 경우입니다.");
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

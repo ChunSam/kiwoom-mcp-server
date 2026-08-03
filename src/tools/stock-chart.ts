@@ -7,7 +7,7 @@ import type { DailyChartItem, MinuteChartItem } from "../kiwoom/types.js";
 import { formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatNumber, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_COUNT = 30;
 const MAX_COUNT = 200;
@@ -49,6 +49,7 @@ export function formatDailyChart(
     "|---|---:|---:|---:|---:|---:|",
     ...shown.map((i) => candleRow(formatDateDashed(i.dt), i, formatNumber(parseKiwoomNumber(i.trde_qty)))),
   ];
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -71,6 +72,7 @@ export function formatMinuteChart(
     "|---|---:|---:|---:|---:|---:|",
     ...shown.map((i) => candleRow(formatMinuteTime(i.cntr_tm), i, formatNumber(parseKiwoomNumber(i.trde_qty)))),
   ];
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

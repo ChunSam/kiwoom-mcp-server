@@ -7,7 +7,7 @@ import type { ExecutionStrengthItem } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_COUNT = 30;
 /** 두 TR 모두 한 페이지 60행을 준다 (mock 실측) — 페이지 1만 쓰므로 이게 상한. */
@@ -85,6 +85,7 @@ export function formatExecutionStrength(
     view === "intraday"
       ? "※ 시간별은 최근 60분(1분 간격)이며 최신 시각이 위입니다. 거래량은 해당 분의 거래량입니다."
       : "※ 일별은 최근 60거래일이며 최신 일자가 위입니다. 거래량은 해당 일의 총 거래량입니다.",
+    UNIFIED_EXCHANGE_NOTE,
   );
   if (rows.length > shown.length) {
     lines.push(`※ 조회된 ${rows.length}행 중 최근 ${shown.length}행만 표시했습니다 (count로 조정).`);

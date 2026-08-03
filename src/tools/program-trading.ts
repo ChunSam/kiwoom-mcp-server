@@ -14,7 +14,7 @@ import type { ProgramTradeItem, ProgramTrendItem, StockProgramTrendItem } from "
 import { formatDateDashed, todayInKst } from "../utils/date.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
 const MAX_TOP = 50;
@@ -77,6 +77,7 @@ export function formatProgramTrades(
     ];
     lines.push(`| ${cells.join(" | ")} |`);
   });
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -138,6 +139,7 @@ export function formatProgramTrend(
     notes.push("※ 표시된 범위 이전의 데이터는 생략됐습니다.");
   }
   notes.push("※ 지수: 코스피=KOSPI200, 코스닥=코스닥 시장 지수. 차익+비차익과 전체는 반올림으로 ±1 차이가 날 수 있습니다.");
+  notes.push(UNIFIED_EXCHANGE_NOTE);
   return [...lines, "", ...notes].join("\n");
 }
 

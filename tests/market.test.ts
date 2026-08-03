@@ -220,6 +220,33 @@ describe("formatRanking", () => {
     expect(text).toContain("SK하이닉스");
     expect(text).not.toContain("삼성전자");
   });
+
+  /**
+   * 통합(stex_tp="3") 전환 이후의 실제 응답. REAL 실측 2026-08-03 14:05 KST —
+   * 같은 TR을 KRX로 부르면 `stk_cd`가 "000660"이지만 통합으로 부르면 "000660_AL"로 온다.
+   * 접미사가 렌더까지 새어 나가면 이 코드를 다른 tool 입력으로 넘길 수 없다
+   * (`STOCK_CODE_PATTERN`은 6자리만 받는다).
+   */
+  it("strips the _AL exchange suffix from unified (stex_tp=3) rows", () => {
+    const items = [
+      { stk_cd: "000660_AL", now_rank: "1", pred_rank: "1", stk_nm: "SK하이닉스", cur_prc: "-1575000", pred_pre_sig: "5", pred_pre: "-143000", flu_rt: "-8.32", now_trde_qty: "6228932", pred_trde_qty: "18398851", trde_prica: "10017575" },
+      { stk_cd: "005930_AL", now_rank: "2", pred_rank: "2", stk_nm: "삼성전자", cur_prc: "-239500", pred_pre_sig: "5", pred_pre: "-23000", flu_rt: "-8.76", now_trde_qty: "36311686", pred_trde_qty: "115963226", trde_prica: "8885929" },
+    ].map((i) => valueRankItemSchema.parse(i));
+
+    expect(items[0]?.stk_cd).toBe("000660");
+    const text = formatRanking("value", "all", items, 20, MODE);
+    expect(text).toContain("| 1 | SK하이닉스 | 000660 |");
+    expect(text).not.toContain("_AL");
+    // 가격은 parseKiwoomPrice — 하락(-)이어도 절대값으로 렌더된다.
+    expect(text).toContain("1,575,000");
+  });
+
+  it("labels the numbers as unified (KRX + NXT)", () => {
+    const items = [
+      { stk_cd: "005930_AL", stk_nm: "삼성전자", cur_prc: "-239500", pred_pre_sig: "5", pred_pre: "-23000", flu_rt: "-8.76", now_trde_qty: "36311686", trde_prica: "8885929" },
+    ].map((i) => valueRankItemSchema.parse(i));
+    expect(formatRanking("value", "all", items, 20, MODE)).toContain("통합 기준");
+  });
 });
 
 describe("formatInvestorTrend", () => {

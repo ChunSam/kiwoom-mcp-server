@@ -22,7 +22,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
 const MAX_TOP = 50;
@@ -136,6 +136,7 @@ export function formatMarketMovers(
       );
     });
   }
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

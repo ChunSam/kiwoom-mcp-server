@@ -9,7 +9,7 @@ import {
 } from "../kiwoom/api.js";
 import type { ExpectedExecutionItem } from "../kiwoom/types.js";
 import { formatKRW, formatPercent, formatQuantity, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 15;
 const MAX_TOP = 50;
@@ -87,6 +87,7 @@ export function formatExpectedExecution(
   if (rows.length > shown.length) {
     lines.push(`※ 조회된 ${rows.length}종목 중 상위 ${shown.length}종목만 표시했습니다 (top으로 조정).`);
   }
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

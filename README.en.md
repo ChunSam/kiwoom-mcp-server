@@ -88,6 +88,20 @@ with `[모의투자]` (VIRTUAL) / `[실전투자]` (REAL) so you can tell which 
 answered. The first `search_stock` call downloads the stock master (~4,300
 symbols), takes a few seconds, and is then cached for 12 hours.
 
+### Exchange basis — KRX + Nextrade (NXT) combined
+
+Since v0.31.0 the quote and ranking tools query the **combined (SOR) basis** —
+KRX plus Nextrade (NXT) executions. For the ~606 NXT-enabled symbols (many of
+them large caps) that is materially more volume than KRX alone: Samsung
+Electronics, measured intraday on 2026-08-03, was KRX 19.2M / NXT 15.5M /
+**combined 34.7M**. If a number disagrees with an HTS or portal screen that shows
+KRX only, this is usually why.
+
+Two exceptions: the **order book (`get_orderbook`) and broker activity
+(`get_broker_activity`) stay on KRX** — Kiwoom does not serve them combined. And
+**`get_after_hours`** cannot be queried combined at all; NXT-enabled symbols are
+absent from that TR to begin with.
+
 ### Notes on `calc_isa_tax_status`
 
 - Aggregation start date: `ISA_OPENED_ON` (account opening date) in `.env` is the
