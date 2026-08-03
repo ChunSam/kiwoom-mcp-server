@@ -10,6 +10,7 @@ import { registerDailyTradingTool } from "./tools/daily-trading.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
 import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerExecutionStrengthTool } from "./tools/execution-strength.js";
+import { registerExpectedExecutionTool } from "./tools/expected-execution.js";
 import { registerForeignHoldingTool } from "./tools/foreign-holding.js";
 import { registerInvestorRankTool } from "./tools/investor-rank.js";
 import { registerInvestorTrendTool } from "./tools/investor-trend.js";
@@ -17,6 +18,7 @@ import { registerIsaTaxStatusTool } from "./tools/isa-tax-status.js";
 import { registerMarketIndexTool } from "./tools/market-index.js";
 import { registerMarketMoversTool } from "./tools/market-movers.js";
 import { registerOrderExecutionsTool } from "./tools/order-executions.js";
+import { registerOrderbookRankTool } from "./tools/orderbook-rank.js";
 import { registerOrderbookTool } from "./tools/orderbook.js";
 import { registerPendingOrdersTool } from "./tools/pending-orders.js";
 import { registerPingTool } from "./tools/ping.js";
@@ -38,7 +40,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.29.0";
+export const SERVER_VERSION = "0.30.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -55,6 +57,7 @@ export function createServer(): McpServer {
   registerStockChartTool(server);
   registerDailyTradingTool(server);
   registerOrderbookTool(server);
+  registerOrderbookRankTool(server);
   registerMarketIndexTool(server);
   registerSectorPriceTool(server);
   registerSectorStocksTool(server);
@@ -63,6 +66,7 @@ export function createServer(): McpServer {
   registerRankingTool(server);
   registerMarketMoversTool(server);
   registerViStocksTool(server);
+  registerExpectedExecutionTool(server);
   registerInvestorTrendTool(server);
   registerInvestorRankTool(server);
   registerBrokerActivityTool(server);

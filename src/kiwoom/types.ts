@@ -1137,6 +1137,96 @@ export const sectorCodeListResponseSchema = z.looseObject({
   list: z.array(sectorCodeItemSchema).default([]),
 });
 
+// ── ka10029: 예상체결등락률상위 — /api/dostk/rkinfo. 예상체결은 장 시작 동시호가
+// (08:30~09:00)와 장 마감 동시호가(15:20~15:30)에만 존재한다 — 그 밖의 시간에는
+// rc=0에 **0행**으로 온다 (mock·REAL 실측 2026-08-03 07:45). 예상체결가는 부호가
+// 방향 표시라 parseKiwoomPrice로 읽어야 한다 ──
+
+export const expectedExecutionItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  exp_cntr_pric: str(), // 예상체결가 (부호 = 기준가 대비 방향)
+  base_pric: str(), // 기준가 (전일 종가)
+  flu_rt: str(), // 등락률(%)
+  exp_cntr_qty: str(), // 예상체결량
+  sel_req: str(), // 매도잔량
+  buy_req: str(), // 매수잔량
+});
+
+export type ExpectedExecutionItem = z.infer<typeof expectedExecutionItemSchema>;
+
+export const expectedExecutionResponseSchema = z.looseObject({
+  ...envelope,
+  exp_cntr_flu_rt_upper: z.array(expectedExecutionItemSchema).default([]),
+});
+
+// ── ka10020: 호가잔량상위 — /api/dostk/rkinfo. 200행/page (cont-yn Y), page-1만.
+// 장 시작 전에는 rc=0 200행이 오지만 잔량·거래량이 **전 행 0**이고 정렬도 무의미해진다
+// (종목코드순으로 온다; mock·REAL 실측 2026-08-03 07:45) → 호출부에서 안내한다 ──
+
+export const bidBalanceItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (부호 = 전일대비 방향)
+  pred_pre: str(), // 전일대비
+  trde_qty: str(), // 거래량
+  tot_sel_req: str(), // 총매도잔량
+  tot_buy_req: str(), // 총매수잔량
+  netprps_req: str(), // 순매수잔량 (매수 - 매도)
+  buy_rt: str(), // 매수비율(%)
+});
+
+export type BidBalanceItem = z.infer<typeof bidBalanceItemSchema>;
+
+export const bidBalanceResponseSchema = z.looseObject({
+  ...envelope,
+  bid_req_upper: z.array(bidBalanceItemSchema).default([]),
+});
+
+// ── ka10021: 호가잔량급증 — 배열 키 `bid_req_sdnin`. `int`(기준률)/`now`(현재)는
+// 잔량 '수량'이고 sdnin_qty/sdnin_rt가 급증분이다 ──
+
+export const bidSurgeItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre: str(),
+  int: str(), // 기준 시점 잔량
+  now: str(), // 현재 잔량
+  sdnin_qty: str(), // 급증 수량
+  sdnin_rt: str(), // 급증률(%)
+  tot_buy_qty: str(), // 총매수량
+});
+
+export type BidSurgeItem = z.infer<typeof bidSurgeItemSchema>;
+
+export const bidSurgeResponseSchema = z.looseObject({
+  ...envelope,
+  bid_req_sdnin: z.array(bidSurgeItemSchema).default([]),
+});
+
+// ── ka10022: 잔량율급증 — 배열 키 `req_rt_sdnin`. ka10021과 달리 `int`/`now_rt`가
+// 잔량 '비율'이다 (키 이름도 now → now_rt로 다르다) ──
+
+export const bidRatioSurgeItemSchema = z.looseObject({
+  stk_cd: str(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre: str(),
+  int: str(), // 기준 비율(%)
+  now_rt: str(), // 현재 비율(%)
+  sdnin_rt: str(), // 급증률(%)
+  tot_sel_req: str(), // 총매도잔량
+  tot_buy_req: str(), // 총매수잔량
+});
+
+export type BidRatioSurgeItem = z.infer<typeof bidRatioSurgeItemSchema>;
+
+export const bidRatioSurgeResponseSchema = z.looseObject({
+  ...envelope,
+  req_rt_sdnin: z.array(bidRatioSurgeItemSchema).default([]),
+});
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

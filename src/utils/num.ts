@@ -58,6 +58,16 @@ export function formatNumber(value: number | null, maxFractionDigits = 2): strin
   return value.toLocaleString("ko-KR", { maximumFractionDigits: maxFractionDigits });
 }
 
+/**
+ * 키움이 집계 상한에서 잘라 보내는 32비트 정수 포화값인지. 2026-08-03 정규장 실측:
+ * ka10020 `trde_qty`에 4294967295(2^32−1), ka10021 `tot_buy_qty`에 2147483647(2^31−1)이
+ * 왔다 (둘 다 KODEX 200선물인버스2X). 그대로 렌더하면 "42억 주"라는 거짓말이 되므로
+ * 호출부에서 상한 표기로 바꾼다.
+ */
+export function isSaturatedInt(value: number | null): boolean {
+  return value === 2_147_483_647 || value === 4_294_967_295;
+}
+
 /** Signed locale-formatted number without a unit (investor flows etc.). */
 export function formatSigned(value: number | null, maxFractionDigits = 2): string {
   if (value === null) return "-";

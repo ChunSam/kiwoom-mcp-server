@@ -29,6 +29,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_stock_chart` | 일/주/월/년/분/틱봉 캔들 차트 (수정주가 반영) | ka10079~83, ka10094 |
 | `get_daily_trading` | 일별 거래·수급 — 종가·거래대금 + 개인/기관/외국인 순매수·프로그램·신용비율, 또는 장전/장중/장후 거래 분포 | ka10086, ka10015 |
 | `get_orderbook` | 10단계 매도/매수 호가·잔량 | ka10004 |
+| `get_orderbook_rank` | 시장 전체 호가잔량 상위 / 잔량 급증 / 잔량비율 급증 (정규장 중) | ka10020~22 |
 | `get_market_index` | 코스피/코스닥 종합·업종 지수 | ka20003 |
 | `get_sector_price` | 업종 지수 현재가 상세 (등락 구성·52주 고저·시간대별 추이) | ka20001 |
 | `get_sector_stocks` | 업종 구성 종목 시세 (현재가·등락률·거래량·고저가) | ka20002 |
@@ -37,6 +38,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_ranking` | 상승률/하락률/거래량/거래대금 상위 | ka10027/30/32 |
 | `get_market_movers` | 신고가/신저가/상한가/하한가/급등/급락/거래량급증 특이 종목 | ka10016/17/19/23 |
 | `get_vi_stocks` | 당일 VI(변동성완화장치) 발동 종목 (발동가·괴리율·시각) | ka10054 |
+| `get_expected_execution` | 동시호가 예상체결 순위 (개장 전 08:30~09:00 / 마감 전 15:20~15:30) | ka10029 |
 | `get_investor_trend` | 개인/외국인/기관 순매수 동향 (기간 합계 + 일별) | ka10059, ka10061 |
 | `get_investor_rank` | 외국인·기관 순매매 상위 종목 / N일 연속 순매수 현황 | ka90009, ka10131 |
 | `get_broker_activity` | 종목별 거래원(증권사) 매수/매도 상위 5 | ka10002 |
