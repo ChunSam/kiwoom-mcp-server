@@ -41,7 +41,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "check": "node scripts/check-consistency.mjs",
+    "prepublishOnly": "npm run check && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

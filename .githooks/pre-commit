@@ -1,0 +1,9 @@
+#!/bin/sh
+# 커밋 전 정합성 검사. 활성화는 저장소당 한 번:
+#   git config core.hooksPath .githooks
+#
+# 버전 4곳이 어긋나면 커밋을 막고, CLAUDE.md 카운트 드리프트는 경고만 한다
+# (문서 숫자 때문에 커밋이 막히면 우회하려고 --no-verify가 습관이 된다).
+# CI는 같은 스크립트를 엄격 모드로 돌리므로 카운트도 머지 전에 걸린다.
+
+node scripts/check-consistency.mjs --warn-counts
