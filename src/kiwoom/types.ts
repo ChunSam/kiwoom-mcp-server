@@ -744,6 +744,40 @@ export const shortSellingResponseSchema = z.looseObject({
   shrts_trnsn: z.array(shortSellingItemSchema).default([]),
 });
 
+// ── ka10045: 종목별기관매매추이 — /api/dostk/mrkcond (REAL·VIRTUAL 실측 2026-08-03) ──
+// 이 TR만의 정보는 최상위의 **추정평균단가 2개**다 — 기관·외국인이 이 종목을 대략 얼마에
+// 담았는지. 나머지 컬럼(일별 순매수·누적)은 ka10059/ka10061과 겹치지만 그쪽은 단가를
+// 주지 않는다.
+//
+// `orgn_dt_acc`/`for_dt_acc`는 **조회 기간 시작일부터의 누적 순매수**다 — 가장 오래된 행의
+// 누적값이 그 행의 일별값과 같고, 이후 행은 직전 누적 + 일별로 정확히 이어진다(23행 실측).
+// 값이 "5312819.000000" 꼴의 소수 표기로 오는데 `parseKiwoomNumber`가 그대로 흡수한다.
+
+export const institutionTrendItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  close_pric: str(), // 종가 (부호는 전일 대비 방향)
+  pre_sig: str(), // 대비기호
+  pred_pre: str(), // 전일대비 (부호 유의미)
+  flu_rt: str(), // 등락률(%)
+  trde_qty: str(), // 거래량
+  orgn_dt_acc: str(), // 기관 기간누적 순매수 (소수 표기)
+  orgn_daly_nettrde_qty: str(), // 기관 일별 순매수
+  for_dt_acc: str(), // 외국인 기간누적 순매수 (소수 표기)
+  for_daly_nettrde_qty: str(), // 외국인 일별 순매수
+  limit_exh_rt: str(), // 외국인 한도소진률(%) — 비방향성 비율
+});
+
+export type InstitutionTrendItem = z.infer<typeof institutionTrendItemSchema>;
+
+export const institutionTrendResponseSchema = z.looseObject({
+  ...envelope,
+  orgn_prsm_avg_pric: str(), // 기관 추정평균단가
+  for_prsm_avg_pric: str(), // 외국인 추정평균단가
+  stk_orgn_trde_trnsn: z.array(institutionTrendItemSchema).default([]),
+});
+
+export type InstitutionTrendResponse = z.infer<typeof institutionTrendResponseSchema>;
+
 // ── ka10008: 주식외국인 종목별 매매동향 — /api/dostk/frgnistt (live-verified) ──
 
 export const foreignHoldingItemSchema = z.looseObject({
