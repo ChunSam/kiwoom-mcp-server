@@ -163,6 +163,10 @@ def main() -> int:
         ("get_etf_info", {"stock_code": "005930"}),  # non-ETF guard path (shared ka40002 discriminator)
         ("get_etf_returns", {"stock_code": "069500"}),
         ("get_etf_returns", {"stock_code": "005930"}),  # non-ETF guard path (ka40002 gate)
+        ("get_etf_rank", {"top": 3}),  # ka40004 — 전체 1,155종목 12페이지 경로 (~13s)
+        ("get_etf_rank", {"sort": "premium", "tax_type": "overseas", "min_volume": 1000, "top": 3}),
+        ("get_etf_rank", {"manager": "KODEX", "sort": "discount", "top": 3}),  # 브랜드 접두어 필터
+        ("get_etf_rank", {"index_name": "존재하지않는지수"}),  # 빈 결과 경로 (에러가 아님)
         ("get_short_selling", {"stock_code": "005930"}),
         ("get_stock_lending", {}),  # ka10068 market-wide
         ("get_stock_lending", {"stock_code": "005930"}),  # ka20068 per-stock

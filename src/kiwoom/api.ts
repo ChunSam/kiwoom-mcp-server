@@ -23,6 +23,7 @@ import {
   dailyFlowResponseSchema,
   dailySessionResponseSchema,
   depositResponseSchema,
+  etfAllPriceResponseSchema,
   etfInfoResponseSchema,
   etfNavItemSchema,
   etfReturnItemSchema,
@@ -84,6 +85,7 @@ import {
   type DailyFlowItem,
   type DailySessionItem,
   type DepositResponse,
+  type EtfAllPriceItem,
   type EtfInfoResponse,
   type EtfNavItem,
   type EtfReturnItem,
@@ -804,6 +806,68 @@ export async function fetchEtfNav(client: KiwoomClient, stockCode: string): Prom
     body: { stk_cd: stockCode },
   });
   return parseArray(res.json, "etfnavarray", etfNavItemSchema);
+}
+
+/**
+ * ka40004의 `txon_type` — ETF 과세유형 필터. ka40002의 `etftxon_type` 문자열과 1:1로
+ * 대조 검증했다(실측 2026-08-03): 1→"비과세", 2→"보유기간과세", 4→"배당소득세(부동산)",
+ * 5→"배당소득세(해외)". "3"은 어떤 값으로도 0행이라 노출하지 않는다.
+ * 갈래별 건수 286/834/14/21 = 1,155로 전체와 정확히 맞아떨어진다.
+ */
+const ETF_TAX_TYPE_CODES = {
+  all: "0",
+  tax_free: "1",
+  holding_period: "2",
+  reit: "4",
+  overseas: "5",
+} as const;
+
+export type EtfTaxType = keyof typeof ETF_TAX_TYPE_CODES;
+
+/**
+ * ka40004 ETF전체시세 — 상장 ETF 전 종목의 종가·NAV·추적오차 스냅샷.
+ *
+ * 실측 2026-08-03 (REAL·VIRTUAL 응답 동일): 배열 키 `etfall_mrpr`, 100행/page,
+ * 전체 1,155종목 = 12페이지. 종가·거래량을 ka10001과 대조해 원/주 단위임을 확인했다.
+ *
+ * 파라미터 6개가 전부 필수인데 **쓸 수 있는 건 `txon_type`뿐**이다:
+ * - `mngmcomp`(운용사)는 3020 KODEX·3191 TIGER·3023 RISE·3027 KIWOOM·3228 ACE·3022 PLUS·
+ *   3040 파워·9999 기타까지 확인했지만 코드표가 불완전하다. 종목명이 전 행 "브랜드 공백
+ *   이름" 꼴이라 호출부가 접두어로 거르는 편이 전 운용사를 빠짐없이 덮는다.
+ * - `navpre`는 결과를 455/700으로 완전 분할하지만 **의미를 확정하지 못했다** — nav 부호,
+ *   괴리 방향, 등락 방향 어느 것과도 일치하지 않는다. 설명할 수 없는 필터는 노출하지 않는다.
+ * - `txon_yn`은 1=과세(869)/2=비과세(300)인데 부동산 리츠 14종목이 양쪽에 모두 들어가
+ *   분할이 깨진다. 같은 축을 `txon_type`이 더 정확히 덮는다.
+ *
+ * `stex_tp`는 관례대로 통합으로 부르지만, 이 TR은 **통합과 KRX가 1,155종목 전 필드
+ * 동일**했다(거래량 총합 차이 0.0%, NXT 단독 "2"는 0행). ETF가 NXT에서 거래되지 않기
+ * 때문으로 보인다 — 통합을 주면 코드에 `_AL`만 붙고, 그건 `code()`가 떼어낸다.
+ */
+export async function fetchEtfAllPrices(
+  client: KiwoomClient,
+  taxType: EtfTaxType,
+): Promise<{ rows: EtfAllPriceItem[]; truncated: boolean }> {
+  const body = {
+    txon_type: ETF_TAX_TYPE_CODES[taxType],
+    navpre: "0",
+    mngmcomp: "0000",
+    txon_yn: "0",
+    trace_idex: "0",
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: ETF_PATH, apiId: "ka40004", body });
+  const rows = [...etfAllPriceResponseSchema.parse(res.json).etfall_mrpr];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: ETF_PATH, apiId: "ka40004", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...etfAllPriceResponseSchema.parse(res.json).etfall_mrpr);
+    pages += 1;
+  }
+
+  return { rows, truncated: res.hasNext };
 }
 
 /**
