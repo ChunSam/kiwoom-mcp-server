@@ -105,6 +105,28 @@ describe("formatSectorFlow", () => {
     expect(out).toContain("업종별 투자자 순매수 내역이 없습니다");
     expect(out).not.toContain("|");
   });
+
+  /**
+   * 통합(stex_tp="3") 전환 이후의 실제 응답 (REAL 실측 2026-08-03 14:05 KST).
+   * 업종 코드에도 접미사가 붙는다 — `001_AL`이 그대로 흐르면 `sectorNameFromCache`가
+   * 3자리 코드로 캐시된 이름을 못 찾아 업종명이 통째로 비어버린다. v0.30까지 이 TR만
+   * KRX로 부른 이유가 이 접미사였고, 지금은 `code()`가 파싱 단계에서 떼어낸다.
+   */
+  it("strips the _AL suffix from inds_cd (unified sector rows)", () => {
+    const row = sectorNetBuyItemSchema.parse({
+      inds_cd: "001_AL", inds_nm: "종합(KOSPI)", cur_prc: "-624119", pre_smbol: "5",
+      pred_pre: "-35426", flu_rt: "-537", trde_qty: "219079", sc_netprps: "-21123",
+      insrnc_netprps: "+463", invtrt_netprps: "-16", bank_netprps: "+67",
+      jnsinkm_netprps: "+242", endw_netprps: "-940", etc_corp_netprps: "+458",
+      ind_netprps: "+55317", frgnr_netprps: "-34512", native_trmt_frgnr_netprps: "+166",
+      natn_netprps: "+0", samo_fund_netprps: "-121", orgn_netprps: "-21429",
+    });
+
+    expect(row.inds_cd).toBe("001");
+    const out = formatSectorFlow([row], "kospi", "amount", "foreign", 15, null, MODE);
+    expect(out).not.toContain("_AL");
+    expect(out).toContain("001");
+  });
 });
 
 // ka10101 마스터 (실측 2026-08-03): 5개 시장구분 합쳐 124행, code는 전부 3자리.

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sleep } from "../utils/sleep.js";
+import { toUnifiedCode } from "../utils/stock-code.js";
 import type { KiwoomClient } from "./client.js";
 import { KiwoomApiError } from "./errors.js";
 import {
@@ -148,12 +149,27 @@ const MAX_PAGES = 20;
 /** Per-TR rate limit is ~1 req/s — space out continuation pages. */
 const PAGE_INTERVAL_MS = 1_100;
 
+/**
+ * 시장 전체 TR의 `stex_tp`(거래소구분) — "0"·"1"=KRX 단독, "2"=넥스트레이드(NXT) 단독,
+ * "3"=통합(SOR). 실측 2026-08-03 정규장(REAL·VIRTUAL 동일): 같은 종목에 대해
+ * **tp1 + tp2 = tp3**이 8/8 종목에서 성립했고, 삼성전자 거래량은 KRX 19.2M / NXT 15.5M /
+ * 통합 34.7M이었다 — NXT 거래가능 606종목(대부분 대형주)은 KRX 기준으로 보면 40~45%가
+ * 빠진다. 순위 자체도 흔들려 거래대금 top-100이 통합 기준과 13종목 달랐다.
+ *
+ * 그래서 시장 전체 TR은 전부 통합으로 부른다. 대가로 응답의 코드가 `005930_AL` /
+ * `001_AL`로 오는데, 이건 `types.ts`의 `code()` 헬퍼가 파싱 단계에서 떼어낸다.
+ *
+ * 계좌 TR(ka10075/ka10076)의 `stex_tp: "0"`은 건드리지 않는다 — 그쪽은 체결이 일어난
+ * 거래소를 그대로 받아야 하고, 코드도 계좌가 준 것을 쓴다.
+ */
+const STEX_UNIFIED = "3";
+
 /** ka10001 주식기본정보요청 */
 export async function fetchStockInfo(client: KiwoomClient, stockCode: string): Promise<StockInfoResponse> {
   const res = await client.call({
     path: STOCK_INFO_PATH,
     apiId: "ka10001",
-    body: { stk_cd: stockCode },
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
   const info = stockInfoResponseSchema.parse(res.json);
   if (!info.stk_nm && !info.cur_prc) {
@@ -177,7 +193,7 @@ export async function fetchBatchQuotes(
   const res = await client.call({
     path: STOCK_INFO_PATH,
     apiId: "ka10095",
-    body: { stk_cd: stockCodes.join("|") },
+    body: { stk_cd: stockCodes.map(toUnifiedCode).join("|") },
   });
   return parseArray(res.json, "atn_stk_infr", batchQuoteItemSchema);
 }
@@ -407,7 +423,7 @@ export async function fetchDailyChart(
   const res = await client.call({
     path: CHART_PATH,
     apiId,
-    body: { stk_cd: stockCode, base_dt: baseDate, upd_stkpc_tp: "1" },
+    body: { stk_cd: toUnifiedCode(stockCode), base_dt: baseDate, upd_stkpc_tp: "1" },
   });
   return parseArray(res.json, arrayKey, dailyChartItemSchema);
 }
@@ -421,7 +437,7 @@ export async function fetchMinuteChart(
   const res = await client.call({
     path: CHART_PATH,
     apiId: "ka10080",
-    body: { stk_cd: stockCode, tic_scope: ticScope, upd_stkpc_tp: "1" },
+    body: { stk_cd: toUnifiedCode(stockCode), tic_scope: ticScope, upd_stkpc_tp: "1" },
   });
   return parseArray(res.json, "stk_min_pole_chart_qry", minuteChartItemSchema);
 }
@@ -439,7 +455,7 @@ export async function fetchTickChart(
   const res = await client.call({
     path: CHART_PATH,
     apiId: "ka10079",
-    body: { stk_cd: stockCode, tic_scope: ticScope, upd_stkpc_tp: "1" },
+    body: { stk_cd: toUnifiedCode(stockCode), tic_scope: ticScope, upd_stkpc_tp: "1" },
   });
   return parseArray(res.json, "stk_tic_chart_qry", minuteChartItemSchema);
 }
@@ -544,7 +560,7 @@ export async function fetchSectorStocks(
   const res = await client.call({
     path: SECTOR_PATH,
     apiId: "ka20002",
-    body: { mrkt_tp: sectorMarketType(indsCd), inds_cd: indsCd, stex_tp: "1" },
+    body: { mrkt_tp: sectorMarketType(indsCd), inds_cd: indsCd, stex_tp: STEX_UNIFIED },
   });
   return { items: sectorStocksResponseSchema.parse(res.json).inds_stkpc, truncated: res.hasNext };
 }
@@ -617,7 +633,7 @@ export async function fetchInvestorRankDaily(
       amt_qty_tp: unit === "amount" ? "1" : "2",
       qry_dt_tp: date ? "1" : "0",
       ...(date ? { date } : {}),
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "frgnr_orgn_trde_upper", investorRankDailyItemSchema);
@@ -646,7 +662,7 @@ export async function fetchInvestorStreak(
       netslmt_tp: "2",
       stk_inds_tp: "0",
       amt_qty_tp: unit === "amount" ? "0" : "1",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "orgn_frgnr_cont_trde_prst", investorStreakItemSchema);
@@ -679,7 +695,7 @@ export async function fetchPriceChangeRanking(
       updown_incls: "1",
       pric_cnd: "0",
       trde_prica_cnd: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "pred_pre_flu_rt_upper", priceChangeRankItemSchema);
@@ -702,7 +718,7 @@ export async function fetchVolumeRanking(
       pric_tp: "0",
       trde_prica_tp: "0",
       mrkt_open_tp: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "tdy_trde_qty_upper", volumeRankItemSchema);
@@ -719,7 +735,7 @@ export async function fetchValueRanking(
     body: {
       mrkt_tp: RANKING_MARKET_CODES[market],
       mang_stk_incls: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "trde_prica_upper", valueRankItemSchema);
@@ -810,7 +826,7 @@ export async function fetchWatchlistGroupDetail(
  * `stockCode` set → qry_tp "2" (themes the stock belongs to); else qry_tp "0"
  * (all themes, sorted by change rate). First page only (100/page); open-ended
  * "all" mode paginates but page-1 top rows are what a caller wants.
- * date_tp = 기간수익률 산정 일수, flu_pl_amt_tp "1" = 등락률 상위순, stex_tp "1" = KRX.
+ * date_tp = 기간수익률 산정 일수, flu_pl_amt_tp "1" = 등락률 상위순.
  */
 export async function fetchThemeGroups(
   client: KiwoomClient,
@@ -824,7 +840,7 @@ export async function fetchThemeGroups(
       stk_cd: stockCode ?? "",
       date_tp: "10",
       flu_pl_amt_tp: "1",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return themeGroupsResponseSchema.parse(res.json).thema_grp;
@@ -842,7 +858,7 @@ export async function fetchThemeStocks(
   const res = await client.call({
     path: THEME_PATH,
     apiId: "ka90002",
-    body: { date_tp: "2", thema_grp_cd: themeCode, stex_tp: "1" },
+    body: { date_tp: "2", thema_grp_cd: themeCode, stex_tp: STEX_UNIFIED },
   });
   return themeStocksResponseSchema.parse(res.json);
 }
@@ -872,7 +888,7 @@ export async function fetchExecutionStrength(
   const res = await client.call({
     path: MRKCOND_PATH,
     apiId: view === "intraday" ? "ka10046" : "ka10047",
-    body: { stk_cd: stockCode },
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
   return view === "intraday"
     ? executionStrengthIntradayResponseSchema.parse(res.json).cntr_str_tm
@@ -888,7 +904,7 @@ export async function fetchShortSelling(
   const res = await client.call({
     path: SHORT_PATH,
     apiId: "ka10014",
-    body: { stk_cd: stockCode, tm_tp: "1", strt_dt: fromDate, end_dt: toDate },
+    body: { stk_cd: toUnifiedCode(stockCode), tm_tp: "1", strt_dt: fromDate, end_dt: toDate },
   });
   return shortSellingResponseSchema.parse(res.json).shrts_trnsn;
 }
@@ -905,7 +921,7 @@ export async function fetchForeignHolding(
   const res = await client.call({
     path: FOREIGN_PATH,
     apiId: "ka10008",
-    body: { stk_cd: stockCode },
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
   return foreignHoldingResponseSchema.parse(res.json).stk_frgnr;
 }
@@ -944,7 +960,7 @@ export async function fetchViStocks(
       min_trde_prica: "0",
       max_trde_prica: "0",
       motn_drc: VI_DIRECTION_CODES[direction],
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "motn_stk", viStockItemSchema);
@@ -1018,7 +1034,7 @@ export async function fetchProgramTrades(
       trde_upper_tp: direction === "net_sell" ? "1" : "2",
       amt_qty_tp: INVESTOR_UNIT_CODES[unit],
       mrkt_tp: PROGRAM_MARKET_CODES[market],
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "prm_netprps_upper_50", programTradeItemSchema);
@@ -1049,7 +1065,7 @@ export async function fetchProgramTrend(
       amt_qty_tp: "1",
       mrkt_tp: PROGRAM_MARKET_CODES[market],
       min_tic_tp: "1",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return {
@@ -1121,7 +1137,7 @@ export async function fetchNewHighLow(
       crd_cnd: "0",
       updown_incls: "0",
       dt: days,
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "ntl_pric", newHighLowItemSchema);
@@ -1148,7 +1164,7 @@ export async function fetchLimitStocks(
       trde_qty_tp: "00000",
       crd_cnd: "0",
       trde_gold_tp: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "updown_pric", limitStockItemSchema);
@@ -1178,7 +1194,7 @@ export async function fetchPriceJumps(
       crd_cnd: "0",
       pric_cnd: "0",
       updown_incls: "1",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "pric_jmpflu", priceJumpItemSchema);
@@ -1207,7 +1223,7 @@ export async function fetchVolumeSurge(
       tm: "",
       stk_cnd: "0",
       pric_tp: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return parseArray(res.json, "trde_qty_sdnin", volumeSurgeItemSchema);
@@ -1226,6 +1242,9 @@ export async function fetchAfterHoursQuote(
   const res = await client.call({
     path: MRKCOND_PATH,
     apiId: "ka10087",
+    // 여기만 `toUnifiedCode`를 쓰지 않는다 — 이 TR은 `_AL`을 붙이면 rc=0에 값이 전부
+    // 빈 껍데기로 온다(실측 2026-08-03, REAL·VIRTUAL 동일). 애초에 NXT 거래가능 종목을
+    // 통째로 누락하는 TR이라 통합 개념이 성립하지 않는다.
     body: { stk_cd: stockCode },
   });
   return afterHoursQuoteResponseSchema.parse(res.json);
@@ -1306,7 +1325,7 @@ export async function fetchDailyFlow(
   unit: InvestorUnit,
   minRows: number,
 ): Promise<{ rows: DailyFlowItem[]; truncated: boolean }> {
-  const body = { stk_cd: stockCode, qry_dt: baseDate, indc_tp: DAILY_FLOW_UNIT_CODES[unit] };
+  const body = { stk_cd: toUnifiedCode(stockCode), qry_dt: baseDate, indc_tp: DAILY_FLOW_UNIT_CODES[unit] };
 
   let res = await client.call({ path: MRKCOND_PATH, apiId: "ka10086", body });
   const rows = [...dailyFlowResponseSchema.parse(res.json).daly_stkpc];
@@ -1341,7 +1360,7 @@ export async function fetchDailySession(
   const res = await client.call({
     path: STOCK_INFO_PATH,
     apiId: "ka10015",
-    body: { stk_cd: stockCode, strt_dt: baseDate },
+    body: { stk_cd: toUnifiedCode(stockCode), strt_dt: baseDate },
   });
   return dailySessionResponseSchema.parse(res.json).daly_trde_dtl;
 }
@@ -1358,8 +1377,9 @@ const SECTOR_MARKET_CODES: Record<SectorMarket, string> = { kospi: "0", kosdaq: 
  * 준다. mock/REAL 실측 2026-08-03: rc=0, 배열 키 `inds_netprps`, 코스피 28행 /
  * 코스닥 32행, cont-yn=N(단일 페이지), 20필드 전부 값 있음.
  *
- * `stex_tp: "1"`(KRX)은 서버의 다른 업종 TR과 맞춘 값이자 `inds_cd`를 접미사 없는
- * 3자리로 받기 위한 조건이다 — "3"(통합)으로 부르면 `001_AL` 꼴로 온다.
+ * `stex_tp`는 다른 시장 TR과 함께 통합(STEX_UNIFIED)으로 부른다. 그러면 `inds_cd`가
+ * `001_AL` 꼴로 오는데(v0.30까지 KRX로 부른 이유가 이것이었다), 지금은 `code()` 헬퍼가
+ * 접미사를 떼므로 업종 코드는 그대로 3자리로 다뤄진다.
  *
  * `base_dt`는 빈 문자열이면 최근 거래일. 값을 넣으면 그 날짜 기준으로 바뀐다(실측).
  */
@@ -1376,7 +1396,7 @@ export async function fetchSectorNetBuy(
       mrkt_tp: SECTOR_MARKET_CODES[market],
       amt_qty_tp: SECTOR_NET_BUY_UNIT_CODES[unit],
       base_dt: baseDate,
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return sectorNetBuyResponseSchema.parse(res.json).inds_netprps;
@@ -1440,7 +1460,7 @@ export async function fetchExpectedExecution(
       stk_cnd: "0",
       crd_cnd: "0",
       pric_cnd: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return expectedExecutionResponseSchema.parse(res.json).exp_cntr_flu_rt_upper;
@@ -1477,7 +1497,7 @@ export async function fetchBidBalance(
       trde_qty_tp: "0000",
       stk_cnd: "0",
       crd_cnd: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return bidBalanceResponseSchema.parse(res.json).bid_req_upper;
@@ -1515,7 +1535,7 @@ export async function fetchBidSurge(
       tm_tp: String(minutes),
       trde_qty_tp: BID_SURGE_VOLUME_CODES[minVolume],
       stk_cnd: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return bidSurgeResponseSchema.parse(res.json).bid_req_sdnin;
@@ -1541,7 +1561,7 @@ export async function fetchBidRatioSurge(
       tm_tp: String(minutes),
       trde_qty_tp: BID_SURGE_VOLUME_CODES[minVolume],
       stk_cnd: "0",
-      stex_tp: "1",
+      stex_tp: STEX_UNIFIED,
     },
   });
   return bidRatioSurgeResponseSchema.parse(res.json).req_rt_sdnin;

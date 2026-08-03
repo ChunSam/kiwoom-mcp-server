@@ -14,7 +14,7 @@ import {
   parseKiwoomPrice,
 } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const MAX_CODES = 30;
 
@@ -54,7 +54,7 @@ export function formatBatchQuotes(
   if (missing.length > 0) {
     lines.push("", `⚠️ 조회되지 않은 코드: ${missing.join(", ")} — 종목코드를 확인해 주세요.`);
   }
-  lines.push("", "※ 종목별 상세 지표(시가/고저/PER 등)는 get_stock_price로 조회하세요.");
+  lines.push("", "※ 종목별 상세 지표(시가/고저/PER 등)는 get_stock_price로 조회하세요.", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

@@ -14,7 +14,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_STOCK_LIMIT = 30;
 const MAX_STOCK_LIMIT = 100;
@@ -98,6 +98,7 @@ export function formatSectorPrice(
   }
 
   lines.push("", "※ 구성 종목별 시세는 get_sector_stocks에 같은 업종 코드를 넣어 조회하세요.");
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -142,6 +143,7 @@ export function formatSectorStocks(
     notes.push("※ 구성 종목이 더 있습니다 — 이 조회는 첫 페이지(종목코드순 100종목)만 가져옵니다.");
   }
   if (notes.length > 0) lines.push("", ...notes);
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

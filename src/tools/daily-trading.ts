@@ -21,7 +21,7 @@ import {
   parseKiwoomPrice,
 } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_COUNT = 20;
 /** ka10086이 20행/page라 60이면 3페이지 — 페이지 간격 1.1초를 감안한 실용 상한. */
@@ -93,6 +93,7 @@ export function formatDailyFlow(
   if (truncated) {
     lines.push("※ 페이지 상한에 걸려 요청한 기간을 다 채우지 못했습니다 — 결과가 잘렸을 수 있습니다.");
   }
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -146,6 +147,7 @@ export function formatDailySession(
   if (rows.length > shown.length) {
     lines.push(`※ 조회된 ${rows.length}행 중 최근 ${shown.length}행만 표시했습니다 (count로 조정).`);
   }
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

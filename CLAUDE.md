@@ -42,6 +42,7 @@ utils/          num/date/redact/sleep/stock-code
 - **읽기 전용.** 주문·정정·취소 등 상태를 바꾸는 TR은 추가하지 않는다. `client.call`의 재시도 로직이 안전한 것도 모든 TR이 조회라는 전제 위에 있다.
 - **stdout 금지.** stdio 전송에서 stdout은 MCP 프레임 전용. 모든 로그는 `console.error`.
 - **시크릿 노출 금지.** 에러 메시지에 응답 본문이나 예외 텍스트를 실을 때는 반드시 `redactSecrets(text, [appKey, appSecret, token])`를 통과시킨다. `.env`/`.env.real`은 커밋 금지(gitignore됨), 내용을 컨텍스트로 읽어 오지 않는다 — 필요하면 키 *이름*만 확인.
+- **거래소는 통합(KRX+NXT) 기준.** 시장 전체 TR은 `stex_tp: STEX_UNIFIED`("3"), 종목 단위 TR은 `toUnifiedCode(code)`로 `_AL`을 붙여 부른다. KRX 단독("1")로 되돌리면 NXT 거래가능 606종목의 거래량이 40~45% 적게 나온다(삼성전자 실측 19.2M vs 34.7M). 응답에 붙어 오는 `_AL`/`_NX` 접미사는 `types.ts`의 `code()` 헬퍼가 뗀다 — 코드 필드는 `str()`이 아니라 `code()`를 쓴다. **예외 3건**: ka10087(시간외단일가)은 접미사를 주면 빈 껍데기로 답하고, ka10004(호가)·ka10002(거래원)은 통합을 제공하지 않아 KRX로 남는다. 계좌 TR(ka10075/76)의 `stex_tp: "0"`도 건드리지 않는다.
 - **레이트리밋 ~1 req/s per TR.** 연속 호출 간격은 리터럴로 쓰지 말고 각 모듈의 명명 상수를 재사용한다 — `api.ts` `PAGE_INTERVAL_MS`, `master-list.ts` `MARKET_FETCH_GAP_MS`, `isa/classify-etf.ts` `ETF_FETCH_GAP_MS`(모두 1,100ms), `client.ts` `RETRY_429_BASE_MS`(1,300ms — 429 백오프는 1초를 **넘겨야** 해서 일부러 더 길다). 값이 같아도 이유가 달라 공유 상수로 묶지 않는다. 페이지네이션은 `MAX_PAGES=20` 상한이 있고, 상한에 걸리면 "결과가 잘렸을 수 있음"을 사용자에게 알린다.
 
 ## 새 tool 추가 절차

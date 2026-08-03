@@ -7,7 +7,7 @@ import { type ForeignHoldingItem } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, formatRatioPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_DISPLAY_DAYS = 15;
 
@@ -46,7 +46,11 @@ export function formatForeignHolding(
   if (rows.length > shown.length) {
     lines.push("", `※ 최근 ${shown.length}일만 표시했습니다 (limit으로 최대 50일까지 조정 가능).`);
   }
-  lines.push("", "※ 보유비중 = 외국인 보유주식수 / 상장주식수. 한도소진률 = 보유 / 외국인 한도. 종가 부호는 전일 대비 방향.");
+  lines.push(
+    "",
+    "※ 보유비중 = 외국인 보유주식수 / 상장주식수. 한도소진률 = 보유 / 외국인 한도. 종가 부호는 전일 대비 방향.",
+    UNIFIED_EXCHANGE_NOTE,
+  );
   return lines.join("\n");
 }
 

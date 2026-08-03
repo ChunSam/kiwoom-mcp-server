@@ -13,7 +13,7 @@ import {
   parseKiwoomPrice,
 } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_GROUP_LIMIT = 30;
 
@@ -60,6 +60,7 @@ export function formatThemeGroups(
     lines.push("", `※ 등락률 상위 ${shown.length}개만 표시했습니다 (limit으로 최대 100개까지 조정 가능).`);
   }
   lines.push("", "※ 특정 테마의 구성종목은 get_theme_stocks에 '코드' 값을 넣어 조회하세요.");
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -101,6 +102,7 @@ export function formatThemeStocks(
     lines.push(`| ${cells.join(" | ")} |`);
   }
 
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

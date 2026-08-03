@@ -11,7 +11,7 @@ import {
 import type { InvestorRankDailyItem, InvestorStreakItem } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 30;
@@ -95,6 +95,7 @@ export function formatInvestorRankDaily(
       ? "※ 금액은 키움 원본(천만원 단위)을 억원으로 환산(÷10)한 값입니다."
       : "※ 수량 단위는 천주입니다.";
   lines.push(unitNote, "※ 개별 종목의 기간별 수급 추이는 get_investor_trend로 조회하세요.");
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -141,6 +142,7 @@ export function formatInvestorStreak(
     lines.push("※ 연속매매 현황은 시장별로만 제공되어 코스피 기준으로 조회했습니다 (코스닥: market=kosdaq).");
   }
   lines.push("※ 개별 종목의 기간별 수급 추이는 get_investor_trend로 조회하세요.");
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

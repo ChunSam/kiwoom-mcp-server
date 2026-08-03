@@ -5,7 +5,7 @@ import { getKiwoomContext } from "../context.js";
 import { fetchSectorNetBuy, type InvestorUnit, type SectorMarket } from "../kiwoom/api.js";
 import type { SectorNetBuyItem } from "../kiwoom/types.js";
 import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 15;
 /** 코스피 28행 / 코스닥 32행이 한 페이지에 다 온다 (실측) — 그게 곧 상한. */
@@ -97,6 +97,7 @@ export function formatSectorFlow(
   if (rows.length > shown.length) {
     lines.push(`※ 전체 ${rows.length}개 업종 중 ${shown.length}개만 표시했습니다 (top으로 조정).`);
   }
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

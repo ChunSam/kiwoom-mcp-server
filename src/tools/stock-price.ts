@@ -13,7 +13,7 @@ import {
   parseKiwoomNumber,
   parseKiwoomPrice,
 } from "../utils/num.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const PRE_SIG_LABELS: Record<string, string> = {
   "1": "상한",
@@ -79,6 +79,7 @@ export function formatStockInfo(
     }
   }
 
+  lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 

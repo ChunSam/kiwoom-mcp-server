@@ -1,3 +1,4 @@
+import { stripExchangeSuffix } from "../utils/stock-code.js";
 import { z } from "zod";
 
 /**
@@ -12,6 +13,13 @@ const envelope = {
 };
 
 const str = () => z.string().default("");
+
+/**
+ * 종목·업종 코드 필드. 통합(SOR) 조회로 바꾼 뒤부터 키움은 `005930_AL` / `001_AL`처럼
+ * 거래소 접미사를 붙여 답한다 — 파싱 단계에서 떼어내 서버 바깥에는 순수 코드만 나가게
+ * 한다. 접미사가 없는 응답에는 아무 영향이 없으므로 코드 필드에는 `str()` 대신 이걸 쓴다.
+ */
+const code = () => str().transform(stripExchangeSuffix);
 
 // ── au10001: 접근토큰 발급 ──
 
@@ -29,7 +37,7 @@ export type TokenResponse = z.infer<typeof tokenResponseSchema>;
 
 export const stockInfoResponseSchema = z.looseObject({
   ...envelope,
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 접두 가능)
   pred_pre: str(), // 전일대비
@@ -60,7 +68,7 @@ export type StockInfoResponse = z.infer<typeof stockInfoResponseSchema>;
 // cross-checked on mock 2026-07-22: trde_prica 백만원, mac 억원.
 
 export const batchQuoteItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 접두)
   pred_pre: str(), // 전일대비
@@ -88,7 +96,7 @@ export type DepositResponse = z.infer<typeof depositResponseSchema>;
 // ── kt00018: 계좌평가잔고내역 ──
 
 export const holdingItemSchema = z.looseObject({
-  stk_cd: str(), // 종목코드 — "A005930"처럼 A 접두가 붙어 올 수 있음
+  stk_cd: code(), // 종목코드 — "A005930"처럼 A 접두가 붙어 올 수 있음
   stk_nm: str(),
   rmnd_qty: str(), // 보유수량
   trde_able_qty: str(), // 매매가능수량
@@ -186,7 +194,7 @@ export const transactionRowSchema = z.looseObject({
   trde_kind_nm: str(), // 거래종류명 — "매매" 등
   rmrk_nm: str(), // 적요명 — "장내매수"/"장내매도" 등
   io_tp_nm: str(), // 입출구분명 — "매수"/"매도" 등
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   trde_qty_jwa_cnt: str(), // 거래수량(좌수)
   trde_amt: str(), // 거래금액
@@ -224,7 +232,7 @@ export type RealizedPnlResponse = z.infer<typeof realizedPnlResponseSchema>;
 
 export const pendingOrderItemSchema = z.looseObject({
   ord_no: str(), // 주문번호
-  stk_cd: str(), // 종목코드 ("A005930"처럼 접두 가능)
+  stk_cd: code(), // 종목코드 ("A005930"처럼 접두 가능)
   stk_nm: str(), // 종목명
   ord_stt: str(), // 주문상태 ("접수"/"확인" 등)
   io_tp_nm: str(), // 주문구분 ("매수"/"매도"/"정정" 등)
@@ -255,7 +263,7 @@ export type PendingOrdersResponse = z.infer<typeof pendingOrdersResponseSchema>;
 export const executionItemSchema = z.looseObject({
   ord_no: str(), // 주문번호
   orig_ord_no: str(), // 원주문번호 (정정·취소의 원주문)
-  stk_cd: str(), // 종목코드 ("A005930"처럼 접두 가능)
+  stk_cd: code(), // 종목코드 ("A005930"처럼 접두 가능)
   stk_nm: str(), // 종목명
   ord_stt: str(), // 주문상태 ("체결"/"확인" 등)
   io_tp_nm: str(), // 주문구분 ("매수"/"매도"/"정정" 등)
@@ -356,7 +364,7 @@ export type OrderbookResponse = z.infer<typeof orderbookResponseSchema>;
 // ── ka20003: 전업종지수 (inds_cd 001=코스피 그룹, 101=코스닥 그룹) ──
 
 export const indexItemSchema = z.looseObject({
-  stk_cd: str(), // 업종코드 ("001" 종합 등)
+  stk_cd: code(), // 업종코드 ("001" 종합 등)
   stk_nm: str(),
   cur_prc: str(), // 지수 (소수점 포함)
   pre_sig: str(),
@@ -420,7 +428,7 @@ export type SectorPriceResponse = z.infer<typeof sectorPriceResponseSchema>;
 // ── ka20002: 업종별주가 (subset) ──
 
 export const sectorStockItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre_sig: str(),
@@ -479,19 +487,19 @@ export type InvestorDailyItem = z.infer<typeof investorDailyItemSchema>;
 // ride along; the loose schema ignores them.
 
 export const investorRankDailyItemSchema = z.looseObject({
-  for_netslmt_stk_cd: str(),
+  for_netslmt_stk_cd: code(),
   for_netslmt_stk_nm: str(),
   for_netslmt_amt: str(),
   for_netslmt_qty: str(),
-  for_netprps_stk_cd: str(),
+  for_netprps_stk_cd: code(),
   for_netprps_stk_nm: str(),
   for_netprps_amt: str(),
   for_netprps_qty: str(),
-  orgn_netslmt_stk_cd: str(),
+  orgn_netslmt_stk_cd: code(),
   orgn_netslmt_stk_nm: str(),
   orgn_netslmt_amt: str(),
   orgn_netslmt_qty: str(),
-  orgn_netprps_stk_cd: str(),
+  orgn_netprps_stk_cd: code(),
   orgn_netprps_stk_nm: str(),
   orgn_netprps_amt: str(),
   orgn_netprps_qty: str(),
@@ -506,7 +514,7 @@ export type InvestorRankDailyItem = z.infer<typeof investorRankDailyItemSchema>;
 
 export const investorStreakItemSchema = z.looseObject({
   rank: str(),
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   prid_stkpc_flu_rt: str(), // 기간중 주가 등락률(%)
   orgn_nettrde_amt: str(), // 기관 순매매금액(백만원)
@@ -520,7 +528,7 @@ export type InvestorStreakItem = z.infer<typeof investorStreakItemSchema>;
 // ── ka10027/ka10030/ka10032: 순위 TR item shapes ──
 
 export const priceChangeRankItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre_sig: str(),
@@ -531,7 +539,7 @@ export const priceChangeRankItemSchema = z.looseObject({
 export type PriceChangeRankItem = z.infer<typeof priceChangeRankItemSchema>;
 
 export const volumeRankItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre_sig: str(),
@@ -543,7 +551,7 @@ export const volumeRankItemSchema = z.looseObject({
 export type VolumeRankItem = z.infer<typeof volumeRankItemSchema>;
 
 export const valueRankItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre_sig: str(),
@@ -650,7 +658,7 @@ export const themeGroupsResponseSchema = z.looseObject({
 });
 
 export const themeStockItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 유의미)
   flu_sig: str(),
@@ -782,7 +790,7 @@ export const lendingTrendResponseSchema = z.looseObject({
 // 정적 VI 행은 dynm_* 필드가 "0"/"0.00"으로 온다; virelis_time "000000" = 미해제.
 
 export const viStockItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   acc_trde_qty: str(), // 누적거래량 (주)
   motn_pric: str(), // 발동가격 (원)
@@ -804,7 +812,7 @@ export type ViStockItem = z.infer<typeof viStockItemSchema>;
 
 export const brokerActivityResponseSchema = z.looseObject({
   ...envelope,
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 방향)
   flu_rt: str(), // 등락률(%)
@@ -837,7 +845,7 @@ export type BrokerActivityResponse = z.infer<typeof brokerActivityResponseSchema
 
 export const programTradeItemSchema = z.looseObject({
   rank: str(), // 순위
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 방향)
   flu_rt: str(), // 등락률(%)
@@ -899,7 +907,7 @@ export type StockProgramTrendItem = z.infer<typeof stockProgramTrendItemSchema>;
 // were NOT observable (no day-trade on this account), so treat them as provisional.
 
 export const tradingJournalItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   buy_avg_pric: str(), // 매수평균가
   buy_qty: str(), // 매수수량
@@ -930,7 +938,7 @@ export type TradingJournalResponse = z.infer<typeof tradingJournalResponseSchema
 // ── ka10016/ka10017/ka10019: 신고저가/상하한가/가격급등락 (mock-verified 2026-07-08) ──
 
 export const newHighLowItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 부호 포함
   pred_pre: str(), // 전일대비 (부호)
@@ -942,7 +950,7 @@ export const newHighLowItemSchema = z.looseObject({
 export type NewHighLowItem = z.infer<typeof newHighLowItemSchema>;
 
 export const limitStockItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre: str(),
@@ -953,7 +961,7 @@ export const limitStockItemSchema = z.looseObject({
 export type LimitStockItem = z.infer<typeof limitStockItemSchema>;
 
 export const priceJumpItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   flu_rt: str(), // 전일 대비 등락률 (부호)
@@ -968,7 +976,7 @@ export type PriceJumpItem = z.infer<typeof priceJumpItemSchema>;
 // now_trde_qty caps at uint32 max like ka10030 (display verbatim) ──
 
 export const volumeSurgeItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 부호 포함
   pred_pre: str(), // 전일대비 (부호)
@@ -1012,7 +1020,7 @@ export type AfterHoursQuoteResponse = z.infer<typeof afterHoursQuoteResponseSche
 
 export const afterHoursRankItemSchema = z.looseObject({
   rank: str(),
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 시간외 단일가 (부호 접두)
   pred_pre: str(), // 당일 종가 대비 (부호)
@@ -1095,7 +1103,7 @@ export const dailySessionResponseSchema = z.looseObject({
 // natn_netprps(국가)는 전 행 0이지만 그건 실제 매매가 없어서지 미제공이 아니다 ──
 
 export const sectorNetBuyItemSchema = z.looseObject({
-  inds_cd: str(), // 업종코드 3자리
+  inds_cd: code(), // 업종코드 3자리
   inds_nm: str(), // 업종명
   cur_prc: str(), // 업종 지수 ×100
   flu_rt: str(), // 등락률(%) ×100
@@ -1143,7 +1151,7 @@ export const sectorCodeListResponseSchema = z.looseObject({
 // 방향 표시라 parseKiwoomPrice로 읽어야 한다 ──
 
 export const expectedExecutionItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   exp_cntr_pric: str(), // 예상체결가 (부호 = 기준가 대비 방향)
   base_pric: str(), // 기준가 (전일 종가)
@@ -1165,7 +1173,7 @@ export const expectedExecutionResponseSchema = z.looseObject({
 // (종목코드순으로 온다; mock·REAL 실측 2026-08-03 07:45) → 호출부에서 안내한다 ──
 
 export const bidBalanceItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(), // 현재가 (부호 = 전일대비 방향)
   pred_pre: str(), // 전일대비
@@ -1187,7 +1195,7 @@ export const bidBalanceResponseSchema = z.looseObject({
 // 잔량 '수량'이고 sdnin_qty/sdnin_rt가 급증분이다 ──
 
 export const bidSurgeItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre: str(),
@@ -1209,7 +1217,7 @@ export const bidSurgeResponseSchema = z.looseObject({
 // 잔량 '비율'이다 (키 이름도 now → now_rt로 다르다) ──
 
 export const bidRatioSurgeItemSchema = z.looseObject({
-  stk_cd: str(),
+  stk_cd: code(),
   stk_nm: str(),
   cur_prc: str(),
   pred_pre: str(),

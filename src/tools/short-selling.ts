@@ -7,7 +7,7 @@ import { normalizeStockCode, type ShortSellingItem } from "../kiwoom/types.js";
 import { assertDateRange, formatDateDashed, kstDaysAgo, todayInKst } from "../utils/date.js";
 import { formatKRW, formatPercent, formatQuantity, formatRatioPercent, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { runTool, textResult } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_LOOKBACK_DAYS = 30;
 
@@ -48,7 +48,11 @@ export function formatShortSelling(
     lines.push(`| ${cells.join(" | ")} |`);
   }
 
-  lines.push("", "※ 공매도비중 = 공매도량 / 거래량. 종가·등락률의 부호는 전일 대비 방향입니다.");
+  lines.push(
+    "",
+    "※ 공매도비중 = 공매도량 / 거래량. 종가·등락률의 부호는 전일 대비 방향입니다.",
+    UNIFIED_EXCHANGE_NOTE,
+  );
   return lines.join("\n");
 }
 
