@@ -1269,6 +1269,63 @@ export const bidRatioSurgeResponseSchema = z.looseObject({
   req_rt_sdnin: z.array(bidRatioSurgeItemSchema).default([]),
 });
 
+// ── ka10013: 신용매매동향 — /api/dostk/stkinfo (mock + REAL 실측 2026-08-03, 005930).
+// 배열 키 `crd_trde_trend`, 100행/page, 최신 일자가 먼저.
+//
+// 단위는 실측으로 확정했다: `remn`(잔고)은 **주**다 — 삼성전자 21,607,489주를 상장주식수
+// 5,969,782,550으로 나누면 0.36%로 `remn_rt`와 정확히 일치한다. `amt`(잔고금액)는
+// **백만원**이다 — amt/remn = 206,616원/주로, 잔고가 쌓인 구간의 주가(207,000원대)와 맞다
+// (천원이면 206원/주가 되어 말이 안 된다).
+
+export const creditTrendItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  cur_prc: str(), // 종가 (부호 = 전일대비 방향)
+  pred_pre_sig: str(), // 대비기호
+  pred_pre: str(), // 전일대비 (부호 유의미)
+  trde_qty: str(), // 거래량 (주)
+  new: str(), // 신규 (주)
+  rpya: str(), // 상환 (주)
+  remn: str(), // 잔고 (주)
+  amt: str(), // 잔고금액 (백만원)
+  pre: str(), // 잔고 전일대비 (주, 부호 유의미)
+  shr_rt: str(), // 공여율(%) — 비방향성 비율
+  remn_rt: str(), // 잔고율(%) — 잔고/상장주식수
+});
+
+export type CreditTrendItem = z.infer<typeof creditTrendItemSchema>;
+
+export const creditTrendResponseSchema = z.looseObject({
+  ...envelope,
+  crd_trde_trend: z.array(creditTrendItemSchema).default([]),
+});
+
+export type CreditTrendResponse = z.infer<typeof creditTrendResponseSchema>;
+
+// ── ka10026: 고저PER — /api/dostk/stkinfo (mock + REAL 실측 2026-08-03).
+//
+// **값 컬럼은 지표와 무관하게 항상 `per`라는 이름으로 온다.** pertp=3(저PBR)이면 `per`에
+// PBR이, pertp=5(저ROE)이면 `per`에 ROE가 담긴다 — ka10001과 교차검증해 확정했다
+// (씨엑스아이 pertp=1 → 0.40 = ka10001 per, pertp=3 → 0.01 = ka10001 pbr / 비트맥스
+// pertp=5 → -774.04 = ka10001 roe). 필드명만 보고 PER로 렌더하면 전부 틀린다.
+
+export const valuationRankItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  per: str(), // 선택한 지표값 (PER/PBR/ROE — ROE는 음수가 실제로 온다)
+  cur_prc: str(), // 현재가 (부호 = 전일대비 방향)
+  pred_pre_sig: str(), // 대비기호
+  pred_pre: str(), // 전일대비 (부호 유의미)
+  flu_rt: str(), // 등락률(%)
+  now_trde_qty: str(), // 거래량 (주)
+});
+
+export type ValuationRankItem = z.infer<typeof valuationRankItemSchema>;
+
+export const valuationRankResponseSchema = z.looseObject({
+  ...envelope,
+  high_low_per: z.array(valuationRankItemSchema).default([]),
+});
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

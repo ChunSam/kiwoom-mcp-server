@@ -39,6 +39,7 @@ allowance.
 | `get_sector_chart` | Sector index candles (daily/weekly/monthly/yearly/minute/tick) | ka20004~08, ka20019 |
 | `get_sector_flow` | Investor net buying by sector across the whole market — retail / foreign / institution plus securities, trusts, pension funds, PE | ka10051 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
+| `get_valuation_rank` | High/low PER, PBR and ROE rankings (market-wide valuation screening) | ka10026 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges | ka10016/17/19/23 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_expected_execution` | Expected-execution ranking during the pre-open (08:30–09:00) and pre-close (15:20–15:30) auctions | ka10029 |
@@ -50,6 +51,7 @@ allowance.
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
+| `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
 | `get_foreign_holding` | Per-stock foreign holding trend (holdings / holding weight / limit-usage rate) | ka10008 |
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
 | `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |

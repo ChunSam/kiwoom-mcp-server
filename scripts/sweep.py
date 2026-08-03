@@ -138,6 +138,8 @@ def main() -> int:
         ("get_sector_flow", {"market": "kosdaq", "unit": "quantity", "sort": "institution", "top": 5}),
         ("get_sector_price", {"sector_code": "증권"}),  # ka10101 이름→코드 해석 경로
         ("get_ranking", {"type": "volume", "top": 5}),
+        ("get_valuation_rank", {"top": 5}),  # ka10026 저PER
+        ("get_valuation_rank", {"metric": "low_roe", "top": 5}),  # per 필드에 ROE가 담기는 경로
         ("get_market_movers", {"signal": "new_high", "top": 3}),
         ("get_market_movers", {"signal": "new_low", "top": 3}),
         ("get_market_movers", {"signal": "upper_limit", "top": 3}),
@@ -162,6 +164,8 @@ def main() -> int:
         ("get_short_selling", {"stock_code": "005930"}),
         ("get_stock_lending", {}),  # ka10068 market-wide
         ("get_stock_lending", {"stock_code": "005930"}),  # ka20068 per-stock
+        ("get_credit_trend", {"stock_code": "005930", "count": 3}),  # ka10013 융자
+        ("get_credit_trend", {"stock_code": "005930", "credit_type": "short", "count": 3}),  # 대주
         ("get_foreign_holding", {"stock_code": "005930", "limit": 5}),
         ("get_program_trading", {"top": 5}),  # ka90003 — pre-market may be an empty-state ok
         ("get_program_trading", {"view": "market_daily", "top": 5}),  # ka90010

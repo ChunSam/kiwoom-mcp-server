@@ -36,6 +36,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_sector_chart` | 업종 지수 일/주/월/년/분/틱봉 캔들 차트 | ka20004~08, ka20019 |
 | `get_sector_flow` | 업종별 투자자 순매수 — 시장 전체 업종의 개인/외국인/기관계 + 증권·투신·연기금·사모 | ka10051 |
 | `get_ranking` | 상승률/하락률/거래량/거래대금 상위 | ka10027/30/32 |
+| `get_valuation_rank` | PER·PBR·ROE 고저 순위 (시장 전체 밸류에이션 스크리닝) | ka10026 |
 | `get_market_movers` | 신고가/신저가/상한가/하한가/급등/급락/거래량급증 특이 종목 | ka10016/17/19/23 |
 | `get_vi_stocks` | 당일 VI(변동성완화장치) 발동 종목 (발동가·괴리율·시각) | ka10054 |
 | `get_expected_execution` | 동시호가 예상체결 순위 (개장 전 08:30~09:00 / 마감 전 15:20~15:30) | ka10029 |
@@ -47,6 +48,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_etf_returns` | ETF 기간별(1주/1개월/6개월/1년) 수익률 vs 대상지수 | ka40001 |
 | `get_short_selling` | 종목별 일자별 공매도 추이 (공매도량·비중·평균가) | ka10014 |
 | `get_stock_lending` | 대차거래 추이 (체결·상환·증감·잔고) — 종목별 또는 시장 전체 | ka10068, ka20068 |
+| `get_credit_trend` | 신용융자·대주 잔고 추이 (신규·상환·잔고·공여율·잔고율) | ka10013 |
 | `get_foreign_holding` | 종목별 외국인 보유 추이 (보유주식수·보유비중·한도소진률) | ka10008 |
 | `get_program_trading` | 프로그램 매매 상위 + 추이 (일자별/시간대별/종목별, 코스피/코스닥) | ka90003, ka90010, ka90005, ka90013 |
 | `get_after_hours` | 시간외 단일가 (16:00~18:00) — 종목별 5단 호가·시세 또는 등락률 순위 | ka10087, ka10098 |
