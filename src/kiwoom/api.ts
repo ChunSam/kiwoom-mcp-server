@@ -16,6 +16,7 @@ import {
   bidRatioSurgeResponseSchema,
   bidSurgeResponseSchema,
   brokerActivityResponseSchema,
+  creditTrendResponseSchema,
   dailyAssetItemSchema,
   dailyChartItemSchema,
   dailyFlowResponseSchema,
@@ -57,6 +58,7 @@ import {
   tradingJournalResponseSchema,
   themeStocksResponseSchema,
   transactionsResponseSchema,
+  valuationRankResponseSchema,
   valueRankItemSchema,
   viStockItemSchema,
   volumeRankItemSchema,
@@ -73,6 +75,7 @@ import {
   type BidRatioSurgeItem,
   type BidSurgeItem,
   type BrokerActivityResponse,
+  type CreditTrendResponse,
   type DailyAssetItem,
   type DailyChartItem,
   type DailyFlowItem,
@@ -114,6 +117,7 @@ import {
   type ThemeStocksResponse,
   type TradingJournalResponse,
   type TransactionRow,
+  type ValuationRankItem,
   type ValueRankItem,
   type ViStockItem,
   type VolumeRankItem,
@@ -1600,4 +1604,88 @@ export async function fetchBidRatioSurge(
     },
   });
   return bidRatioSurgeResponseSchema.parse(res.json).req_rt_sdnin;
+}
+
+export type CreditType = "loan" | "short";
+
+/**
+ * ka10013의 `qry_tp` — 실측 2026-08-03(005930, REAL·VIRTUAL 동일)으로 **2갈래**임을
+ * 확인했다. "1"은 융자, "2"~"5"는 전부 같은 값(대주)을 준다. 문서상 몇 갈래인지와
+ * 무관하게 서버는 이 둘만 노출한다.
+ */
+const CREDIT_TYPE_CODES: Record<CreditType, string> = { loan: "1", short: "2" };
+
+/**
+ * ka10013 신용매매동향요청 — 종목의 신용융자/대주 신규·상환·잔고 추이.
+ *
+ * 실측 2026-08-03 (REAL·VIRTUAL 동일): 경로 `/api/dostk/stkinfo`, 배열 키
+ * `crd_trde_trend`, 100행/page(cont-yn=Y), 최신 일자가 먼저. `stk_cd`/`dt`/`qry_tp`
+ * 3개가 **전부 필수**로 하나라도 빠지면 rc=2다.
+ *
+ * `dt`는 시작일이 아니라 **기준일(그 날짜 이하로 거슬러 100행)**이다 — dt=20260710을
+ * 주면 20260710 ~ 20260211이 왔다. 신용잔고는 하루 지연 집계라 당일 행은 대개 없다.
+ *
+ * `_AL`을 붙이면 **시세 컬럼만** 통합으로 바뀐다(cur_prc·pred_pre·trde_qty). 신규·상환·
+ * 잔고·공여율·잔고율은 KRX 기준 그대로다 — 신용잔고 자체가 거래소로 갈리지 않기 때문.
+ * 그래도 종가·거래량을 서버의 다른 tool과 맞추려면 통합이 맞아서 `toUnifiedCode`를 쓰고,
+ * 기준 차이는 포맷터가 각주로 밝힌다.
+ */
+export async function fetchCreditTrend(
+  client: KiwoomClient,
+  stockCode: string,
+  baseDate: string,
+  creditType: CreditType,
+): Promise<CreditTrendResponse> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10013",
+    body: {
+      stk_cd: toUnifiedCode(stockCode),
+      dt: baseDate,
+      qry_tp: CREDIT_TYPE_CODES[creditType],
+    },
+  });
+  return creditTrendResponseSchema.parse(res.json);
+}
+
+export type ValuationMetric = "low_per" | "high_per" | "low_pbr" | "high_pbr" | "low_roe" | "high_roe";
+
+/**
+ * ka10026의 `pertp` — 이름은 PER이지만 **PBR·ROE 랭킹도 같은 파라미터로 고른다**.
+ * 문서가 없어 ka10001(주식기본정보)의 per/pbr/roe와 교차검증해 확정했다 (실측 2026-08-03):
+ * 씨엑스아이 pertp=1 → 0.40 = ka10001 `per`, pertp=3 → 0.01 = ka10001 `pbr`,
+ * 비트맥스 pertp=5 → -774.04 = ka10001 `roe`.
+ */
+const VALUATION_METRIC_CODES: Record<ValuationMetric, string> = {
+  low_per: "1",
+  high_per: "2",
+  low_pbr: "3",
+  high_pbr: "4",
+  low_roe: "5",
+  high_roe: "6",
+};
+
+/**
+ * ka10026 고저PER요청 — 시장 전체를 PER/PBR/ROE로 줄 세운 100종목.
+ *
+ * 실측 2026-08-03 (REAL·VIRTUAL 동일): 경로 `/api/dostk/stkinfo`, 배열 키 `high_low_per`,
+ * 100행/page(cont-yn=Y). `pertp`·`stex_tp` 둘 다 필수로, `stex_tp`를 빼면 rc=2다.
+ * 응답의 값 컬럼 이름이 지표와 무관하게 항상 `per`인 함정은 types.ts 주석 참고.
+ *
+ * 첫 페이지만 쓴다 — 밸류에이션 스크리닝은 극단값 100종목이면 충분하고, 그 아래는
+ * 순위로서 의미가 옅다.
+ */
+export async function fetchValuationRank(
+  client: KiwoomClient,
+  metric: ValuationMetric,
+): Promise<ValuationRankItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10026",
+    body: {
+      pertp: VALUATION_METRIC_CODES[metric],
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return valuationRankResponseSchema.parse(res.json).high_low_per;
 }
