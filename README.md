@@ -40,6 +40,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_vi_stocks` | 당일 VI(변동성완화장치) 발동 종목 (발동가·괴리율·시각) | ka10054 |
 | `get_expected_execution` | 동시호가 예상체결 순위 (개장 전 08:30~09:00 / 마감 전 15:20~15:30) | ka10029 |
 | `get_investor_trend` | 개인/외국인/기관 순매수 동향 (기간 합계 + 일별) | ka10059, ka10061 |
+| `get_institution_trend` | 기관·외국인 **추정평균단가** + 일별·기간누적 순매수 | ka10045 |
 | `get_investor_rank` | 외국인·기관 순매매 상위 종목 / N일 연속 순매수 현황 | ka90009, ka10131 |
 | `get_broker_activity` | 종목별 거래원(증권사) 매수/매도 상위 5 | ka10002 |
 | `get_etf_info` | ETF 추적지수·과세유형·시세·NAV/괴리율 | ka40002, ka10001, ka40009 |

@@ -29,6 +29,7 @@ import {
   executionsResponseSchema,
   expectedExecutionResponseSchema,
   foreignHoldingResponseSchema,
+  institutionTrendResponseSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
   investorStreakItemSchema,
@@ -84,6 +85,7 @@ import {
   type ExecutionStrengthItem,
   type ExpectedExecutionItem,
   type ForeignHoldingItem,
+  type InstitutionTrendResponse,
   type IndexItem,
   type InvestorDailyItem,
   type InvestorRankDailyItem,
@@ -907,6 +909,39 @@ export async function fetchShortSelling(
     body: { stk_cd: toUnifiedCode(stockCode), tm_tp: "1", strt_dt: fromDate, end_dt: toDate },
   });
   return shortSellingResponseSchema.parse(res.json).shrts_trnsn;
+}
+
+/**
+ * ka10045 종목별기관매매추이요청 — 기관·외국인의 **추정평균단가**와 일별/기간누적 순매수.
+ *
+ * 실측 2026-08-03 (REAL·VIRTUAL 동일): 경로는 `/api/dostk/mrkcond`(종목정보 아님),
+ * 배열 키 `stk_orgn_trde_trnsn`, 최신 일자가 먼저 온다. 5개 파라미터가 **전부 필수**로,
+ * `orgn_prsm_unp_tp`/`for_prsm_unp_tp`를 빼면 rc=2로 거절당한다.
+ *
+ * 그런데 그 두 구분값은 **결과를 바꾸지 않는다** — "0"~"4"를 모두 넣어봤지만 추정평균단가가
+ * 동일했다. 형식상 요구될 뿐이라 "1"로 고정하고, 값을 tool 입력으로 노출하지 않는다.
+ *
+ * 추정평균단가는 거래소별로 갈린다(KRX 264,195 vs 통합 264,002) — 서버의 다른 시세와
+ * 기준을 맞추려면 `toUnifiedCode`가 필요하다.
+ */
+export async function fetchInstitutionTrend(
+  client: KiwoomClient,
+  stockCode: string,
+  fromDate: string,
+  toDate: string,
+): Promise<InstitutionTrendResponse> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka10045",
+    body: {
+      stk_cd: toUnifiedCode(stockCode),
+      strt_dt: fromDate,
+      end_dt: toDate,
+      orgn_prsm_unp_tp: "1",
+      for_prsm_unp_tp: "1",
+    },
+  });
+  return institutionTrendResponseSchema.parse(res.json);
 }
 
 /**

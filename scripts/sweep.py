@@ -151,6 +151,7 @@ def main() -> int:
         ("get_orderbook_rank", {"view": "surge", "minutes": 30, "top": 3}),  # ka10021
         ("get_orderbook_rank", {"view": "ratio_surge", "side": "sell", "top": 3}),  # ka10022
         ("get_investor_trend", {"stock_code": "005930"}),
+        ("get_institution_trend", {"stock_code": "005930", "count": 3}),  # ka10045 추정평균단가
         ("get_investor_rank", {"limit": 5}),  # ka90009 최근 거래일
         ("get_investor_rank", {"view": "streak", "limit": 5}),  # ka10131 코스피 5일
         ("get_broker_activity", {"stock_code": "005930"}),  # ka10002

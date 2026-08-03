@@ -43,6 +43,7 @@ allowance.
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_expected_execution` | Expected-execution ranking during the pre-open (08:30–09:00) and pre-close (15:20–15:30) auctions | ka10029 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |
+| `get_institution_trend` | Institutional / foreign **estimated average cost** + daily and period-cumulative net buying | ka10045 |
 | `get_investor_rank` | Top stocks net-bought/sold by foreigners & institutions / N-day buying streaks | ka90009, ka10131 |
 | `get_broker_activity` | Per-stock top-5 buying/selling brokers (member firms) | ka10002 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
