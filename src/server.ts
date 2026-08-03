@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isIsaEnabled } from "./config.js";
 import { registerAccountBalanceTool } from "./tools/account-balance.js";
 import { registerAccountHoldingsTool } from "./tools/account-holdings.js";
+import { registerAccountTodayTool } from "./tools/account-today.js";
 import { registerAccountTrendTool } from "./tools/account-trend.js";
 import { registerAfterHoursTool } from "./tools/after-hours.js";
 import { registerBrokerActivityTool } from "./tools/broker-activity.js";
@@ -35,6 +36,7 @@ import { registerStockLendingTool } from "./tools/stock-lending.js";
 import { registerStockPriceTool } from "./tools/stock-price.js";
 import { registerStockQuotesTool } from "./tools/stock-quotes.js";
 import { registerStockSearchTool } from "./tools/stock-search.js";
+import { registerSupplyConcentrationTool } from "./tools/supply-concentration.js";
 import { registerThemeGroupsTool, registerThemeStocksTool } from "./tools/theme.js";
 import { registerTradingJournalTool } from "./tools/trading-journal.js";
 import { registerTransactionsTool } from "./tools/transactions.js";
@@ -43,7 +45,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.33.0";
+export const SERVER_VERSION = "0.34.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -68,6 +70,7 @@ export function createServer(): McpServer {
   registerSectorFlowTool(server);
   registerRankingTool(server);
   registerValuationRankTool(server);
+  registerSupplyConcentrationTool(server);
   registerMarketMoversTool(server);
   registerViStocksTool(server);
   registerExpectedExecutionTool(server);
@@ -97,6 +100,7 @@ export function createServer(): McpServer {
   registerAccountBalanceTool(server);
   registerAccountHoldingsTool(server);
   registerAccountTrendTool(server);
+  registerAccountTodayTool(server);
   registerTransactionsTool(server);
   registerPendingOrdersTool(server);
   registerOrderExecutionsTool(server);

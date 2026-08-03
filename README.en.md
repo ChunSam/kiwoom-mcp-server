@@ -40,6 +40,7 @@ allowance.
 | `get_sector_flow` | Investor net buying by sector across the whole market — retail / foreign / institution plus securities, trusts, pension funds, PE | ka10051 |
 | `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
 | `get_valuation_rank` | High/low PER, PBR and ROE rankings (market-wide valuation screening) | ka10026 |
+| `get_supply_concentration` | Stocks with volume concentrated in a price zone (overhead supply / support) | ka10025 |
 | `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges | ka10016/17/19/23 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_expected_execution` | Expected-execution ranking during the pre-open (08:30–09:00) and pre-close (15:20–15:30) auctions | ka10029 |
@@ -79,6 +80,7 @@ allowance.
 |---|---|---|
 | `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets + day/month/cumulative P&L | kt00001, kt00018, kt00004 |
 | `get_account_holdings` | Per-holding quantity / average cost / current price / valuation P&L | kt00018 |
+| `get_account_today` | Today's account activity — trade value, fees, taxes, cash in/out + D+2 estimates (REAL only) | kt00017 |
 | `get_account_trend` | Daily estimated-deposit-asset trend + period return / valuation P&L / cash-flow summary (default 30 days; not served on VIRTUAL) | kt00002, kt00016 |
 | `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount) | kt00015 |
 | `get_pending_orders` | Open/unfilled orders (order no., side, status, ordered/unfilled qty, price) | ka10075 |
