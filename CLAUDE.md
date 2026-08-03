@@ -47,6 +47,8 @@ utils/          num/date/redact/sleep/stock-code
 
 ## 새 tool 추가 절차
 
+계약이 확정되기 전에는 코드를 쓰지 않는다 — 새 TR은 `/probe-tr` 스킬로 모의·실전 양쪽을 먼저 찍는다.
+
 1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 92개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
 2. `kiwoom/api.ts` — `fetch<X>()` 추가. JSDoc 첫 줄은 `/** ka10046 체결강도요청 */`처럼 **TR 코드 + 키움 공식 TR명**.
 3. `tools/<name>.ts` — `register<X>Tool(server)` + `export function format<X>(...)`. 핸들러는 얇게(입력 정규화 → fetch → format), 렌더링은 전부 순수 포맷터에.
@@ -65,6 +67,7 @@ tool 작성 관례:
 - 숫자/날짜 파싱·포맷은 `utils/num.ts` / `utils/date.ts`(`todayInKst`, `kstDaysAgo`, `assertDateRange`)만 쓴다. 직접 파싱 금지 — `parseKiwoomNumber`가 부호 접두사, 이중부호(`--23722054`, ka10061 실측), 콤마(`20,190`, kt00015)를 이미 흡수한다.
 - **가격 필드(`cur_prc`, `open_pric`, …)는 반드시 `parseKiwoomPrice`.** 키움은 가격 문자열의 `+`/`-`를 값의 부호가 아니라 **전일대비 방향**으로 쓴다 — 실제 가격은 절대값이고, 방향은 `pre_sig`/`pred_pre`에서 읽어야 한다. 여기에 `parseKiwoomNumber`를 쓰면 하락 종목의 가격이 음수로 렌더된다.
 - 표 아래 `※` 주석으로 지표 해석(무엇이 기준값인지, 최신 행이 위인지 등)을 덧붙인다.
+- 배열의 첫 원소는 `const [latest] = rows`로 꺼내고 그 falsy 검사로 빈 배열 가드를 겸한다. `rows[0]`은 `noUncheckedIndexedAccess`에 걸려 `possibly undefined`로 typecheck를 깬다.
 
 ## 테스트
 
@@ -84,6 +87,10 @@ tool 작성 관례:
 tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`. main 직접 커밋 대신 PR을 거친다.
 
 배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. npm 패키지는 `files: ["dist"]`라 `src/`·`tests/`·`.env`는 절대 포함되지 않는다 — 발행 후 tarball 내용을 확인할 것.
+
+- **npm → 레지스트리 순서**를 지킨다. 레지스트리는 발행된 npm 버전을 참조하므로 뒤집으면 검증에 걸린다.
+- **레지스트리 확인은 `&version=latest`로 한다.** `/v0/servers?search=...` 기본 응답은 낡은 버전을 돌려준다 — 그것만 보고 미발행으로 오독한 적이 있다. `isLatest`가 판정 기준.
+- **대화형 인증은 사용자에게 넘긴다** — `npm publish`는 브라우저 OTP, `mcp-publisher`는 토큰 만료 시 `login github` 디바이스 플로우가 필요하다. `! <command>`로 위임한다.
 
 ## 설정 / 모드
 

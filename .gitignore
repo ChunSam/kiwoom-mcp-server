@@ -15,6 +15,10 @@ dist/
 # Internal session handoffs — kept locally for continuity, not published
 plans/
 
+# Local agent config — 회고·세션 설정은 로컬, 스킬은 저장소 지식이라 커밋한다
+.claude/*
+!.claude/skills/
+
 # Owner-local live-test docs — contain real account data, never publish
 kiwoom-mcp-test-log.md
 kiwoom-mcp-test-prompts.md
