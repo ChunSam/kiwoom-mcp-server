@@ -146,6 +146,10 @@ def main() -> int:
         ("get_market_movers", {"signal": "plunge", "top": 3}),
         ("get_market_movers", {"signal": "volume_surge", "top": 3}),  # ka10023
         ("get_vi_stocks", {"top": 5}),  # ka10054
+        ("get_expected_execution", {"top": 3}),  # ka10029 — 동시호가 밖이면 빈 결과 경로
+        ("get_orderbook_rank", {"top": 3}),  # ka10020 — 장 시작 전이면 전 행 0 경로
+        ("get_orderbook_rank", {"view": "surge", "minutes": 30, "top": 3}),  # ka10021
+        ("get_orderbook_rank", {"view": "ratio_surge", "side": "sell", "top": 3}),  # ka10022
         ("get_investor_trend", {"stock_code": "005930"}),
         ("get_investor_rank", {"limit": 5}),  # ka90009 최근 거래일
         ("get_investor_rank", {"view": "streak", "limit": 5}),  # ka10131 코스피 5일

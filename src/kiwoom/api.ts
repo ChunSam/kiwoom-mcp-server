@@ -11,6 +11,9 @@ import {
   afterHoursRankItemSchema,
   allIndexResponseSchema,
   batchQuoteItemSchema,
+  bidBalanceResponseSchema,
+  bidRatioSurgeResponseSchema,
+  bidSurgeResponseSchema,
   brokerActivityResponseSchema,
   dailyAssetItemSchema,
   dailyChartItemSchema,
@@ -23,6 +26,7 @@ import {
   executionStrengthDailyResponseSchema,
   executionStrengthIntradayResponseSchema,
   executionsResponseSchema,
+  expectedExecutionResponseSchema,
   foreignHoldingResponseSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
@@ -63,6 +67,9 @@ import {
   type AfterHoursQuoteResponse,
   type AfterHoursRankItem,
   type BatchQuoteItem,
+  type BidBalanceItem,
+  type BidRatioSurgeItem,
+  type BidSurgeItem,
   type BrokerActivityResponse,
   type DailyAssetItem,
   type DailyChartItem,
@@ -74,6 +81,7 @@ import {
   type EtfReturnItem,
   type ExecutionItem,
   type ExecutionStrengthItem,
+  type ExpectedExecutionItem,
   type ForeignHoldingItem,
   type IndexItem,
   type InvestorDailyItem,
@@ -1392,4 +1400,149 @@ export async function fetchSectorCodes(
     body: { mrkt_tp: marketTp },
   });
   return sectorCodeListResponseSchema.parse(res.json).list;
+}
+
+/** 호가잔량 TR(ka10020/21/22)의 시장구분 — 이 셋만은 "000"(전체)을 받지 않는다. */
+export type BidMarket = "kospi" | "kosdaq";
+
+const BID_MARKET_CODES: Record<BidMarket, string> = { kospi: "001", kosdaq: "101" };
+
+export type ExpectedExecutionSort = "rise" | "fall" | "volume";
+
+/** ka10029 sort_tp — 1:상승률, 4:하락률, 6:체결량 (스펙; 2/5 등락폭·3 보합·7/8 상하한은 미노출). */
+const EXPECTED_SORT_CODES: Record<ExpectedExecutionSort, string> = {
+  rise: "1",
+  fall: "4",
+  volume: "6",
+};
+
+/**
+ * ka10029 예상체결등락률상위요청 — 동시호가의 예상체결가 기준 순위.
+ *
+ * **예상체결은 장 시작 동시호가(08:30~09:00)와 장 마감 동시호가(15:20~15:30)에만
+ * 존재한다.** 그 밖의 시간에는 rc=0에 0행으로 온다 (mock·REAL 실측 2026-08-03 07:45)
+ * — 실패가 아니라 시간대 문제이므로 호출부에서 그렇게 안내한다.
+ *
+ * 조건 인자(stk_cnd/crd_cnd/pric_cnd/trde_qty_cnd)는 전부 필수라 "전체조회"로 고정한다.
+ */
+export async function fetchExpectedExecution(
+  client: KiwoomClient,
+  market: RankingMarket,
+  sort: ExpectedExecutionSort,
+): Promise<ExpectedExecutionItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10029",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      sort_tp: EXPECTED_SORT_CODES[sort],
+      trde_qty_cnd: "0",
+      stk_cnd: "0",
+      crd_cnd: "0",
+      pric_cnd: "0",
+      stex_tp: "1",
+    },
+  });
+  return expectedExecutionResponseSchema.parse(res.json).exp_cntr_flu_rt_upper;
+}
+
+export type BidBalanceSort = "net_buy" | "net_sell" | "buy_ratio" | "sell_ratio";
+
+/** ka10020 sort_tp — 1:순매수잔량순, 2:순매도잔량순, 3:매수비율순, 4:매도비율순. */
+const BID_BALANCE_SORT_CODES: Record<BidBalanceSort, string> = {
+  net_buy: "1",
+  net_sell: "2",
+  buy_ratio: "3",
+  sell_ratio: "4",
+};
+
+/**
+ * ka10020 호가잔량상위요청 — 총매도/매수 잔량과 순매수 잔량 기준 순위.
+ * 200행/page (cont-yn Y) — 순위 TR 관례대로 page 1만 쓴다.
+ *
+ * **장 시작 전에는 200행이 오되 잔량·거래량이 전 행 0**이고 정렬도 무의미해져
+ * 종목코드순으로 온다 (mock·REAL 실측 2026-08-03 07:45).
+ */
+export async function fetchBidBalance(
+  client: KiwoomClient,
+  market: BidMarket,
+  sort: BidBalanceSort,
+): Promise<BidBalanceItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10020",
+    body: {
+      mrkt_tp: BID_MARKET_CODES[market],
+      sort_tp: BID_BALANCE_SORT_CODES[sort],
+      trde_qty_tp: "0000",
+      stk_cnd: "0",
+      crd_cnd: "0",
+      stex_tp: "1",
+    },
+  });
+  return bidBalanceResponseSchema.parse(res.json).bid_req_upper;
+}
+
+/** ka10021/ka10022의 거래량 하한 — 두 TR이 같은 코드 체계를 쓴다. */
+export type BidSurgeMinVolume = "1000" | "5000" | "10000" | "50000" | "100000";
+
+const BID_SURGE_VOLUME_CODES: Record<BidSurgeMinVolume, string> = {
+  "1000": "1",
+  "5000": "5",
+  "10000": "10",
+  "50000": "50",
+  "100000": "100",
+};
+
+/**
+ * ka10021 호가잔량급증요청 — `minutes` 동안 매수(또는 매도) 잔량이 급증한 종목.
+ * 장중에만 의미가 있고 그 밖의 시간에는 0행이다 (실측 2026-08-03 07:45).
+ */
+export async function fetchBidSurge(
+  client: KiwoomClient,
+  market: BidMarket,
+  side: "buy" | "sell",
+  minutes: number,
+  minVolume: BidSurgeMinVolume,
+): Promise<BidSurgeItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10021",
+    body: {
+      mrkt_tp: BID_MARKET_CODES[market],
+      trde_tp: side === "buy" ? "1" : "2",
+      sort_tp: "2", // 급증률순 — 급증량순(1)은 대형주만 위로 올라온다
+      tm_tp: String(minutes),
+      trde_qty_tp: BID_SURGE_VOLUME_CODES[minVolume],
+      stk_cnd: "0",
+      stex_tp: "1",
+    },
+  });
+  return bidSurgeResponseSchema.parse(res.json).bid_req_sdnin;
+}
+
+/**
+ * ka10022 잔량율급증요청 — 잔량의 '수량'이 아니라 매수/매도 '비율'이 급증한 종목.
+ * 장중 전용인 것은 ka10021과 같다.
+ */
+export async function fetchBidRatioSurge(
+  client: KiwoomClient,
+  market: BidMarket,
+  side: "buy" | "sell",
+  minutes: number,
+  minVolume: BidSurgeMinVolume,
+): Promise<BidRatioSurgeItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10022",
+    body: {
+      mrkt_tp: BID_MARKET_CODES[market],
+      rt_tp: side === "buy" ? "1" : "2",
+      tm_tp: String(minutes),
+      trde_qty_tp: BID_SURGE_VOLUME_CODES[minVolume],
+      stk_cnd: "0",
+      stex_tp: "1",
+    },
+  });
+  return bidRatioSurgeResponseSchema.parse(res.json).req_rt_sdnin;
 }
