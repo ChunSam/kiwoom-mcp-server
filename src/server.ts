@@ -15,12 +15,14 @@ import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerExecutionStrengthTool } from "./tools/execution-strength.js";
 import { registerExpectedExecutionTool } from "./tools/expected-execution.js";
 import { registerForeignHoldingTool } from "./tools/foreign-holding.js";
+import { registerForeignIntradayTool } from "./tools/foreign-intraday.js";
 import { registerInvestorRankTool } from "./tools/investor-rank.js";
 import { registerInstitutionTrendTool } from "./tools/institution-trend.js";
 import { registerInvestorTrendTool } from "./tools/investor-trend.js";
 import { registerIsaTaxStatusTool } from "./tools/isa-tax-status.js";
 import { registerMarketIndexTool } from "./tools/market-index.js";
 import { registerMarketMoversTool } from "./tools/market-movers.js";
+import { registerNetBuyRankTool } from "./tools/net-buy-rank.js";
 import { registerOrderExecutionsTool } from "./tools/order-executions.js";
 import { registerOrderbookRankTool } from "./tools/orderbook-rank.js";
 import { registerOrderbookTool } from "./tools/orderbook.js";
@@ -46,7 +48,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.35.0";
+export const SERVER_VERSION = "0.36.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -78,6 +80,8 @@ export function createServer(): McpServer {
   registerInvestorTrendTool(server);
   registerInstitutionTrendTool(server);
   registerInvestorRankTool(server);
+  registerNetBuyRankTool(server);
+  registerForeignIntradayTool(server);
   registerBrokerActivityTool(server);
   registerEtfInfoTool(server);
   registerEtfReturnsTool(server);

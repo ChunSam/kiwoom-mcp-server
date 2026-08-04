@@ -159,6 +159,14 @@ def main() -> int:
         ("get_investor_rank", {"limit": 5}),  # ka90009 최근 거래일
         ("get_investor_rank", {"view": "streak", "limit": 5}),  # ka10131 코스피 5일
         ("get_broker_activity", {"stock_code": "005930"}),  # ka10002
+        # ka10066 — 코스피 1,318종목 14페이지 전량 스윕 경로 (~16s). 순위가 아니라
+        # 코드순으로 오는 TR이라 클라이언트 정렬이 실제로 도는지까지 본다.
+        ("get_net_buy_rank", {"subject": "pension", "market": "kospi", "top": 3}),
+        ("get_net_buy_rank", {"subject": "trust", "market": "kosdaq", "direction": "bottom",
+                              "unit": "quantity", "top": 3}),  # 순매도 상위 + 수량 경로
+        # ka10063 — 정규장 밖에서는 빈 결과가 정상이다 (오류 아님).
+        ("get_foreign_intraday", {"top": 3}),
+        ("get_foreign_intraday", {"market": "kospi", "direction": "sell", "unit": "quantity", "top": 3}),
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_info", {"stock_code": "005930"}),  # non-ETF guard path (shared ka40002 discriminator)
         ("get_etf_returns", {"stock_code": "069500"}),
