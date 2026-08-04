@@ -345,21 +345,78 @@ export const minuteChartItemSchema = z.looseObject({
 
 export type MinuteChartItem = z.infer<typeof minuteChartItemSchema>;
 
-// ── ka10004: 주식호가 — level 1 uses *_fpr_* keys, levels 2-10 use sel_/buy_Nth_pre_* ──
-// (live-verified key shapes; levels 2-10 are read via the loose passthrough)
+// ── ka10007: 시세표성정보 — 10단계 호가 + 시세 요약 (스칼라 126개 중 쓰는 것만) ──
+//
+// v0.37.0에서 ka10004(주식호가)를 이 TR로 갈아탔다. **통합(_AL)을 받는 유일한 호가 TR**이라
+// 그렇다 — ka10004는 `_AL`을 줘도 KRX 값만 돌려준다. 실측 2026-08-04 13:56 005930:
+// 매수1 잔량이 KRX 18,421 / NXT 17,081 / 통합 36,319으로, 통합 = KRX + NXT다(10단계 전부
+// 확인, 오차는 초 단위 스냅샷 차이 수준). KRX로 부르면 잔량이 ka10004와 그대로 일치한다.
+//
+// 선언하지 않은 필드와 그 이유:
+//  - `pred_close_pric` — 통합/NXT로 부르면 233,500이 오는데 같은 응답의 `flu_rt`는 KRX
+//    전일종가 239,500 기준이다(−3.34% 역산 확인). 한 응답 안에서 기준이 갈려 못 쓴다.
+//  - `sel_1~5bid_cnt`·`buy_1~5bid_cnt`·`tot_buy_cnt` 호가건수 — 005930·069500·247540
+//    전부 빈 문자열. 키움이 안 채운다(ka10015 수급 컬럼과 같은 부류).
+//  - `hgst_pric`·`lwst_pric`(+`_dt`), `cntr_qty` — 전 종목 빈 문자열.
+//  - `exp_cntr_pric`·`exp_cntr_qty` 예상체결 — 정규장 중에는 그날 시가 동시호가 결과에
+//    멈춰 있다(13:56에 3회 연속 244,500 / 561,409 = 시가·시가 체결량).
+//  - `lpsel_*`·`lpbuy_*` LP호가 — KRX로 부를 때만 채워지고 통합에서는 빈 문자열이라,
+//    통합 기준을 유지하는 한 렌더할 수 없다.
 
-export const orderbookResponseSchema = z.looseObject({
+export const quoteTableResponseSchema = z.looseObject({
   ...envelope,
-  bid_req_base_tm: str(), // 호가 기준시각 HHmmss
-  sel_fpr_bid: str(), // 매도최우선호가
-  sel_fpr_req: str(), // 매도최우선잔량
-  buy_fpr_bid: str(),
-  buy_fpr_req: str(),
+  stk_cd: code(), // 통합 조회는 "005930_AL"로 돌아온다
+  stk_nm: str(), // 없는 코드는 rc=0 + 전 필드 공백 → 빈 문자열이 "못 찾음" 신호
+  tm: str(), // 조회 시각 HHmmss
+  cur_prc: str(), // 부호는 전일대비 방향 (parseKiwoomPrice)
+  smbol: str(), // 대비기호 1상한 2상승 3보합 4하한 5하락 (ka10001 pre_sig와 같은 코드계)
+  flu_rt: str(), // 등락률(%) — KRX 전일종가 기준
+  trde_qty: str(),
+  sel_1bid: str(),
+  sel_2bid: str(),
+  sel_3bid: str(),
+  sel_4bid: str(),
+  sel_5bid: str(),
+  sel_6bid: str(),
+  sel_7bid: str(),
+  sel_8bid: str(),
+  sel_9bid: str(),
+  sel_10bid: str(),
+  sel_1bid_req: str(),
+  sel_2bid_req: str(),
+  sel_3bid_req: str(),
+  sel_4bid_req: str(),
+  sel_5bid_req: str(),
+  sel_6bid_req: str(),
+  sel_7bid_req: str(),
+  sel_8bid_req: str(),
+  sel_9bid_req: str(),
+  sel_10bid_req: str(),
+  buy_1bid: str(),
+  buy_2bid: str(),
+  buy_3bid: str(),
+  buy_4bid: str(),
+  buy_5bid: str(),
+  buy_6bid: str(),
+  buy_7bid: str(),
+  buy_8bid: str(),
+  buy_9bid: str(),
+  buy_10bid: str(),
+  buy_1bid_req: str(),
+  buy_2bid_req: str(),
+  buy_3bid_req: str(),
+  buy_4bid_req: str(),
+  buy_5bid_req: str(),
+  buy_6bid_req: str(),
+  buy_7bid_req: str(),
+  buy_8bid_req: str(),
+  buy_9bid_req: str(),
+  buy_10bid_req: str(),
   tot_sel_req: str(),
   tot_buy_req: str(),
 });
 
-export type OrderbookResponse = z.infer<typeof orderbookResponseSchema>;
+export type QuoteTableResponse = z.infer<typeof quoteTableResponseSchema>;
 
 // ── ka20003: 전업종지수 (inds_cd 001=코스피 그룹, 101=코스닥 그룹) ──
 

@@ -43,12 +43,12 @@ import {
   limitStockItemSchema,
   minuteChartItemSchema,
   newHighLowItemSchema,
-  orderbookResponseSchema,
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
   priceJumpItemSchema,
   programTradeItemSchema,
   programTrendItemSchema,
+  quoteTableResponseSchema,
   realizedPnlResponseSchema,
   sectorCodeListResponseSchema,
   sectorNetBuyResponseSchema,
@@ -107,12 +107,12 @@ import {
   type LimitStockItem,
   type MinuteChartItem,
   type NewHighLowItem,
-  type OrderbookResponse,
   type PendingOrderItem,
   type PriceChangeRankItem,
   type PriceJumpItem,
   type ProgramTradeItem,
   type ProgramTrendItem,
+  type QuoteTableResponse,
   type RealizedPnlResponse,
   type SectorCodeItem,
   type SectorNetBuyItem,
@@ -526,14 +526,20 @@ export async function fetchSectorIntradayChart(
   return parseArray(res.json, isTick ? "inds_tic_chart_qry" : "inds_min_pole_qry", minuteChartItemSchema);
 }
 
-/** ka10004 주식호가 — 10-level orderbook; levels 2-10 live in the loose passthrough. */
-export async function fetchOrderbook(client: KiwoomClient, stockCode: string): Promise<OrderbookResponse> {
+/**
+ * ka10007 시세표성정보 — 10단계 호가 + 시세 요약.
+ *
+ * 호가를 통합(KRX+NXT)으로 받으려면 이 TR이어야 한다 — ka10004(주식호가)는 `_AL`을 줘도
+ * KRX 잔량만 돌려준다. 두 TR의 KRX 잔량이 같은 시점에 일치함을 확인하고 갈아탔다
+ * (실측 2026-08-04 13:56 005930 10단계 전부).
+ */
+export async function fetchQuoteTable(client: KiwoomClient, stockCode: string): Promise<QuoteTableResponse> {
   const res = await client.call({
     path: MRKCOND_PATH,
-    apiId: "ka10004",
-    body: { stk_cd: stockCode },
+    apiId: "ka10007",
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
-  return orderbookResponseSchema.parse(res.json);
+  return quoteTableResponseSchema.parse(res.json);
 }
 
 /** ka20003 전업종지수 — inds_cd "001"=코스피 그룹(31개), "101"=코스닥 그룹(34개). */

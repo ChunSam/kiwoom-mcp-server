@@ -31,7 +31,7 @@ allowance.
 | `get_stock_quotes` | Batch quotes for up to 30 stocks in one call — price, change, volume, value, market cap | ka10095, ka10099 |
 | `get_stock_chart` | Daily/weekly/monthly/yearly/minute/tick candles (adjusted price) | ka10079~83, ka10094 |
 | `get_daily_trading` | Per-day trading and flows — close, value traded, retail/institution/foreign net buying, program, margin ratio; or the pre-market / regular / post-market volume split | ka10086, ka10015 |
-| `get_orderbook` | 10-level ask/bid quotes and sizes | ka10004 |
+| `get_orderbook` | 10-level ask/bid quotes and sizes (combined basis) | ka10007 |
 | `get_orderbook_rank` | Market-wide ranking of resting order size, and of stocks whose bid/ask size or ratio surged (regular session only) | ka10020~22 |
 | `get_market_index` | KOSPI/KOSDAQ composite and sector indices | ka20003 |
 | `get_sector_price` | Sector index detail (breadth / 52-week range / intraday trend) | ka20001 |
@@ -105,10 +105,12 @@ Electronics, measured intraday on 2026-08-03, was KRX 19.2M / NXT 15.5M /
 **combined 34.7M**. If a number disagrees with an HTS or portal screen that shows
 KRX only, this is usually why.
 
-Two exceptions: the **order book (`get_orderbook`) and broker activity
-(`get_broker_activity`) stay on KRX** — Kiwoom does not serve them combined. And
-**`get_after_hours`** cannot be queried combined at all; NXT-enabled symbols are
-absent from that TR to begin with.
+Two exceptions: **broker activity (`get_broker_activity`) stays on KRX** —
+Kiwoom does not serve it combined. And **`get_after_hours`** cannot be queried
+combined at all; NXT-enabled symbols are absent from that TR to begin with. The
+order book moved to the combined basis in v0.37.0: it now uses ka10007 instead of
+ka10004. Samsung Electronics, measured intraday on 2026-08-04, had best-bid size
+of KRX 18,421 / NXT 17,081 / **combined 36,319**.
 
 ### Notes on `calc_isa_tax_status`
 
