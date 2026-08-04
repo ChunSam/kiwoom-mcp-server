@@ -1638,6 +1638,74 @@ export const accountTodayStatusSchema = z.looseObject({
 
 export type AccountTodayStatus = z.infer<typeof accountTodayStatusSchema>;
 
+// ── ka50010: 금현물체결 ──
+
+/**
+ * KRX 금시장 체결(틱). 최신 체결이 위이고 `tm`은 HHmmss다.
+ *
+ * `acc_trde_prica`가 **원 단위**라는 점이 ka50012(백만원)와 다르다 — 같은 종목 같은 날인데
+ * 18,154,047,200 vs 18,154로 자릿수가 갈린다(실측 2026-08-04 M04020000).
+ * `cntr_trde_qty`에는 `+1`·`-2`처럼 체결 방향 부호가 붙으므로 수량은 절대값으로 읽는다.
+ */
+export const goldContractResponseSchema = z.looseObject({
+  ...envelope,
+  gold_cntr: z
+    .array(
+      z.looseObject({
+        cntr_pric: str(), // 체결가
+        pred_pre: str(), // 전일대비
+        flu_rt: str(), // 등락률
+        trde_qty: str(), // 누적 거래량(g)
+        acc_trde_prica: str(), // 누적 거래대금(원)
+        cntr_trde_qty: str(), // 체결량 — 부호는 방향
+        tm: str(), // HHmmss
+        pre_sig: str(),
+        pri_sel_bid_unit: str(), // 최우선 매도호가
+        pri_buy_bid_unit: str(), // 최우선 매수호가
+        trde_pre: str(), // 거래비중
+        trde_tern_rt: str(), // 회전율
+        cntr_str: str(), // 체결강도
+      }),
+    )
+    .default([]),
+});
+
+export type GoldContractItem = z.infer<typeof goldContractResponseSchema>["gold_cntr"][number];
+
+// ── ka50012: 금현물일별추이 ──
+
+/**
+ * KRX 금시장 일별 시세 + 투자자 3주체 순매수. 최신 일자가 위.
+ *
+ * `for_netprps`는 30행 내내 `0`이었다(실측 2026-08-04 M04020000·M04020100 양쪽) —
+ * 금현물에 외국인 수급이 없다는 뜻인지 미제공인지 확정하지 못했으므로 표기할 때
+ * "0"으로 단정하지 않는다. `acc_trde_prica`는 **백만원** 단위다(ka50010은 원).
+ */
+export const goldDailyResponseSchema = z.looseObject({
+  ...envelope,
+  gold_daly_trnsn: z
+    .array(
+      z.looseObject({
+        dt: str(), // yyyyMMdd
+        cur_prc: str(), // 종가
+        pred_pre: str(),
+        flu_rt: str(),
+        trde_qty: str(), // 거래량(g)
+        acc_trde_prica: str(), // 거래대금(백만원)
+        open_pric: str(),
+        high_pric: str(),
+        low_pric: str(),
+        pre_sig: str(),
+        orgn_netprps: str(), // 기관 순매수
+        for_netprps: str(), // 외국인 순매수
+        ind_netprps: str(), // 개인 순매수
+      }),
+    )
+    .default([]),
+});
+
+export type GoldDailyItem = z.infer<typeof goldDailyResponseSchema>["gold_daly_trnsn"][number];
+
 /** Strips Kiwoom's asset-class prefix (e.g. "A005930" → "005930"). */
 export function normalizeStockCode(code: string): string {
   return code.replace(/^[A-Z]/, "");

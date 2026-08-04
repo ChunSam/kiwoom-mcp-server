@@ -60,6 +60,7 @@ allowance.
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
 | `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |
 | `get_execution_strength` | Execution-strength trend (buy÷sell executed volume ×100; 100 = balanced) — 60 sessions daily or 60 minutes intraday | ka10046, ka10047 |
+| `get_gold_price` | KRX gold spot quotes (1Kg / mini 100g) — daily trend with institution & retail net buying, or intraday ticks | ka50012, ka50010 |
 
 **Watchlist** (interest-stock groups saved in the 영웅문 HTS client — read-only):
 

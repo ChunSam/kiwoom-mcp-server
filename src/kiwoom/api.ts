@@ -34,6 +34,8 @@ import {
   executionsResponseSchema,
   expectedExecutionResponseSchema,
   foreignHoldingResponseSchema,
+  goldContractResponseSchema,
+  goldDailyResponseSchema,
   institutionTrendResponseSchema,
   intradayForeignResponseSchema,
   investorDailyItemSchema,
@@ -100,6 +102,8 @@ import {
   type ExecutionStrengthItem,
   type ExpectedExecutionItem,
   type ForeignHoldingItem,
+  type GoldContractItem,
+  type GoldDailyItem,
   type InstitutionTrendResponse,
   type IndexItem,
   type IntradayForeignItem,
@@ -2038,4 +2042,55 @@ export async function fetchSupplyConcentration(
 export async function fetchAccountTodayStatus(client: KiwoomClient): Promise<AccountTodayStatus> {
   const res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00017", body: {} });
   return accountTodayStatusSchema.parse(res.json);
+}
+
+/**
+ * KRX 금현물 종목코드 — **`M` 접두어가 필수**다.
+ *
+ * KRX 표기 그대로인 `04020000`은 rc=0인데 **0행**이라 "데이터 없음"과 구분되지 않는다
+ * (실측 2026-08-04: `0402`·`040200`·`KRD040200000`·`_AL` 접미사 등 11개 후보 전부 0행,
+ * `M04020000`에서만 행이 나왔다). 금현물엔 ka10099 같은 종목 마스터가 없어 사용자가 코드를
+ * 알아낼 방법이 없으므로, tool 입력은 코드가 아니라 이 두 갈래 enum으로 받는다.
+ */
+export const GOLD_INSTRUMENTS = {
+  "1kg": { code: "M04020000", label: "금 99.99_1Kg" },
+  "100g": { code: "M04020100", label: "미니금 99.99_100g" },
+} as const;
+
+export type GoldInstrument = keyof typeof GOLD_INSTRUMENTS;
+
+/**
+ * ka50010 금현물체결 — KRX 금시장 틱 체결. 최신이 위, 100행/페이지.
+ *
+ * 금시장은 KRX 단독이라 `stex_tp`를 받지 않는다 — 통합(`_AL`) 규약과 무관하다.
+ * 첫 페이지만 쓴다(100틱이면 최근 흐름을 보기 충분하고, cont=Y로 계속 이어진다).
+ */
+export async function fetchGoldContracts(
+  client: KiwoomClient,
+  instrument: GoldInstrument,
+): Promise<GoldContractItem[]> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka50010",
+    body: { stk_cd: GOLD_INSTRUMENTS[instrument].code },
+  });
+  return goldContractResponseSchema.parse(res.json).gold_cntr;
+}
+
+/**
+ * ka50012 금현물일별추이 — 일별 시세 + 투자자 3주체 순매수. 최신이 위, 30행/페이지.
+ *
+ * `base_dt`(yyyyMMdd)가 필수이고 그 날짜부터 과거로 30행을 준다. 첫 페이지만 쓴다.
+ */
+export async function fetchGoldDaily(
+  client: KiwoomClient,
+  instrument: GoldInstrument,
+  baseDate: string,
+): Promise<GoldDailyItem[]> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka50012",
+    body: { stk_cd: GOLD_INSTRUMENTS[instrument].code, base_dt: baseDate },
+  });
+  return goldDailyResponseSchema.parse(res.json).gold_daly_trnsn;
 }
