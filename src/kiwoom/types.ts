@@ -1713,6 +1713,85 @@ export type ForeignPeriodTradeItem = z.infer<
   typeof foreignPeriodTradeResponseSchema
 >["for_dt_trde_upper"][number];
 
+// ── ka10033: 신용비율상위 ──
+
+/**
+ * 신용융자 잔고비율이 높은 종목. `crd_rt` 내림차순.
+ *
+ * `updown_incls`·`stk_cnd`는 필수인데 **값을 바꿔도 100행 첫 행이 같아** 노출하지 않는다.
+ * 실제로 듣는 건 `trde_qty_tp`(거래량 하한)뿐이다 — 0000·0050은 같고 0500에서 모수가 바뀐다.
+ * `stk_infr`(종목정보 "28" 등)은 의미를 확정하지 못해 선언하지 않는다.
+ */
+export const creditRatioRankResponseSchema = z.looseObject({
+  ...envelope,
+  crd_rt_upper: z
+    .array(
+      z.looseObject({
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pred_pre_sig: str(),
+        pred_pre: str(),
+        flu_rt: str(),
+        crd_rt: str(), // 신용비율 (정렬 기준)
+        sel_req: str(), // 매도잔량
+        buy_req: str(), // 매수잔량
+        now_trde_qty: str(),
+      }),
+    )
+    .default([]),
+});
+
+export type CreditRatioRankItem = z.infer<
+  typeof creditRatioRankResponseSchema
+>["crd_rt_upper"][number];
+
+// ── ka10062: 동일순매매순위 ──
+
+/**
+ * 기관과 외국인이 **동시에** 같은 방향으로 순매매한 종목 + 각각의 추정 평균단가.
+ * 두 주체의 방향이 겹치는 지점만 뽑아 주는 건 이 TR뿐이라 단독 tool로 냈다.
+ *
+ * ⚠️ **한 행 안에서 단위가 갈린다** — 수량은 **천주**, 금액은 **백만원**, 평균단가는 **원**이다.
+ * `orgn_nettrde_qty × orgn_nettrde_avg_pric ÷ orgn_nettrde_amt`가 5종목에서 991·987·970·1028로
+ * ≈1,000인 반면 같은 행의 `acc_trde_qty`는 주 단위다(파마리서치 251,994주).
+ *
+ * ⚠️ `orgn_nettrde_avg_pric`에 **32비트 포화값 −2,147,483**(=−2³¹/1000)이 실재한다(효성중공업).
+ *
+ * ⚠️ `trde_tp`는 0을 노출하지 않는다 — 실측으로 **0과 2는 같은 100종목에 부호만 반대**다
+ * (한온시스템 tp0 net=+3195 / tp2 net=--3195, 공통 100/100). 0을 쓰면 순매도 종목이
+ * 순매수처럼 양수로 렌더된다. 1(순매수)과 2(순매도)만 쓴다.
+ */
+export const equalNetTradeRankResponseSchema = z.looseObject({
+  ...envelope,
+  eql_nettrde_rank: z
+    .array(
+      z.looseObject({
+        rank: str(),
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pre_sig: str(),
+        pred_pre: str(),
+        flu_rt: str(),
+        acc_trde_qty: str(), // 누적 거래량 (주 단위)
+        orgn_nettrde_qty: str(), // 기관 순매매 (천주)
+        orgn_nettrde_amt: str(), // 기관 순매매 (백만원)
+        orgn_nettrde_avg_pric: str(), // 기관 추정 평균단가 (원, 포화값 주의)
+        for_nettrde_qty: str(), // 외국인 순매매 (천주)
+        for_nettrde_amt: str(), // 외국인 순매매 (백만원)
+        for_nettrde_avg_pric: str(),
+        nettrde_qty: str(), // 합계 순매매 (천주)
+        nettrde_amt: str(), // 합계 순매매 (백만원)
+      }),
+    )
+    .default([]),
+});
+
+export type EqualNetTradeRankItem = z.infer<
+  typeof equalNetTradeRankResponseSchema
+>["eql_nettrde_rank"][number];
+
 // ── ka10037: 외국계창구매매상위 ──
 
 /**

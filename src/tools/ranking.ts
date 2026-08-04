@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getKiwoomContext } from "../context.js";
 import {
+  fetchCreditRatioRank,
   fetchOpenPriceChange,
   fetchPriceChangeRanking,
   fetchValueRanking,
@@ -12,6 +13,7 @@ import {
   type RankingMarket,
 } from "../kiwoom/api.js";
 import type {
+  CreditRatioRankItem,
   OpenPriceChangeItem,
   PriceChangeRankItem,
   ValueRankItem,
@@ -39,6 +41,7 @@ const KIND_LABELS = {
   value: "거래대금 상위",
   open_rise: "시가대비 상승률 상위",
   open_fall: "시가대비 하락률 상위",
+  credit_ratio: "신용비율 상위",
 } as const;
 export type RankingKind = keyof typeof KIND_LABELS;
 
@@ -84,7 +87,13 @@ function sortByOpenChange(items: OpenPriceChangeItem[], descending: boolean): Op
 export function formatRanking(
   kind: RankingKind,
   market: RankingMarket,
-  items: Array<PriceChangeRankItem | VolumeRankItem | ValueRankItem | OpenPriceChangeItem>,
+  items: Array<
+    | PriceChangeRankItem
+    | VolumeRankItem
+    | ValueRankItem
+    | OpenPriceChangeItem
+    | CreditRatioRankItem
+  >,
   top: number,
   modeLabel: string,
   options?: { minVolume?: OpenChangeMinVolume; truncated?: boolean },
@@ -106,13 +115,18 @@ export function formatRanking(
     "",
   ];
   const withValue = kind === "volume" || kind === "value";
+  const isCredit = kind === "credit_ratio";
   lines.push(
-    isOpenChange
+    isCredit
+      ? "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 신용비율 | 거래량 | 매수잔량 | 매도잔량 |"
+      : isOpenChange
       ? "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 시가 | 시가대비 | 거래량 | 체결강도 |"
       : withValue
         ? "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 거래량 | 거래대금(백만원) |"
         : "| 순위 | 종목명 | 코드 | 현재가 | 등락률 | 거래량 |",
-    isOpenChange
+    isCredit
+      ? "|---:|---|---|---:|---:|---:|---:|---:|---:|"
+      : isOpenChange
       ? "|---:|---|---|---:|---:|---:|---:|---:|---:|"
       : withValue
         ? "|---:|---|---|---:|---:|---:|---:|"
@@ -121,7 +135,15 @@ export function formatRanking(
 
   shown.forEach((item, i) => {
     const cells = commonCells(i + 1, item);
-    if (isOpenChange) {
+    if (isCredit) {
+      const v = item as CreditRatioRankItem;
+      cells.push(
+        formatPercent(parseKiwoomNumber(v.crd_rt)),
+        formatNumber(parseKiwoomNumber(v.now_trde_qty)),
+        formatNumber(parseKiwoomNumber(v.buy_req)),
+        formatNumber(parseKiwoomNumber(v.sel_req)),
+      );
+    } else if (isOpenChange) {
       const v = item as OpenPriceChangeItem;
       cells.push(
         formatNumber(parseKiwoomPrice(v.open_pric)),
@@ -149,6 +171,14 @@ export function formatRanking(
       "※ 체결강도 = 매수 체결량 ÷ 매도 체결량 × 100 (100이 균형). 종목별 추이는 get_execution_strength.",
     );
   }
+  if (isCredit) {
+    lines.push(
+      "",
+      "※ 신용비율 = 신용융자 잔고 / 상장주식수. 높을수록 빚으로 산 물량이 많아 반대매매·" +
+        "만기 청산 압력이 크다는 뜻이며, 그 자체로 방향 신호는 아닙니다.",
+      "※ 종목별 신용잔고의 시계열 추이는 get_credit_trend를 쓰세요.",
+    );
+  }
   if (options?.truncated) {
     lines.push("", "⚠️ 페이지 상한에 걸려 결과가 잘렸을 수 있습니다 — 거래량 하한을 올려 다시 조회하세요.");
   }
@@ -162,16 +192,18 @@ export function registerRankingTool(server: McpServer): void {
     {
       title: "시장 순위 조회",
       description:
-        "당일 시장 순위를 조회합니다 (키움 ka10027/ka10030/ka10032/ka10028). type: rise(상승률)/" +
+        "당일 시장 순위를 조회합니다 (키움 ka10027/ka10030/ka10032/ka10028/ka10033). type: rise(상승률)/" +
         "fall(하락률)/volume(거래량)/value(거래대금)/open_rise(시가대비 상승률)/" +
-        "open_fall(시가대비 하락률). market: all(전체, 기본)/kospi/kosdaq. " +
+        "open_fall(시가대비 하락률)/credit_ratio(신용비율). market: all(전체, 기본)/kospi/kosdaq. " +
         "rise·fall은 전일 종가 기준이고 open_rise·open_fall은 **오늘 시가 기준**이라, " +
         "갭으로 뜬 뒤 밀렸는지 장중에 밀어올렸는지를 가릅니다(체결강도 컬럼 포함). " +
         "시가대비 두 종류는 시장 전 종목을 훑어야 해서 market이 kospi 또는 kosdaq여야 하고, " +
-        "min_volume(거래량 하한, 기본 1만주)으로 모수를 좁힙니다.",
+        "min_volume(거래량 하한, 기본 1만주)으로 모수를 좁힙니다. " +
+        "credit_ratio는 신용융자 잔고비율이 높은 종목으로, 반대매매 압력이 쌓인 곳을 찾을 때 씁니다 — " +
+        "특정 종목의 신용잔고 시계열은 get_credit_trend를 쓰세요.",
       inputSchema: {
         type: z
-          .enum(["rise", "fall", "volume", "value", "open_rise", "open_fall"])
+          .enum(["rise", "fall", "volume", "value", "open_rise", "open_fall", "credit_ratio"])
           .describe("순위 종류"),
         market: z
           .enum(["all", "kospi", "kosdaq"])
@@ -181,7 +213,7 @@ export function registerRankingTool(server: McpServer): void {
           .enum(MIN_VOLUME_VALUES)
           .optional()
           .describe(
-            "거래량 하한 — open_rise/open_fall에서만 사용. 0010=1만주(기본)/0050=5만주/" +
+            "거래량 하한 — open_rise/open_fall/credit_ratio에서 사용. 0010=1만주(기본)/0050=5만주/" +
               "0100=10만주/0500=50만주",
           ),
         top: z
@@ -198,6 +230,11 @@ export function registerRankingTool(server: McpServer): void {
         const { client, config } = getKiwoomContext();
         const m: RankingMarket = market ?? "all";
         const count = top ?? DEFAULT_TOP;
+
+        if (type === "credit_ratio") {
+          const rows = await fetchCreditRatioRank(client, m, min_volume ?? DEFAULT_MIN_VOLUME);
+          return textResult(formatRanking(type, m, rows, count, config.modeLabel));
+        }
 
         if (type === "open_rise" || type === "open_fall") {
           // ka10028은 전체 시장을 훑으면 30페이지에도 끝나지 않아 MAX_PAGES에 걸린다.
