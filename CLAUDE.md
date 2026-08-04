@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-키움증권 REST API를 **읽기 전용**으로 노출하는 MCP 서버. TypeScript(ESM, NodeNext) + `@modelcontextprotocol/sdk` + zod. 기본 45개 tool, ISA 세금 tool 1개는 opt-in.
+키움증권 REST API를 **읽기 전용**으로 노출하는 MCP 서버. TypeScript(ESM, NodeNext) + `@modelcontextprotocol/sdk` + zod. 기본 47개 tool, ISA 세금 tool 1개는 opt-in.
 
 ## 명령어
 
@@ -14,7 +14,7 @@ python3 scripts/sweep.py          # 전체 tool 실전 스윕 (VIRTUAL 기본, .
 python3 scripts/sweep.py --real    # REAL 모드 명시 허용
 ```
 
-`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 4곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)만 `err(exp)`.
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 4곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
 
 ## 아키텍처
 
@@ -49,7 +49,7 @@ utils/          num/date/redact/sleep/stock-code
 
 계약이 확정되기 전에는 코드를 쓰지 않는다 — 새 TR은 `/probe-tr` 스킬로 모의·실전 양쪽을 먼저 찍는다.
 
-1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 94개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
+1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 98개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
 2. `kiwoom/api.ts` — `fetch<X>()` 추가. JSDoc 첫 줄은 `/** ka10046 체결강도요청 */`처럼 **TR 코드 + 키움 공식 TR명**.
 3. `tools/<name>.ts` — `register<X>Tool(server)` + `export function format<X>(...)`. 핸들러는 얇게(입력 정규화 → fetch → format), 렌더링은 전부 순수 포맷터에.
 4. `server.ts`에 등록 (해당 섹션 주석 아래).
@@ -73,7 +73,7 @@ tool 작성 관례:
 
 - vitest, `tests/*.test.ts`. **네트워크를 타지 않는다** — 포맷터·파서·설정·전송선택 같은 순수 로직만 검증.
 - fixture는 mockapi/실계좌에서 **실측한 응답을 그대로** 넣고, 언제 어느 TR/종목에서 땄는지 주석으로 남긴다. 빈 문자열·이상한 값도 손대지 않는다 — 그 이상함이 보통 테스트의 이유다.
-- TR 응답 fixture는 **반드시** `types.ts`의 스키마로 `.parse()`해서 넣는다 — 현재 TR 응답을 다루는 27개 파일 전부가 예외 없이 이렇게 한다. 스키마와 fixture가 같이 어긋나는 걸 막는 장치다. (순수 유틸·전송·OAuth 테스트는 애초에 TR 응답을 다루지 않으므로 해당 없음.)
+- TR 응답 fixture는 **반드시** `types.ts`의 스키마로 `.parse()`해서 넣는다 — 현재 TR 응답을 다루는 29개 파일 전부가 예외 없이 이렇게 한다. 스키마와 fixture가 같이 어긋나는 걸 막는 장치다. (순수 유틸·전송·OAuth 테스트는 애초에 TR 응답을 다루지 않으므로 해당 없음.)
 - "왜 이 폴백이 필요한가"를 아는 테스트는 그 근거를 주석에 남긴다 (예: ka10047은 `trde_qty`가 전 행 공백이라 `acc_trde_qty`로 폴백).
 
 ## 버전 / 릴리스

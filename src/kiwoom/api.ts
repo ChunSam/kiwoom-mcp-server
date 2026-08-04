@@ -11,6 +11,7 @@ import {
   accountTodayStatusSchema,
   afterHoursQuoteResponseSchema,
   afterHoursRankItemSchema,
+  afterMarketInvestorResponseSchema,
   allIndexResponseSchema,
   batchQuoteItemSchema,
   bidBalanceResponseSchema,
@@ -33,6 +34,7 @@ import {
   expectedExecutionResponseSchema,
   foreignHoldingResponseSchema,
   institutionTrendResponseSchema,
+  intradayForeignResponseSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
   investorStreakItemSchema,
@@ -74,6 +76,7 @@ import {
   type AccountTodayStatus,
   type AfterHoursQuoteResponse,
   type AfterHoursRankItem,
+  type AfterMarketInvestorItem,
   type BatchQuoteItem,
   type BidBalanceItem,
   type BidRatioSurgeItem,
@@ -95,6 +98,7 @@ import {
   type ForeignHoldingItem,
   type InstitutionTrendResponse,
   type IndexItem,
+  type IntradayForeignItem,
   type InvestorDailyItem,
   type InvestorRankDailyItem,
   type InvestorStreakItem,
@@ -688,6 +692,99 @@ const RANKING_MARKET_CODES: Record<RankingMarket, string> = {
   kospi: "001",
   kosdaq: "101",
 };
+
+export type NetBuySide = "net" | "buy" | "sell";
+
+/** ka10066 trde_tp — 매수 − 매도 = 순매수를 산술로 확인했다 (동화약품 243 − 335 = −92, 2026-08-04 실측). */
+const NET_BUY_SIDE_CODES: Record<NetBuySide, string> = { net: "0", buy: "1", sell: "2" };
+
+/**
+ * ka10066은 **시장 단위로만** 전량 스윕이 된다. 전체(mrkt_tp "000")는 3,139종목 =
+ * 32페이지로 MAX_PAGES(20)를 넘겨 잘리는데, 행이 순위가 아니라 **종목코드 순**이라
+ * 잘린 결과로 정렬하면 뒤쪽 코드가 통째로 빠진 엉터리 순위가 나온다. 코스피 1,318행
+ * (14p) / 코스닥 1,821행(19p)은 상한 안에 들어온다 (2026-08-04 실측, 1318+1821=3139).
+ */
+export type NetBuyMarket = "kospi" | "kosdaq";
+
+const NET_BUY_MARKET_CODES: Record<NetBuyMarket, string> = { kospi: "001", kosdaq: "101" };
+
+/**
+ * ka10066 장마감후투자자별매매 — 시장 전 종목의 투자자 12주체별 매매를 한 번에 준다.
+ * 순위 TR이 아니라 **종목코드 순 전량 스냅샷**이라 정렬은 호출부가 한다.
+ *
+ * 실측 2026-08-04 (REAL·VIRTUAL 응답 동일, 코스피 1,318행/14페이지까지 대조):
+ * 배열 키 `opaf_invsr_trde`, 100행/page.
+ *
+ * 투자자 수치는 **직전 완료 세션의 확정치**이고 같은 행의 시세는 당일 실시간이다 —
+ * 자세한 근거는 afterMarketInvestorItemSchema 주석에.
+ */
+export async function fetchAfterMarketInvestors(
+  client: KiwoomClient,
+  market: NetBuyMarket,
+  unit: InvestorUnit,
+  side: NetBuySide,
+): Promise<{ rows: AfterMarketInvestorItem[]; truncated: boolean }> {
+  const body = {
+    mrkt_tp: NET_BUY_MARKET_CODES[market],
+    amt_qty_tp: INVESTOR_UNIT_CODES[unit],
+    trde_tp: NET_BUY_SIDE_CODES[side],
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: MRKCOND_PATH, apiId: "ka10066", body });
+  const rows = [...afterMarketInvestorResponseSchema.parse(res.json).opaf_invsr_trde];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: MRKCOND_PATH, apiId: "ka10066", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...afterMarketInvestorResponseSchema.parse(res.json).opaf_invsr_trde);
+    pages += 1;
+  }
+
+  return { rows, truncated: res.hasNext };
+}
+
+/**
+ * ka10063 장중투자자별매매 — 정규장 중 외국인 순매수를 전 종목에 대해 준다.
+ * 800행/page, 전체 1,420행 = 2페이지 (코스피 480행 단일 페이지) — 2026-08-04 09:43 실측.
+ * 이것도 순위가 아니라 코드 순이다(오름차순 인접쌍 1,416/1,419).
+ *
+ * 필수 6개 중 **쓸 수 있는 건 `mrkt_tp`뿐**이다:
+ * - `invsr`는 0~12를 전부 찍어 "6"(외국인)만 행을 준다 — 주체 선택자가 아니라서 고정한다.
+ * - `amt_qty_tp`·`smtm_netprps_tp`는 값을 바꿔도 응답이 한 글자도 안 바뀐다(효과 없는
+ *   필수 파라미터). 행에 금액·수량이 **항상 둘 다** 실려 오므로 단위는 호출부가 고른다.
+ * - `frgn_all` "1"은 행수(1,420→2,423)도 값도 완전히 달라지지만(005930 -90,000주 →
+ *   +790,681주) 어떤 집계인지 확정하지 못했다. ka10059와 대조되는 "0"만 쓴다.
+ *
+ * 정규장(09:00~15:30) 밖에서는 rc=0 + 0행이다 (08:25 실측) — 오류가 아니다.
+ */
+export async function fetchIntradayForeign(
+  client: KiwoomClient,
+  market: RankingMarket,
+): Promise<{ rows: IntradayForeignItem[]; truncated: boolean }> {
+  const body = {
+    mrkt_tp: RANKING_MARKET_CODES[market],
+    amt_qty_tp: "1",
+    invsr: "6",
+    frgn_all: "0",
+    smtm_netprps_tp: "0",
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: MRKCOND_PATH, apiId: "ka10063", body });
+  const rows = [...intradayForeignResponseSchema.parse(res.json).opmr_invsr_trde];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: MRKCOND_PATH, apiId: "ka10063", body, contYn: "Y", nextKey: res.nextKey });
+    rows.push(...intradayForeignResponseSchema.parse(res.json).opmr_invsr_trde);
+    pages += 1;
+  }
+
+  return { rows, truncated: res.hasNext };
+}
 
 /** ka10027 전일대비상위 — sort_tp "1"=상승률, "3"=하락률 (live-verified). */
 export async function fetchPriceChangeRanking(

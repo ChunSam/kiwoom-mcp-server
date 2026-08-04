@@ -525,6 +525,75 @@ export const investorStreakItemSchema = z.looseObject({
 });
 export type InvestorStreakItem = z.infer<typeof investorStreakItemSchema>;
 
+// ── ka10066: 장마감후투자자별매매 (전 종목 × 12주체 순매수) ──
+// **한 행에 두 시점이 섞인다.** cur_prc/pred_pre/flu_rt/trde_qty는 당일 실시간이고,
+// 투자자 12필드는 **직전 완료 세션의 확정치**다. 2026-08-04 실측: 08:25 장전과
+// 09:41 장중 두 번 모두 005930의 투자자 12필드가 ka10059 dt=20260803과 정확히
+// 일치했고, 같은 행의 trde_qty만 당일(20260804) 값이었다. 장중에도 넘어가지 않는다.
+//
+// ka10059의 13필드와 달리 natfor(내외국인)가 없다 — 12주체다.
+
+export const afterMarketInvestorItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pre_sig: str(),
+  pred_pre: str(),
+  flu_rt: str(),
+  trde_qty: str(),
+  ind_invsr: str(), // 개인
+  frgnr_invsr: str(), // 외국인
+  orgn: str(), // 기관계
+  fnnc_invt: str(), // 금융투자
+  insrnc: str(), // 보험
+  invtrt: str(), // 투신
+  etc_fnnc: str(), // 기타금융
+  bank: str(),
+  penfnd_etc: str(), // 연기금등
+  samo_fund: str(), // 사모펀드
+  natn: str(), // 국가
+  etc_corp: str(), // 기타법인
+});
+export type AfterMarketInvestorItem = z.infer<typeof afterMarketInvestorItemSchema>;
+
+export const afterMarketInvestorResponseSchema = z.looseObject({
+  ...envelope,
+  opaf_invsr_trde: z.array(afterMarketInvestorItemSchema).default([]),
+});
+
+// ── ka10063: 장중투자자별매매 (전 종목 외국인 순매수, 실시간) ──
+// invsr은 13개 값을 찍어 **"6"만 행을 준다**(나머지는 rc=0 + 0행). "6"이 외국인임은
+// ka10059의 장중 frgnr_invsr과 대조해 확정했다 (2026-08-04 09:43 실측, 수량 기준
+// 005930 -90,000 / 000660 +1,000 / 035420 -23,000 세 종목 전부 일치).
+//
+// 장중 값은 **1,000주 단위로 반올림된 잠정치**다 — 전 행이 1,000의 배수인 반면
+// 완료 세션값(ka10059 dt=20260803 005930 = 12,731,078)은 주 단위로 정확하다.
+//
+// 금액 필드는 백만원 (수량 × 당일 평균단가로 역산: 035420 -23,000주 / -5,279백만원
+// = 229,522원, 당시 현재가 227,000과 부합). 부호는 이중부호(`--21796`)로 올 수 있다.
+
+export const intradayForeignItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pre_sig: str(),
+  pred_pre: str(),
+  flu_rt: str(),
+  acc_trde_qty: str(),
+  netprps_amt: str(), // 순매수금액(백만원)
+  netprps_qty: str(), // 순매수수량(주, 1,000주 단위 잠정치)
+  buy_amt: str(),
+  buy_qty: str(),
+  sell_amt: str(),
+  sell_qty: str(),
+});
+export type IntradayForeignItem = z.infer<typeof intradayForeignItemSchema>;
+
+export const intradayForeignResponseSchema = z.looseObject({
+  ...envelope,
+  opmr_invsr_trde: z.array(intradayForeignItemSchema).default([]),
+});
+
 // ── ka10027/ka10030/ka10032: 순위 TR item shapes ──
 
 export const priceChangeRankItemSchema = z.looseObject({
