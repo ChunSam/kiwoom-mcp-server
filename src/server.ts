@@ -11,6 +11,7 @@ import { registerCreditTrendTool } from "./tools/credit-trend.js";
 import { registerDailyTradingTool } from "./tools/daily-trading.js";
 import { registerEtfInfoTool } from "./tools/etf-info.js";
 import { registerEtfRankTool } from "./tools/etf-rank.js";
+import { registerGoldPriceTool } from "./tools/gold-price.js";
 import { registerEtfReturnsTool } from "./tools/etf-returns.js";
 import { registerExecutionStrengthTool } from "./tools/execution-strength.js";
 import { registerExpectedExecutionTool } from "./tools/expected-execution.js";
@@ -48,7 +49,7 @@ import { registerViStocksTool } from "./tools/vi-stocks.js";
 import { registerWatchlistGroupsTool, registerWatchlistTool } from "./tools/watchlist.js";
 
 export const SERVER_NAME = "kiwoom-mcp-server";
-export const SERVER_VERSION = "0.39.0";
+export const SERVER_VERSION = "0.40.0";
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -86,6 +87,7 @@ export function createServer(): McpServer {
   registerEtfInfoTool(server);
   registerEtfReturnsTool(server);
   registerEtfRankTool(server);
+  registerGoldPriceTool(server);
   registerExecutionStrengthTool(server);
   registerShortSellingTool(server);
   registerStockLendingTool(server);
