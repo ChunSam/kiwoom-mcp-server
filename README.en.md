@@ -38,10 +38,10 @@ allowance.
 | `get_sector_stocks` | Member stocks of a sector with quotes | ka20002 |
 | `get_sector_chart` | Sector index candles (daily/weekly/monthly/yearly/minute/tick) | ka20004~08, ka20019 |
 | `get_sector_flow` | Investor net buying by sector across the whole market — retail / foreign / institution plus securities, trusts, pension funds, PE | ka10051 |
-| `get_ranking` | Top gainers / losers / volume / trading value | ka10027/30/32 |
+| `get_ranking` | Top gainers / losers / volume / trading value, plus change-from-open (with execution strength) | ka10027/30/32, ka10028 |
 | `get_valuation_rank` | High/low PER, PBR and ROE rankings (market-wide valuation screening) | ka10026 |
 | `get_supply_concentration` | Stocks with volume concentrated in a price zone (overhead supply / support) | ka10025 |
-| `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges | ka10016/17/19/23 |
+| `get_market_movers` | New highs / new lows / upper & lower limit / surges / plunges / volume surges / volume renewals (breaking the prior N-day peak) | ka10016/17/19/23/24 |
 | `get_vi_stocks` | Today's volatility-interruption (VI) triggered stocks (trigger price / disparity / times) | ka10054 |
 | `get_expected_execution` | Expected-execution ranking during the pre-open (08:30–09:00) and pre-close (15:20–15:30) auctions | ka10029 |
 | `get_investor_trend` | Retail / foreign / institutional net-buy trend (period sum + daily) | ka10059, ka10061 |

@@ -138,6 +138,8 @@ def main() -> int:
         ("get_sector_flow", {"market": "kosdaq", "unit": "quantity", "sort": "institution", "top": 5}),
         ("get_sector_price", {"sector_code": "증권"}),  # ka10101 이름→코드 해석 경로
         ("get_ranking", {"type": "volume", "top": 5}),
+        ("get_ranking", {"type": "open_rise", "market": "kospi", "min_volume": "0100", "top": 3}),  # ka10028
+        ("get_ranking", {"type": "open_fall", "market": "kosdaq", "min_volume": "0500", "top": 3}),
         ("get_valuation_rank", {"top": 5}),  # ka10026 저PER
         ("get_valuation_rank", {"metric": "low_roe", "top": 5}),  # per 필드에 ROE가 담기는 경로
         ("get_supply_concentration", {"top": 5}),  # ka10025 전체·매물비율 50% 이상
@@ -149,6 +151,8 @@ def main() -> int:
         ("get_market_movers", {"signal": "surge", "top": 3}),
         ("get_market_movers", {"signal": "plunge", "top": 3}),
         ("get_market_movers", {"signal": "volume_surge", "top": 3}),  # ka10023
+        ("get_market_movers", {"signal": "volume_renew", "top": 3}),  # ka10024 기본 20일
+        ("get_market_movers", {"signal": "volume_renew", "cycle": "120", "market": "kosdaq", "top": 3}),
         ("get_vi_stocks", {"top": 5}),  # ka10054
         ("get_expected_execution", {"top": 3}),  # ka10029 — 동시호가 밖이면 빈 결과 경로
         ("get_orderbook_rank", {"top": 3}),  # ka10020 — 장 시작 전이면 전 행 0 경로

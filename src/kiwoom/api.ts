@@ -43,6 +43,7 @@ import {
   limitStockItemSchema,
   minuteChartItemSchema,
   newHighLowItemSchema,
+  openPriceChangeResponseSchema,
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
   priceJumpItemSchema,
@@ -65,6 +66,7 @@ import {
   supplyConcentrationResponseSchema,
   valuationRankResponseSchema,
   valueRankItemSchema,
+  volumeRenewResponseSchema,
   viStockItemSchema,
   volumeRankItemSchema,
   volumeSurgeItemSchema,
@@ -107,6 +109,7 @@ import {
   type LimitStockItem,
   type MinuteChartItem,
   type NewHighLowItem,
+  type OpenPriceChangeItem,
   type PendingOrderItem,
   type PriceChangeRankItem,
   type PriceJumpItem,
@@ -129,6 +132,7 @@ import {
   type SupplyConcentrationItem,
   type ValuationRankItem,
   type ValueRankItem,
+  type VolumeRenewItem,
   type ViStockItem,
   type VolumeRankItem,
   type VolumeSurgeItem,
@@ -1437,6 +1441,100 @@ export async function fetchVolumeSurge(
     },
   });
   return parseArray(res.json, "trde_qty_sdnin", volumeSurgeItemSchema);
+}
+
+/** ka10024 `cycle_tp` — 거래량을 비교할 직전 기간(거래일). */
+export type VolumeRenewCycle = "5" | "10" | "20" | "60" | "120";
+
+/**
+ * ka10024 거래량갱신요청 — 직전 N거래일 최대 거래량을 당일 갱신한 종목.
+ *
+ * ka10023(거래량급증)이 **전일 대비** 축이라면 이쪽은 **N일 최대 돌파** 축이다.
+ * 행이 순위가 아니라 종목코드 순이라 전 페이지를 모아 호출부가 정렬한다 — 다행히
+ * 가볍다(실측 2026-08-04: 전체 시장 cycle 5일 397행 2페이지가 최대, 120일은 14행).
+ * `trde_qty_tp` "0000"=거래량 하한 없음.
+ */
+export async function fetchVolumeRenew(
+  client: KiwoomClient,
+  market: RankingMarket,
+  cycle: VolumeRenewCycle,
+): Promise<{ rows: VolumeRenewItem[]; truncated: boolean }> {
+  const body = {
+    mrkt_tp: RANKING_MARKET_CODES[market],
+    cycle_tp: cycle,
+    trde_qty_tp: "0000",
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: STOCK_INFO_PATH, apiId: "ka10024", body });
+  const rows = [...volumeRenewResponseSchema.parse(res.json).trde_qty_updt];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({
+      path: STOCK_INFO_PATH,
+      apiId: "ka10024",
+      body,
+      contYn: "Y",
+      nextKey: res.nextKey,
+    });
+    rows.push(...volumeRenewResponseSchema.parse(res.json).trde_qty_updt);
+    pages += 1;
+  }
+  return { rows, truncated: res.hasNext };
+}
+
+/**
+ * ka10028 `trde_qty_cnd` — 거래량 하한. 코드값 × 1,000주가 하한이다
+ * (실측: "0010"→최소 10,031주, "0100"→100,929주, "0500"→511,491주).
+ */
+export type OpenChangeMinVolume = "0010" | "0050" | "0100" | "0500";
+
+/**
+ * ka10028 시가대비등락률요청 — 시장 전 종목의 시가 대비 등락률 + 체결강도.
+ *
+ * ka10066과 같은 처방을 쓴다: 시장을 코스피/코스닥으로 쪼개고(전체는 30페이지에도
+ * cont-yn이 안 끝난다) 거래량 하한을 기본으로 건다. 1만주 하한 기준 코스피 1,493행
+ * 15페이지 / 코스닥 1,486행 15페이지로 MAX_PAGES(20) 안에 들어온다 (2026-08-04 실측).
+ *
+ * `sort_tp`·`updown_incls`는 필수인데 **효과가 없다** — 어떤 값을 넣어도 종목코드 순
+ * 그대로라, 노출하지 않고 "1"로 고정한다. 정렬은 호출부가 한다.
+ */
+export async function fetchOpenPriceChange(
+  client: KiwoomClient,
+  market: NetBuyMarket,
+  minVolume: OpenChangeMinVolume,
+): Promise<{ rows: OpenPriceChangeItem[]; truncated: boolean }> {
+  const body = {
+    sort_tp: "1",
+    trde_qty_cnd: minVolume,
+    mrkt_tp: NET_BUY_MARKET_CODES[market],
+    updown_incls: "1",
+    stk_cnd: "0",
+    crd_cnd: "0",
+    trde_prica_cnd: "0",
+    flu_cnd: "0",
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: STOCK_INFO_PATH, apiId: "ka10028", body });
+  const rows = [...openPriceChangeResponseSchema.parse(res.json).open_pric_pre_flu_rt];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({
+      path: STOCK_INFO_PATH,
+      apiId: "ka10028",
+      body,
+      contYn: "Y",
+      nextKey: res.nextKey,
+    });
+    rows.push(...openPriceChangeResponseSchema.parse(res.json).open_pric_pre_flu_rt);
+    pages += 1;
+  }
+  return { rows, truncated: res.hasNext };
 }
 
 /**
