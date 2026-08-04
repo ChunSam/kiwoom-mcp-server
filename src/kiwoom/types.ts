@@ -1172,6 +1172,71 @@ export const volumeSurgeItemSchema = z.looseObject({
 });
 export type VolumeSurgeItem = z.infer<typeof volumeSurgeItemSchema>;
 
+// ── ka10024: 거래량갱신 (배열 `trde_qty_updt`, 200행/page) ──
+//
+// "직전 N일 최대 거래량을 당일 갱신한 종목"이다. `prev_trde_qty`가 **직전 N일 최대
+// 거래량**이라는 건 일봉(ka10081)과 대조해 확정했다 — 251340 KODEX 코스닥150선물인버스의
+// prev 63,165,636은 직전 20거래일 중 최대(8/3)와 정확히 같았고, now 77,598,515는 당일
+// 거래량과 같았다(2026-08-04 실측). 전 행에서 now > prev다.
+//
+// 행은 값 순이 아니라 **종목코드 순**이라 정렬은 호출부가 한다. mrkt_tp "000"(전체)은
+// 코스피 블록 뒤에 코스닥 블록이 붙는 꼴이라 전역 코드순도 아니다.
+// 분량은 가볍다 — 최대 397행 2페이지(cycle 5일, 전체 시장 기준).
+
+export const volumeRenewItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre_sig: str(),
+  pred_pre: str(),
+  flu_rt: str(),
+  prev_trde_qty: str(), // 직전 N일 최대 거래량
+  now_trde_qty: str(), // 당일 거래량
+  sel_bid: str(), // 매도최우선호가
+  buy_bid: str(), // 매수최우선호가
+});
+export type VolumeRenewItem = z.infer<typeof volumeRenewItemSchema>;
+
+export const volumeRenewResponseSchema = z.looseObject({
+  ...envelope,
+  trde_qty_updt: z.array(volumeRenewItemSchema).default([]),
+});
+
+// ── ka10028: 시가대비등락률 (배열 `open_pric_pre_flu_rt`, 100행/page) ──
+//
+// `open_pric_pre`가 (현재가 − 시가) / 시가 × 100임을 400행 검산해 확인했다(불일치 0건,
+// 2026-08-04 실측). `cntr_str`는 체결강도로 ka10046과 같은 척도다(100이 균형).
+//
+// 필수 파라미터가 9개인데 그중 **`sort_tp`와 `updown_incls`는 무효**다 — 1~5 / 0~1 어느
+// 값을 넣어도 응답이 한 행도 안 바뀌고 항상 종목코드 순으로 온다. 정렬은 호출부가 한다.
+// `trde_qty_cnd`는 실제로 먹는다(천주 단위 하한, "0100"→최소 100,929주).
+//
+// 분량이 문제다: 전체(mrkt_tp "000")는 하한 없이 3,000행 30페이지에도 cont-yn=Y로
+// **끝이 안 난다**. 코스피 단독도 2,369행 24페이지로 MAX_PAGES(20)를 넘는다. 그래서
+// 시장을 쪼개고 거래량 하한을 기본으로 건다 — 1만주 하한이면 코스피 1,493행 15페이지,
+// 코스닥 1,486행 15페이지로 상한 안에 들어온다 (ka10066과 같은 처방).
+
+export const openPriceChangeItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  cur_prc: str(),
+  pred_pre_sig: str(),
+  pred_pre: str(),
+  flu_rt: str(), // 전일 대비 등락률(%)
+  open_pric: str(),
+  high_pric: str(),
+  low_pric: str(),
+  open_pric_pre: str(), // 시가 대비 등락률(%) — (현재가−시가)/시가
+  now_trde_qty: str(),
+  cntr_str: str(), // 체결강도 (ka10046과 같은 척도, 100이 균형)
+});
+export type OpenPriceChangeItem = z.infer<typeof openPriceChangeItemSchema>;
+
+export const openPriceChangeResponseSchema = z.looseObject({
+  ...envelope,
+  open_pric_pre_flu_rt: z.array(openPriceChangeItemSchema).default([]),
+});
+
 // ── ka10087: 시간외단일가 (종목별, mock-probed 2026-07-26) — flat 46 fields, no array.
 // 시간외 단일가 5단 호가(ovt_sigpric_sel_bid_{n}/_qty_{n}, buy도 동일)는 orderbook 선례대로
 // loose passthrough로 읽는다; *_jub_pre(직전대비) 계열 15필드는 미소비.

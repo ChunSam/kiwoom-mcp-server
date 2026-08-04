@@ -4,6 +4,7 @@ import {
   limitStockItemSchema,
   newHighLowItemSchema,
   priceJumpItemSchema,
+  volumeRenewItemSchema,
   volumeSurgeItemSchema,
 } from "../src/kiwoom/types.js";
 import { formatMarketMovers } from "../src/tools/market-movers.js";
@@ -155,5 +156,76 @@ describe("formatMarketMovers", () => {
   it("renders an empty-result message", () => {
     const text = formatMarketMovers("lower_limit", "kospi", [], 20, MODE);
     expect(text).toBe("[모의투자] 코스피 하한가 종목 — 해당 종목이 없습니다.");
+  });
+});
+
+/**
+ * ka10024 실측 (REAL 2026-08-04 15:2x KST 정규장, mrkt_tp=001 코스피 / cycle_tp=20 /
+ * trde_qty_tp=0000 / stex_tp=3). 전체 80행 중 증가량 상위 4행.
+ *
+ * 살려둔 것:
+ *  - **응답 순서가 아니라 증가량 순으로 정렬되는지**를 본다. 원본은 종목코드 순이라
+ *    004870(티웨이홀딩스)이 251340보다 앞에 온다 — 서버가 정렬하지 않으면 이 순서가 샌다.
+ *  - `prev_trde_qty`는 직전 20거래일 **최대** 거래량이다. 251340의 63,165,636은 같은 날
+ *    일봉(ka10081)의 8/3 거래량과 정확히 일치했다.
+ *  - 하락 종목의 `cur_prc`가 `-2580`처럼 부호를 달고 온다 — parseKiwoomPrice 자리.
+ */
+const volumeRenewItems = [
+  {
+    stk_cd: "251340_AL", stk_nm: "KODEX 코스닥150선물인버스", cur_prc: "-2580", pred_pre_sig: "5",
+    pred_pre: "-190", flu_rt: "-6.86", prev_trde_qty: "63165636", now_trde_qty: "80721054",
+    sel_bid: "-2575", buy_bid: "-2570",
+  },
+  {
+    stk_cd: "530107_AL", stk_nm: "삼성 인버스 2X 코스닥150 선물 ETN", cur_prc: "-2075",
+    pred_pre_sig: "5", pred_pre: "-320", flu_rt: "-13.36", prev_trde_qty: "22318100",
+    now_trde_qty: "28639742", sel_bid: "-2080", buy_bid: "-2075",
+  },
+  {
+    stk_cd: "004870_AL", stk_nm: "티웨이홀딩스", cur_prc: "+1399", pred_pre_sig: "2",
+    pred_pre: "+151", flu_rt: "+12.10", prev_trde_qty: "2155799", now_trde_qty: "5043444",
+    sel_bid: "+1455", buy_bid: "+1367",
+  },
+].map((i) => volumeRenewItemSchema.parse(i));
+
+describe("formatMarketMovers — volume_renew (ka10024)", () => {
+  it("증가량 내림차순으로 정렬하고 배수를 함께 보여준다", () => {
+    const text = formatMarketMovers("volume_renew", "kospi", volumeRenewItems, 20, MODE, undefined, {
+      cycle: "20",
+    });
+
+    expect(text).toContain("코스피 거래량갱신 종목 (직전 20거래일 대비)");
+    // 251340 증가량 17,555,418 > 530107 6,321,642 > 004870 2,887,645
+    expect(text).toContain("| 1 | KODEX 코스닥150선물인버스 | 251340 | 2,580 | -6.86% | 63,165,636 | 80,721,054 | +17,555,418 | 1.28배 |");
+    expect(text.indexOf("삼성 인버스 2X")).toBeLessThan(text.indexOf("티웨이홀딩스"));
+    expect(text).toContain("volume_surge(거래량급증)와는 기준이 다릅니다");
+  });
+
+  it("응답의 _AL 접미사를 떼고 하락 종목 가격을 음수로 쓰지 않는다", () => {
+    const text = formatMarketMovers("volume_renew", "kospi", volumeRenewItems, 20, MODE);
+
+    expect(text).not.toContain("_AL");
+    expect(text).not.toContain("| -2,580 |");
+  });
+
+  it("직전 최대가 0이면 배수를 계산하지 않는다", () => {
+    const zeroPrev = [
+      volumeRenewItemSchema.parse({
+        stk_cd: "000000", stk_nm: "신규상장", cur_prc: "+1000", pred_pre_sig: "2",
+        pred_pre: "+100", flu_rt: "+11.11", prev_trde_qty: "0", now_trde_qty: "5000",
+        sel_bid: "+1005", buy_bid: "+1000",
+      }),
+    ];
+    const text = formatMarketMovers("volume_renew", "all", zeroPrev, 20, MODE);
+
+    expect(text).toContain("| 0 | 5,000 | +5,000 | - |");
+  });
+
+  it("페이지 상한에 걸리면 잘렸을 수 있다고 알린다", () => {
+    const text = formatMarketMovers("volume_renew", "all", volumeRenewItems, 20, MODE, undefined, {
+      truncated: true,
+    });
+
+    expect(text).toContain("결과가 잘렸을 수 있습니다");
   });
 });
