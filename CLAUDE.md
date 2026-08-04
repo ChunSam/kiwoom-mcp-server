@@ -44,11 +44,13 @@ utils/          num/date/redact/sleep/stock-code
 - **stdout 금지.** stdio 전송에서 stdout은 MCP 프레임 전용. 모든 로그는 `console.error`.
 - **시크릿 노출 금지.** 에러 메시지에 응답 본문이나 예외 텍스트를 실을 때는 반드시 `redactSecrets(text, [appKey, appSecret, token])`를 통과시킨다. `.env`/`.env.real`은 커밋 금지(gitignore됨), 내용을 컨텍스트로 읽어 오지 않는다 — 필요하면 키 *이름*만 확인.
 - **거래소는 통합(KRX+NXT) 기준.** 시장 전체 TR은 `stex_tp: STEX_UNIFIED`("3"), 종목 단위 TR은 `toUnifiedCode(code)`로 `_AL`을 붙여 부른다. KRX 단독("1")로 되돌리면 NXT 거래가능 606종목의 거래량이 40~45% 적게 나온다(삼성전자 실측 19.2M vs 34.7M). 응답에 붙어 오는 `_AL`/`_NX` 접미사는 `types.ts`의 `code()` 헬퍼가 뗀다 — 코드 필드는 `str()`이 아니라 `code()`를 쓴다. **예외 2건**: ka10087(시간외단일가)은 접미사를 주면 빈 껍데기로 답하고, ka10002(거래원)은 통합을 제공하지 않아 KRX로 남는다. 호가는 v0.37.0에서 통합으로 넘어왔다 — ka10004는 `_AL`을 무시하지만 ka10007(시세표성정보)이 통합 잔량을 준다(실측 005930 매수1 KRX 18,421 + NXT 17,081 ≈ 통합 36,319). 계좌 TR(ka10075/76)의 `stex_tp: "0"`도 건드리지 않는다.
-- **레이트리밋 ~1 req/s per TR.** 연속 호출 간격은 리터럴로 쓰지 말고 각 모듈의 명명 상수를 재사용한다 — `api.ts` `PAGE_INTERVAL_MS`, `master-list.ts` `MARKET_FETCH_GAP_MS`, `isa/classify-etf.ts` `ETF_FETCH_GAP_MS`(모두 1,100ms), `client.ts` `RETRY_429_BASE_MS`(1,300ms — 429 백오프는 1초를 **넘겨야** 해서 일부러 더 길다). 값이 같아도 이유가 달라 공유 상수로 묶지 않는다. 페이지네이션은 `MAX_PAGES=20` 상한이 있고, 상한에 걸리면 "결과가 잘렸을 수 있음"을 사용자에게 알린다.
+- **레이트리밋 ~1 req/s per TR.** 연속 호출 간격은 리터럴로 쓰지 말고 각 모듈의 명명 상수를 재사용한다 — `api.ts` `PAGE_INTERVAL_MS`, `master-list.ts` `MARKET_FETCH_GAP_MS`, `isa/classify-etf.ts` `ETF_FETCH_GAP_MS`(모두 1,100ms), `client.ts` `RETRY_429_BASE_MS`(1,300ms — 429 백오프는 1초를 **넘겨야** 해서 일부러 더 길다). 값이 같아도 이유가 달라 공유 상수로 묶지 않는다. 페이지네이션은 `MAX_PAGES=20` 상한이 있고, 상한에 걸리면 "결과가 잘렸을 수 있음"을 사용자에게 알린다. **순위처럼 보이지만 종목코드 순으로 오는 전량 스냅샷 TR**(ka10066·ka10028·ka10024·ka10063·ka20002)은 처방이 다르다 — 잘리면 뒤쪽 코드가 통째로 빠진 엉터리 순위가 되므로 ① 정렬은 서버가 하고 ② `market`을 필수로 받아 모수를 쪼개고 ③ 거래량 하한을 두고 ④ 잘림 문구도 "뒤가 잘렸다"가 아니라 **"일부 종목이 빠졌다"**로 쓴다.
 
 ## 새 tool 추가 절차
 
 계약이 확정되기 전에는 코드를 쓰지 않는다 — 새 TR은 `/probe-tr` 스킬로 모의·실전 양쪽을 먼저 찍는다.
+
+**새 축은 기존 tool의 모드·부가정보로 붙이는 것이 기본값이다(권고).** v0.36~0.39 네 라운드가 전부 tool 수 47을 유지했다 — ka10024는 `get_market_movers`의 `signal`, ka10028은 `get_ranking`의 `type`, ka10102는 `get_broker_activity`의 외국계 표시, ka10007은 `get_orderbook`의 TR 교체로 들어갔다. tool을 새로 늘리는 쪽이 예외이고, 그때만 아래 7단계를 전부 밟는다.
 
 1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 104개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
 2. `kiwoom/api.ts` — `fetch<X>()` 추가. JSDoc 첫 줄은 `/** ka10046 체결강도요청 */`처럼 **TR 코드 + 키움 공식 TR명**.
@@ -88,11 +90,9 @@ tool 작성 관례:
 
 tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`. main 직접 커밋 대신 PR을 거친다.
 
-배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. npm 패키지는 `files: ["dist"]`라 `src/`·`tests/`·`.env`는 절대 포함되지 않는다 — 발행 후 tarball 내용을 확인할 것.
+배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **발행 절차와 함정은 `/release` 스킬**에 있다 — 순서(npm → 레지스트리), 레지스트리 확인법, 대화형 인증 위임, npm README 스냅샷. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
 
-- **npm → 레지스트리 순서**를 지킨다. 레지스트리는 발행된 npm 버전을 참조하므로 뒤집으면 검증에 걸린다.
-- **레지스트리 확인은 `&version=latest`로 한다.** `/v0/servers?search=...` 기본 응답은 낡은 버전을 돌려준다 — 그것만 보고 미발행으로 오독한 적이 있다. `isLatest`가 판정 기준.
-- **대화형 인증은 사용자에게 넘긴다** — `npm publish`는 브라우저 OTP, `mcp-publisher`는 토큰 만료 시 `login github` 디바이스 플로우가 필요하다. `! <command>`로 위임한다.
+**발행은 PR 머지에 딸려 오지 않는다** — "진행해"의 범위는 테스트·PR·CI 확인·머지까지이고, 배포는 매번 별도 지시로만 한다.
 
 ## 설정 / 모드
 
