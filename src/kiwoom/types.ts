@@ -1638,6 +1638,81 @@ export const accountTodayStatusSchema = z.looseObject({
 
 export type AccountTodayStatus = z.infer<typeof accountTodayStatusSchema>;
 
+// ── ka10036: 외인한도소진율증가상위 ──
+
+/**
+ * 외국인 한도소진율이 기간 대비 가장 많이 오른 종목. `exh_rt_incrs` 내림차순.
+ *
+ * ka10008(`get_foreign_holding`)의 **시장 전체 스크리너 판**이다 — 1위 KODEX 차이나H의
+ * `poss_stkcnt` 837,548 / `gain_pos_stkcnt` 662,452 / `limit_exh_rt` +55.84가 같은 날
+ * ka10008 행과 한 자리도 다르지 않다(실측 2026-08-04). 새 데이터가 아니라 새 축이다.
+ *
+ * `trde_qty`에 32비트 포화값(4294967295, KODEX 200선물인버스2X 실측)이 실재하므로
+ * `isSaturatedInt`로 걸러 상한 표기를 한다.
+ */
+export const foreignLimitSurgeResponseSchema = z.looseObject({
+  ...envelope,
+  for_limit_exh_rt_incrs_upper: z
+    .array(
+      z.looseObject({
+        rank: str(),
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pred_pre_sig: str(),
+        pred_pre: str(),
+        trde_qty: str(),
+        poss_stkcnt: str(), // 보유주식수
+        gain_pos_stkcnt: str(), // 취득가능주식수
+        base_limit_exh_rt: str(), // 기준일 한도소진율
+        limit_exh_rt: str(), // 현재 한도소진율
+        exh_rt_incrs: str(), // 소진율 증가폭 (정렬 기준)
+      }),
+    )
+    .default([]),
+});
+
+export type ForeignLimitSurgeItem = z.infer<
+  typeof foreignLimitSurgeResponseSchema
+>["for_limit_exh_rt_incrs_upper"][number];
+
+// ── ka10034: 외인기간별매매상위 ──
+
+/**
+ * 기간 누적 외국인 순매매 상위. **"투자자 외국인"이 아니라 "외국인 보유(한도)" 계열**이다.
+ *
+ * 005930으로 대조하면 ka10059(투자자별)와는 부호까지 다르고(+846,645) ka10008(보유)의
+ * `chg_qty` 누적과 맞는다 — dt 1/10/20 세 구간의 차이가 전부 정확히 −110,784로 같았다
+ * (당일분이 ka10008에는 아직 반영되지 않은 몫). 우연으로 세 번 같을 수 없다.
+ * ka10066·ka10059와 같은 표에 섞으면 안 된다.
+ *
+ * `netprps_qty`는 `--19229312`처럼 **이중부호**로 온다 — parseKiwoomNumber가 흡수한다.
+ */
+export const foreignPeriodTradeResponseSchema = z.looseObject({
+  ...envelope,
+  for_dt_trde_upper: z
+    .array(
+      z.looseObject({
+        rank: str(),
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pred_pre_sig: str(),
+        pred_pre: str(),
+        sel_bid: str(),
+        buy_bid: str(),
+        trde_qty: str(),
+        netprps_qty: str(), // 기간 누적 순매매 수량 (이중부호 주의)
+        gain_pos_stkcnt: str(),
+      }),
+    )
+    .default([]),
+});
+
+export type ForeignPeriodTradeItem = z.infer<
+  typeof foreignPeriodTradeResponseSchema
+>["for_dt_trde_upper"][number];
+
 // ── ka50010: 금현물체결 ──
 
 /**

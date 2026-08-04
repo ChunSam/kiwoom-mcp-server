@@ -56,7 +56,7 @@ allowance.
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
-| `get_foreign_holding` | Per-stock foreign holding trend (holdings / holding weight / limit-usage rate) | ka10008 |
+| `get_foreign_holding` | Foreign holding/limit activity — per-stock trend, or market-wide rankings (limit-usage surge / period net trading) | ka10008, ka10036, ka10034 |
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
 | `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |
 | `get_execution_strength` | Execution-strength trend (buy÷sell executed volume ×100; 100 = balanced) — 60 sessions daily or 60 minutes intraday | ka10046, ka10047 |

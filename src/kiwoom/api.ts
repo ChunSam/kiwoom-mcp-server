@@ -34,6 +34,8 @@ import {
   executionsResponseSchema,
   expectedExecutionResponseSchema,
   foreignHoldingResponseSchema,
+  foreignLimitSurgeResponseSchema,
+  foreignPeriodTradeResponseSchema,
   goldContractResponseSchema,
   goldDailyResponseSchema,
   institutionTrendResponseSchema,
@@ -102,6 +104,8 @@ import {
   type ExecutionStrengthItem,
   type ExpectedExecutionItem,
   type ForeignHoldingItem,
+  type ForeignLimitSurgeItem,
+  type ForeignPeriodTradeItem,
   type GoldContractItem,
   type GoldDailyItem,
   type InstitutionTrendResponse,
@@ -2042,6 +2046,58 @@ export async function fetchSupplyConcentration(
 export async function fetchAccountTodayStatus(client: KiwoomClient): Promise<AccountTodayStatus> {
   const res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00017", body: {} });
   return accountTodayStatusSchema.parse(res.json);
+}
+
+/** ka10036이 받는 기간. 1/5/10/20 네 갈래 모두 1위가 바뀐다(실측 2026-08-04). */
+export const FOREIGN_LIMIT_SURGE_DAYS = ["1", "5", "10", "20"] as const;
+export type ForeignLimitSurgeDays = (typeof FOREIGN_LIMIT_SURGE_DAYS)[number];
+
+/** ka10034가 받는 기간. 7갈래 전부 값이 다르다 — 프로브 B가 "효과 없음"으로 오판했던 자리다. */
+export const FOREIGN_PERIOD_DAYS = ["1", "3", "5", "10", "20", "60", "120"] as const;
+export type ForeignPeriodDays = (typeof FOREIGN_PERIOD_DAYS)[number];
+
+/**
+ * ka10036 외인한도소진율증가상위 — 한도소진율이 가장 많이 오른 종목 100행.
+ *
+ * 이미 정렬된 순위 TR이라(`exh_rt_incrs` 내림차순) 첫 페이지만 쓴다. cont-yn=Y로
+ * 이어지지만 상위 100개면 이 축의 목적에 충분하다.
+ */
+export async function fetchForeignLimitSurge(
+  client: KiwoomClient,
+  market: RankingMarket,
+  days: ForeignLimitSurgeDays,
+): Promise<ForeignLimitSurgeItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10036",
+    body: { mrkt_tp: RANKING_MARKET_CODES[market], dt: days, stex_tp: STEX_UNIFIED },
+  });
+  return foreignLimitSurgeResponseSchema.parse(res.json).for_limit_exh_rt_incrs_upper;
+}
+
+/**
+ * ka10034 외인기간별매매상위 — 기간 누적 외국인 순매매 상위 100행.
+ *
+ * `trde_tp` **1=순매도 / 2=순매수**이고 "0"은 0행이다(실측). 값의 계열은 ka10008(보유)이지
+ * ka10059(투자자별)가 아니다 — types.ts 주석의 교차검증 참조.
+ */
+export async function fetchForeignPeriodTrade(
+  client: KiwoomClient,
+  market: RankingMarket,
+  days: ForeignPeriodDays,
+  direction: "net_sell" | "net_buy",
+): Promise<ForeignPeriodTradeItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10034",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      trde_tp: direction === "net_sell" ? "1" : "2",
+      dt: days,
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return foreignPeriodTradeResponseSchema.parse(res.json).for_dt_trde_upper;
 }
 
 /**
