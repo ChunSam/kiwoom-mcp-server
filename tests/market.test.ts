@@ -8,7 +8,6 @@ import {
   investorDailyItemSchema,
   investorTotalItemSchema,
   minuteChartItemSchema,
-  orderbookResponseSchema,
   priceChangeRankItemSchema,
   stockInfoResponseSchema,
   stockListItemSchema,
@@ -19,7 +18,6 @@ import { masterItemWarnings } from "../src/kiwoom/master-list.js";
 import { formatEtfInfo } from "../src/tools/etf-info.js";
 import { formatInvestorTrend } from "../src/tools/investor-trend.js";
 import { formatIndices } from "../src/tools/market-index.js";
-import { formatOrderbook } from "../src/tools/orderbook.js";
 import { formatRanking } from "../src/tools/ranking.js";
 import { formatDailyChart, formatMinuteChart } from "../src/tools/stock-chart.js";
 import { formatSearchResults, searchStockItems } from "../src/tools/stock-search.js";
@@ -146,38 +144,6 @@ describe("formatMinuteChart", () => {
 
   it("names the scope in the empty-data message", () => {
     expect(formatMinuteChart([], "999999", "30틱", 30, MODE)).toContain("30틱봉 데이터가 없습니다");
-  });
-});
-
-describe("formatOrderbook", () => {
-  const book = orderbookResponseSchema.parse({
-    return_code: 0,
-    bid_req_base_tm: "160000",
-    sel_fpr_bid: "+310000",
-    sel_fpr_req: "307803",
-    buy_fpr_bid: "+309500",
-    buy_fpr_req: "16836",
-    tot_sel_req: "1219054",
-    tot_buy_req: "372132",
-    sel_2th_pre_bid: "+310500",
-    sel_2th_pre_req: "210957",
-    buy_2th_pre_bid: "+309000",
-    buy_2th_pre_req: "51476",
-  });
-
-  it("renders level-1 fpr keys and passthrough level-2 keys", () => {
-    const text = formatOrderbook(book, "005930", MODE);
-    expect(text).toContain("기준시각 16:00:00");
-    expect(text).toContain("| 매도1 | 310,000 | 307,803 |");
-    expect(text).toContain("| 매수1 | 309,500 | 16,836 |");
-    expect(text).toContain("| 매도2 | 310,500 | 210,957 |");
-    expect(text).toContain("| 매수2 | 309,000 | 51,476 |");
-    expect(text).toContain("총잔량 — 매도 1,219,054 / 매수 372,132");
-    // 호가는 통합 조회가 불가능해 KRX로 남았다 — 같은 종목의 get_stock_price(통합)와
-    // 기준이 다르다는 사실이 응답 자체에 적혀 있어야 한다.
-    expect(text).toContain("KRX 기준");
-    // Missing deeper levels degrade to "-", never throw.
-    expect(text).toContain("| 매도10 | - | - |");
   });
 });
 
