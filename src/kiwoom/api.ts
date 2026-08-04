@@ -18,6 +18,7 @@ import {
   bidRatioSurgeResponseSchema,
   bidSurgeResponseSchema,
   brokerActivityResponseSchema,
+  brokerCodeListResponseSchema,
   creditTrendResponseSchema,
   dailyAssetItemSchema,
   dailyChartItemSchema,
@@ -84,6 +85,7 @@ import {
   type BidRatioSurgeItem,
   type BidSurgeItem,
   type BrokerActivityResponse,
+  type BrokerCodeItem,
   type CreditTrendResponse,
   type DailyAssetItem,
   type DailyChartItem,
@@ -1191,6 +1193,21 @@ export async function fetchBrokerActivity(
     body: { stk_cd: stockCode },
   });
   return brokerActivityResponseSchema.parse(res.json);
+}
+
+/**
+ * ka10102 거래원(회원사) 코드표 — 파라미터 없이 전체 73행을 준다.
+ *
+ * `mmcm_cd`를 실어 보내도 무시하고 같은 73행이 온다(실측 2026-08-04). 거래원 계열 TR이
+ * 요구하는 `mmcm_cd`가 여기 `code`이고, `gb`로 외국계 여부가 갈린다.
+ */
+export async function fetchBrokerCodes(client: KiwoomClient): Promise<BrokerCodeItem[]> {
+  const res = await client.call({
+    path: STOCK_INFO_PATH,
+    apiId: "ka10102",
+    body: {},
+  });
+  return brokerCodeListResponseSchema.parse(res.json).list;
 }
 
 /**
