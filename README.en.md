@@ -164,6 +164,7 @@ npm test                     # unit tests (no network required)
 | `MCP_HTTP_PORT` | | HTTP-mode port (default `8000`) |
 | `MCP_HTTP_HOST` | | HTTP-mode bind address (default `127.0.0.1`) |
 | `MCP_HTTP_NO_AUTH` | | `true` allows starting HTTP mode without auth (discouraged — see the security notes below) |
+| `MCP_PUBLIC_URL` | | Canonical base URL to advertise in HTTP mode (e.g. `https://kiwoom.example.com`). Inferred from the request's `Host` + `X-Forwarded-Proto` when unset — set it explicitly if your reverse proxy does not send that header |
 
 The default is **general-account-first**: without extra config, only the market-data
 and account-inquiry tools are exposed. To use the tax-free-limit tool on an ISA
@@ -257,6 +258,11 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
 - Get a public HTTPS URL with e.g. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
   `cloudflared tunnel --url http://localhost:8000` (ephemeral URL — use a named
   tunnel for anything permanent).
+- **The address published in the OAuth metadata is inferred from the request's `Host`
+  and `X-Forwarded-Proto`.** Proxies like Cloudflare Tunnel set that header, so the
+  default works; a hand-rolled nginx/Caddy that drops it makes the server advertise an
+  `http://` issuer and claude.ai refuses the connection. Pin it with
+  `MCP_PUBLIC_URL=https://<your-domain>` in that case.
 - Register on claude.ai under **Settings → Connectors → Add custom connector** with
   `https://<your-domain>/mcp` (leave the OAuth fields in Advanced settings empty).
   On connect, a browser **consent page** opens — enter your `MCP_AUTH_TOKEN` as the

@@ -152,6 +152,7 @@ npm test                    # 단위 테스트 (네트워크 불필요)
 | `MCP_HTTP_PORT` | | HTTP 모드 포트 (기본값 `8000`) |
 | `MCP_HTTP_HOST` | | HTTP 모드 바인드 주소 (기본값 `127.0.0.1`) |
 | `MCP_HTTP_NO_AUTH` | | `true`면 인증 없이 HTTP 모드 기동 허용 (비권장 — 아래 보안 주의 참조) |
+| `MCP_PUBLIC_URL` | | HTTP 모드에서 외부에 광고할 기준 URL (예: `https://kiwoom.example.com`). 미설정 시 요청의 `Host` + `X-Forwarded-Proto`로 추론 — 리버스 프록시가 그 헤더를 붙이지 않으면 명시해야 합니다 |
 
 기본값은 **일반(비-ISA) 계좌 기준**입니다 — 별도 설정이 없으면 시장·계좌 조회 tool만
 노출됩니다. ISA 계좌를 연결해 비과세 한도 tool을 쓰려면 `ISA_ENABLED=true`로 켜고
@@ -242,6 +243,10 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
   직접 노출하려면 `--host 0.0.0.0`을 명시하세요.
 - 공개 HTTPS URL은 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 등으로 만듭니다:
   `cloudflared tunnel --url http://localhost:8000` (임시 URL — 상시 운영은 named tunnel 권장).
+- **OAuth 메타데이터에 실리는 주소는 요청의 `Host`와 `X-Forwarded-Proto`에서 추론합니다.**
+  Cloudflare Tunnel처럼 그 헤더를 붙여 주는 프록시라면 그대로 두면 되지만, 직접 세운
+  nginx/Caddy가 `X-Forwarded-Proto`를 넘기지 않으면 issuer가 `http://`로 광고되어
+  claude.ai가 연결을 거부합니다. 그럴 때 `MCP_PUBLIC_URL=https://<도메인>`으로 고정하세요.
 - claude.ai 등록: **Settings → Connectors → Add custom connector**에
   `https://<도메인>/mcp`를 입력합니다 (고급 설정의 OAuth 필드는 비워둡니다). 연결 시
   브라우저에 **승인 페이지**가 뜨고, `MCP_AUTH_TOKEN` 값을 접속 암호로 입력하면
