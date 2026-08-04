@@ -33,6 +33,7 @@ import {
   executionStrengthIntradayResponseSchema,
   executionsResponseSchema,
   expectedExecutionResponseSchema,
+  foreignBrokerRankResponseSchema,
   foreignHoldingResponseSchema,
   foreignLimitSurgeResponseSchema,
   foreignPeriodTradeResponseSchema,
@@ -104,6 +105,7 @@ import {
   type ExecutionStrengthItem,
   type ExpectedExecutionItem,
   type ForeignHoldingItem,
+  type ForeignBrokerRankItem,
   type ForeignLimitSurgeItem,
   type ForeignPeriodTradeItem,
   type GoldContractItem,
@@ -2046,6 +2048,41 @@ export async function fetchSupplyConcentration(
 export async function fetchAccountTodayStatus(client: KiwoomClient): Promise<AccountTodayStatus> {
   const res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00017", body: {} });
   return accountTodayStatusSchema.parse(res.json);
+}
+
+/** ka10037이 받는 기간. 1/5/10 세 갈래 모두 1위가 바뀐다(실측 2026-08-04). */
+export const FOREIGN_BROKER_DAYS = ["1", "5", "10"] as const;
+export type ForeignBrokerDays = (typeof FOREIGN_BROKER_DAYS)[number];
+
+/**
+ * ka10037 외국계창구매매상위 — 외국계 창구 순매매가 큰 종목 100행.
+ *
+ * ⚠️ `trde_tp`가 **ka10034와 반대**다: 여기서는 1=순매수 / 2=순매도 / 0=전체(코드순).
+ * 100행의 순매매 부호를 세어 확정했다(1 → 순매수 100·순매도 0, 2 → 0·100, 0 → 39·34).
+ *
+ * `sort_tp`는 **2만 수량 정렬이고 1·3·4·5는 전부 금액 정렬**이다 — 프로브 B가 수량 컬럼으로
+ * 단조성을 보다 "무순서"로 오판했던 자리다. 우리는 두 갈래(금액/수량)만 노출한다.
+ * 이미 정렬된 순위 TR이라 첫 페이지만 쓴다(cont-yn=N).
+ */
+export async function fetchForeignBrokerRank(
+  client: KiwoomClient,
+  market: RankingMarket,
+  days: ForeignBrokerDays,
+  direction: "net_buy" | "net_sell" | "all",
+  sort: "amount" | "quantity",
+): Promise<ForeignBrokerRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10037",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      dt: days,
+      trde_tp: direction === "net_buy" ? "1" : direction === "net_sell" ? "2" : "0",
+      sort_tp: sort === "quantity" ? "2" : "1",
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return foreignBrokerRankResponseSchema.parse(res.json).frgn_wicket_trde_upper;
 }
 
 /** ka10036이 받는 기간. 1/5/10/20 네 갈래 모두 1위가 바뀐다(실측 2026-08-04). */

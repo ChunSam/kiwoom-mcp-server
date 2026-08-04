@@ -1713,6 +1713,45 @@ export type ForeignPeriodTradeItem = z.infer<
   typeof foreignPeriodTradeResponseSchema
 >["for_dt_trde_upper"][number];
 
+// ── ka10037: 외국계창구매매상위 ──
+
+/**
+ * 외국계 증권사 창구에서 순매수/순매도가 큰 종목. ka10002(종목별 거래원)의 시장 전체 판이다.
+ *
+ * ⚠️ **`trde_tp` 의미가 ka10034와 정반대다** (실측 2026-08-04, rank 100행의 순매매 부호로 확정):
+ * ka10037은 1=순매수(100/0) · 2=순매도(0/100) · 0=전체(코드순, 39/34 혼재)인데,
+ * ka10034는 1=순매도 · 2=순매수다. 두 TR을 같이 만질 때 값을 복사하지 말 것.
+ *
+ * `netprps_trde_qty`·`netprps_prica`는 `--1073702`처럼 이중부호로 온다.
+ * `netprps_prica`는 백만원 단위다(현대차 +59,569 ≈ 151,710주 × 392,500원).
+ */
+export const foreignBrokerRankResponseSchema = z.looseObject({
+  ...envelope,
+  frgn_wicket_trde_upper: z
+    .array(
+      z.looseObject({
+        rank: str(),
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pred_pre_sig: str(),
+        pred_pre: str(),
+        flu_rt: str(),
+        sel_trde_qty: str(), // 외국계 창구 매도량
+        buy_trde_qty: str(), // 외국계 창구 매수량
+        netprps_trde_qty: str(), // 순매매 수량 (이중부호)
+        netprps_prica: str(), // 순매매 금액(백만원, 이중부호)
+        trde_qty: str(), // 종목 전체 거래량
+        trde_prica: str(), // 종목 전체 거래대금(백만원)
+      }),
+    )
+    .default([]),
+});
+
+export type ForeignBrokerRankItem = z.infer<
+  typeof foreignBrokerRankResponseSchema
+>["frgn_wicket_trde_upper"][number];
+
 // ── ka50010: 금현물체결 ──
 
 /**
