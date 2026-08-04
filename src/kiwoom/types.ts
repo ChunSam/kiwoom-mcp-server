@@ -992,6 +992,37 @@ export const viStockItemSchema = z.looseObject({
 
 export type ViStockItem = z.infer<typeof viStockItemSchema>;
 
+// ── ka10102: 거래원(회원사) 코드표 — /api/dostk/stkinfo, 파라미터 없음, 배열 `list` 73행 ──
+//
+// `mmcm_cd`를 줘도 무시하고 항상 전체를 준다. cont-yn=N(1페이지), 전 행 공백 필드 없음,
+// REAL과 VIRTUAL의 표가 완전히 동일하다 (2026-08-04 실측).
+//
+// `gb`는 거래원 구분이다. 값별로 이름을 훑어 정체를 정했다:
+//  - "0" 37개 — 국내 증권사 (교보·신한투자증권·한국투자증권·키움증권·토스·카카오페이 등)
+//  - "1" 17개 — **외국계** (골드만삭스·모건스탠리·JP모간서울·씨티그룹·HSBC·CLSA·UBS·
+//    메릴린치·노무라·BNP파리바·다이와·SG증권·맥쿼리 등). 17개가 예외 없이 외국계다.
+//  - "2" 19개 — 합병·철수한 옛 거래원으로 보인다(아이엠투자·KB투자증권·RBS증권·한맥투자증권·
+//    동양오리온 등, 800번대 코드가 여기 몰려 있다). 다만 키움 미문서라 "폐지"로 단정하지
+//    않는다 — 확인된 사실은 **12종목 120슬롯의 ka10002 응답에 gb="2"가 한 번도 등장하지
+//    않았다**는 것뿐이다.
+//
+// 거래원 계열 TR(ka10039/10052/10078 등)이 요구하는 `mmcm_cd`가 이 `code`다. 지금은
+// ka10002가 코드 없이 **이름만** 주므로 이름으로 결합한다 — 같은 12종목 120슬롯에서
+// 표에 없는 이름이 0건이었다. 이름 중복은 "미래에셋"(005 gb=0 / 049 gb=2) 하나뿐이라,
+// 결합할 때 gb="2" 행을 뒤로 미뤄야 현행 코드가 이긴다.
+
+export const brokerCodeItemSchema = z.looseObject({
+  code: str(), // mmcm_cd — 거래원 계열 TR의 입력값
+  name: str(), // "교  보", "H S B C"처럼 공백이 낀 이름이 그대로 온다 (ka10002도 동일 표기)
+  gb: str(), // 0=국내, 1=외국계, 2=현재 거래에 나타나지 않는 옛 거래원
+});
+export type BrokerCodeItem = z.infer<typeof brokerCodeItemSchema>;
+
+export const brokerCodeListResponseSchema = z.looseObject({
+  ...envelope,
+  list: z.array(brokerCodeItemSchema).default([]),
+});
+
 // ── ka10002: 주식거래원 — /api/dostk/stkinfo (flat, 상위 5 매도/매수 거래원) ──
 // 수량은 부호 접두 (매도 음수/매수 양수 — 방향 중복이라 표시할 땐 절대값).
 
