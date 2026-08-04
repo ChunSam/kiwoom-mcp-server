@@ -2,7 +2,7 @@
 /**
  * 손으로 맞춰야 하는 두 가지가 어긋났는지 본다.
  *
- * 1. 버전 4곳 동기화 — package.json / server.json ×2 / src/server.ts
+ * 1. 버전 5곳 동기화 — package.json / server.json ×2 / src/server.ts / package-lock.json
  * 2. CLAUDE.md의 실측 카운트 — tool 수, looseObject 수, TR fixture 파일 수
  *
  * 둘 다 라운드마다 사람이 갱신해야 해서 조용히 어긋난다. 실제로 looseObject가
@@ -33,21 +33,26 @@ const stated = (text, re) => {
 const errors = [];
 const warnings = [];
 
-// ── 1. 버전 4곳 ────────────────────────────────────────────────────────
+// ── 1. 버전 5곳 ────────────────────────────────────────────────────────
 const pkg = JSON.parse(read("package.json"));
 const serverJson = JSON.parse(read("server.json"));
 const serverTs = read("src/server.ts");
+// lockfile은 `npm install`이 알아서 맞춰 주는 자리라 손범프 절차에서 빠졌고,
+// 그래서 0.27.0에 멈춘 채 9개 마이너를 흘렀다(v0.36.1에서 발견). 검사에 넣는다.
+const lock = JSON.parse(read("package-lock.json"));
 
 const versions = {
   "package.json": pkg.version,
   "server.json version": serverJson.version,
   "server.json packages[0].version": serverJson.packages?.[0]?.version,
   "src/server.ts SERVER_VERSION": serverTs.match(/SERVER_VERSION\s*=\s*"([^"]+)"/)?.[1],
+  "package-lock.json version": lock.version,
+  'package-lock.json packages[""].version': lock.packages?.[""]?.version,
 };
 
 const distinct = [...new Set(Object.values(versions))];
 if (distinct.length === 1) {
-  console.log(`✓ 버전 4곳 동기화 — ${distinct[0]}`);
+  console.log(`✓ 버전 5곳 동기화 — ${distinct[0]}`);
 } else {
   errors.push(
     ["✗ 버전이 어긋났습니다:", ...Object.entries(versions).map(([k, v]) => `    ${k}: ${v ?? "(못 읽음)"}`)].join("\n"),
@@ -94,7 +99,8 @@ for (const e of errors) console.error(e);
 
 if (errors.length > 0) {
   console.error(
-    "\n버전은 4곳(package.json / server.json ×2 / src/server.ts)을 함께 올리고,\n" +
+    "\n버전은 5곳(package.json / server.json ×2 / src/server.ts / package-lock.json)을\n" +
+      "함께 올리고 — lockfile은 `npm install --package-lock-only`로 맞춥니다 —\n" +
       "카운트는 CLAUDE.md의 숫자를 실제 값으로 고치면 됩니다.",
   );
   process.exit(1);

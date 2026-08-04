@@ -14,7 +14,7 @@ python3 scripts/sweep.py          # 전체 tool 실전 스윕 (VIRTUAL 기본, .
 python3 scripts/sweep.py --real    # REAL 모드 명시 허용
 ```
 
-`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 4곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 5곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
 
 ## 아키텍처
 
@@ -78,11 +78,12 @@ tool 작성 관례:
 
 ## 버전 / 릴리스
 
-버전 문자열은 **4곳**이 동기화되어야 한다:
+버전 문자열은 **5곳**이 동기화되어야 한다:
 
 - `package.json` `version`
 - `server.json` `version`, `packages[0].version`
 - `src/server.ts` `SERVER_VERSION`
+- `package-lock.json` `version`, `packages[""].version` — `npm install --package-lock-only`로 맞춘다
 
 tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`. main 직접 커밋 대신 PR을 거친다.
 
