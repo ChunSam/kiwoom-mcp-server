@@ -19,12 +19,14 @@ import {
   bidSurgeResponseSchema,
   brokerActivityResponseSchema,
   brokerCodeListResponseSchema,
+  creditRatioRankResponseSchema,
   creditTrendResponseSchema,
   dailyAssetItemSchema,
   dailyChartItemSchema,
   dailyFlowResponseSchema,
   dailySessionResponseSchema,
   depositResponseSchema,
+  equalNetTradeRankResponseSchema,
   etfAllPriceResponseSchema,
   etfInfoResponseSchema,
   etfNavItemSchema,
@@ -91,12 +93,14 @@ import {
   type BidSurgeItem,
   type BrokerActivityResponse,
   type BrokerCodeItem,
+  type CreditRatioRankItem,
   type CreditTrendResponse,
   type DailyAssetItem,
   type DailyChartItem,
   type DailyFlowItem,
   type DailySessionItem,
   type DepositResponse,
+  type EqualNetTradeRankItem,
   type EtfAllPriceItem,
   type EtfInfoResponse,
   type EtfNavItem,
@@ -2048,6 +2052,65 @@ export async function fetchSupplyConcentration(
 export async function fetchAccountTodayStatus(client: KiwoomClient): Promise<AccountTodayStatus> {
   const res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00017", body: {} });
   return accountTodayStatusSchema.parse(res.json);
+}
+
+/**
+ * ka10033 신용비율상위 — 신용융자 잔고비율이 높은 종목 100행. `crd_rt` 내림차순.
+ *
+ * 필수 6개 중 실제로 듣는 건 `trde_qty_tp`뿐이다 — `updown_incls`·`stk_cnd`는 값을 바꿔도
+ * 첫 행이 같고(실측), `crd_cnd`(신용조건)는 효과를 확정하지 못해 둘 다 고정한다.
+ * 이미 정렬된 순위 TR이라 첫 페이지만 쓴다.
+ */
+export async function fetchCreditRatioRank(
+  client: KiwoomClient,
+  market: RankingMarket,
+  minVolume: string,
+): Promise<CreditRatioRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10033",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      trde_qty_tp: minVolume,
+      stk_cnd: "0",
+      updown_incls: "1",
+      crd_cnd: "0",
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return creditRatioRankResponseSchema.parse(res.json).crd_rt_upper;
+}
+
+/**
+ * ka10062 동일순매매순위 — 기관·외국인이 **동시에** 같은 방향으로 순매매한 종목 100행.
+ *
+ * ⚠️ `trde_tp` 0은 쓰지 않는다. 실측으로 **0과 2는 같은 100종목에 부호만 반대**다
+ * (한온시스템 tp0 `+3195` / tp2 `--3195`, 공통 100/100) — 0을 쓰면 순매도 종목이 양수로
+ * 렌더된다. 1=순매수 / 2=순매도만 노출한다.
+ *
+ * `sort_cnd`는 **1만 수량 정렬**이고 0·2·3은 전부 금액 정렬이다(실측). `unit_tp`는
+ * 0/1 응답이 동일해 고정한다.
+ */
+export async function fetchEqualNetTradeRank(
+  client: KiwoomClient,
+  market: RankingMarket,
+  startDate: string,
+  direction: "net_buy" | "net_sell",
+  sort: "amount" | "quantity",
+): Promise<EqualNetTradeRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10062",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      strt_dt: startDate,
+      trde_tp: direction === "net_buy" ? "1" : "2",
+      sort_cnd: sort === "quantity" ? "1" : "0",
+      unit_tp: "0",
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return equalNetTradeRankResponseSchema.parse(res.json).eql_nettrde_rank;
 }
 
 /** ka10037이 받는 기간. 1/5/10 세 갈래 모두 1위가 바뀐다(실측 2026-08-04). */
