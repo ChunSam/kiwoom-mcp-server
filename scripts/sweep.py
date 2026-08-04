@@ -193,6 +193,9 @@ def main() -> int:
         # ka50012/ka50010 금현물 — stk_cd에 M 접두어가 붙는 두 종목뿐이라 enum으로 받는다
         ("get_gold_price", {}),  # daily 기본 (금 1Kg)
         ("get_gold_price", {"instrument": "100g", "mode": "ticks", "rows": 3}),
+        # ka10036/ka10034 외국인 보유(한도) 계열 시장 전체 순위
+        ("get_foreign_holding", {"rank": "limit_surge", "top": 3}),
+        ("get_foreign_holding", {"rank": "period_net", "days": "20", "direction": "net_buy", "top": 3}),
         ("get_execution_strength", {"stock_code": "005930", "view": "intraday", "count": 3}),  # ka10046 시간별
         ("get_after_hours", {"stock_code": "005930"}),  # ka10087 per-stock (호가 없는 종목 경로일 수 있음)
         ("get_after_hours", {"top": 3}),  # ka10098 상승률 순위
