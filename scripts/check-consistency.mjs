@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * 손으로 맞춰야 하는 두 가지가 어긋났는지 본다.
+ * 손으로 맞춰야 하는 세 가지가 어긋났는지 본다.
  *
  * 1. 버전 5곳 동기화 — package.json / server.json ×2 / src/server.ts / package-lock.json
  * 2. CLAUDE.md의 실측 카운트 — tool 수, looseObject 수, TR fixture 파일 수
+ * 3. README 2종에 tool이 문서화됐는지 — 한쪽만 고치고 넘어가기 쉬운 자리다
  *
  * 둘 다 라운드마다 사람이 갱신해야 해서 조용히 어긋난다. 실제로 looseObject가
  * 83으로 적혀 있는 동안 코드에는 85개가 있었고, eb4bd47은 그 드리프트를 고치기만
@@ -93,6 +94,30 @@ for (const [label, statedValue, actualValue, where] of checks) {
   }
 }
 
+// ── 3. README 2종에 tool이 문서화됐는지 ────────────────────────────────
+// "새 tool 추가 절차" 6단계(README.md / README.en.md에 행 추가)가 손으로 하는 일이라
+// 한쪽만 고치고 넘어가기 쉽다. 표 행인지까지는 보지 않는다 — `ping`은 표가 아니라
+// 산문에 있고 그게 의도된 배치다. 이름이 어디에도 안 나오면 그건 빠뜨린 것.
+const toolNames = new Set();
+for (const file of readdirSync(join(ROOT, "src/tools"))) {
+  if (!file.endsWith(".ts")) continue;
+  for (const m of read(join("src/tools", file)).matchAll(/registerTool\(\s*"([a-z_]+)"/g)) {
+    toolNames.add(m[1]);
+  }
+}
+
+for (const readme of ["README.md", "README.en.md"]) {
+  const text = read(readme);
+  const missing = [...toolNames].filter((n) => !text.includes(`\`${n}\``));
+  if (missing.length === 0) {
+    console.log(`✓ ${readme} tool 문서화 — ${toolNames.size}개`);
+  } else {
+    const msg = `${readme}에 없는 tool: ${missing.join(", ")}`;
+    if (warnCounts) warnings.push(msg);
+    else errors.push(`✗ ${msg}`);
+  }
+}
+
 // ── 결과 ───────────────────────────────────────────────────────────────
 for (const w of warnings) console.warn(`⚠️  ${w}`);
 for (const e of errors) console.error(e);
@@ -101,7 +126,8 @@ if (errors.length > 0) {
   console.error(
     "\n버전은 5곳(package.json / server.json ×2 / src/server.ts / package-lock.json)을\n" +
       "함께 올리고 — lockfile은 `npm install --package-lock-only`로 맞춥니다 —\n" +
-      "카운트는 CLAUDE.md의 숫자를 실제 값으로 고치면 됩니다.",
+      "카운트는 CLAUDE.md의 숫자를 실제 값으로,\n" +
+      "README는 빠진 tool을 README.md/README.en.md 양쪽에 적으면 됩니다.",
   );
   process.exit(1);
 }

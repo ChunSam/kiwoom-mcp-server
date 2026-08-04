@@ -14,7 +14,7 @@ python3 scripts/sweep.py          # 전체 tool 실전 스윕 (VIRTUAL 기본, .
 python3 scripts/sweep.py --real    # REAL 모드 명시 허용
 ```
 
-`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 5곳 동기화와 아래 실측 카운트가 어긋났는지 본다 — 둘 다 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 5곳 동기화, 아래 실측 카운트, README 2종의 tool 문서화 셋을 본다 — 전부 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
 
 ## 아키텍처
 
@@ -57,7 +57,7 @@ utils/          num/date/redact/sleep/stock-code
 3. `tools/<name>.ts` — `register<X>Tool(server)` + `export function format<X>(...)`. 핸들러는 얇게(입력 정규화 → fetch → format), 렌더링은 전부 순수 포맷터에.
 4. `server.ts`에 등록 (해당 섹션 주석 아래).
 5. `tests/<name>.test.ts` — 포맷터 단위 테스트.
-6. `README.md` / `README.en.md`의 tool 표에 행 추가.
+6. `README.md` / `README.en.md`의 tool 표에 행 추가 — `check`가 **두 파일 모두**에 이름이 있는지 본다(표가 아니라 산문에 둬도 통과한다, `ping`이 그렇다).
 7. 버전 범프(아래).
 
 tool 작성 관례:
