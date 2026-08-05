@@ -95,7 +95,9 @@ tool 작성 관례:
 
 tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`.
 
-**main은 브랜치 보호가 걸려 있다(2026-08-05).** 직접 push 불가, PR 필수, **CI 2체크(Node 20·22)가 green이어야 머지**되고, 이는 관리자에게도 적용된다(`enforce_admins`). 브랜치는 main 기준 최신이어야 하며(`strict`) 히스토리는 선형이라 squash·rebase만 된다. 그래서 **`gh pr merge --squash` 대신 `gh pr merge --auto --squash`를 쓴다** — CI가 아직 안 붙었을 때 즉시 실패하는 대신 green이 되면 GitHub이 머지한다. 이전에 체크가 보고되기 전에 머지가 나간 적이 있어 건 장치다.
+**main은 브랜치 보호가 걸려 있다(2026-08-05).** 직접 push 불가, PR 필수, 관리자도 우회 불가(`enforce_admins`). 브랜치는 main 기준 최신이어야 하며(`strict`) 히스토리는 선형이라 squash·rebase만 된다. 그래서 **`gh pr merge --squash` 대신 `gh pr merge --auto --squash`를 쓴다** — green이 되면 GitHub이 머지한다. 체크가 보고되기 전에 머지가 나간 적이 있어 건 장치다.
+
+보호 규칙이 요구하는 체크는 **`ci` 하나뿐**이다. `.github/workflows/ci.yml`의 matrix(Node 20·22) 위에 이름이 고정된 집계 job을 두고 그것만 요구한다 — **matrix에 Node를 넣고 빼도 보호 규칙은 건드리지 않는다.** 집계 job의 `if: always()`를 지우면 matrix 실패 시 skipped가 되고, GitHub은 skipped 필수 체크를 실패로 보지 않아 **장치가 조용히 무력화된다**(실패 주입으로 확인함).
 
 배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **발행 절차와 함정은 `/release` 스킬**에 있다 — 순서(npm → 레지스트리), 레지스트리 확인법, 대화형 인증 위임, npm README 스냅샷. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
 
