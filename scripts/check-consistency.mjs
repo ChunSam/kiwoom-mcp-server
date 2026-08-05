@@ -13,14 +13,20 @@
  * 사용:
  *   node scripts/check-consistency.mjs              # 전부 실패로 취급 (CI)
  *   node scripts/check-consistency.mjs --warn-counts # 카운트는 경고만 (pre-commit)
+ *   node scripts/check-consistency.mjs --write       # 카운트를 실제 값으로 고쳐 쓴다
+ *
+ * `--write`는 tool 라운드마다 사람이 CLAUDE.md 숫자를 손으로 고치던 걸 없앤다 — 실제 값은
+ * 이 스크립트가 이미 세고 있으므로 옮겨 적을 이유가 없었다. 한 번은 looseObject를 115로
+ * 잘못 추정해 재실행한 적이 있다. **버전은 건드리지 않는다**(어느 쪽이 정답인지 모른다).
  */
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const warnCounts = process.argv.includes("--warn-counts");
+const write = process.argv.includes("--write");
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
 const countOf = (text, re) => (text.match(re) ?? []).length;
@@ -75,23 +81,40 @@ const actual = {
     .filter((f) => /Schema\.parse\(/.test(read(join("tests", f)))).length,
 };
 
+// 정규식은 검사와 --write가 함께 쓴다 — 캡처 그룹 1이 CLAUDE.md에 적힌 숫자다.
 const checks = [
-  ["tool 수", stated(claudeMd, /기본 (\d+)개 tool/), actual.tool, "CLAUDE.md 첫 문단"],
-  ["looseObject 수", stated(claudeMd, /looseObject (\d+)개/), actual.looseObject, "새 tool 추가 절차 1번"],
-  ["z.object 수", stated(claudeMd, /`z\.object` (\d+)개/), actual.zObject, "새 tool 추가 절차 1번"],
-  ["TR fixture 파일 수", stated(claudeMd, /TR 응답을 다루는 (\d+)개 파일/), actual.fixtureFiles, "테스트 섹션"],
+  ["tool 수", /기본 (\d+)개 tool/, actual.tool, "CLAUDE.md 첫 문단"],
+  ["looseObject 수", /looseObject (\d+)개/, actual.looseObject, "새 tool 추가 절차 1번"],
+  ["z.object 수", /`z\.object` (\d+)개/, actual.zObject, "새 tool 추가 절차 1번"],
+  ["TR fixture 파일 수", /TR 응답을 다루는 (\d+)개 파일/, actual.fixtureFiles, "테스트 섹션"],
 ];
 
-for (const [label, statedValue, actualValue, where] of checks) {
+let rewritten = claudeMd;
+const fixed = [];
+
+for (const [label, re, actualValue, where] of checks) {
+  const statedValue = stated(claudeMd, re);
   if (statedValue === null) {
     warnings.push(`? ${label} — CLAUDE.md에서 문구를 못 찾았습니다 (${where}). 표현이 바뀌었으면 이 스크립트도 고칠 것`);
   } else if (statedValue === actualValue) {
     console.log(`✓ ${label} — ${actualValue}`);
+  } else if (write) {
+    // 캡처 그룹만 바꾼다 — 문구는 손대지 않는다.
+    rewritten = rewritten.replace(re, (m, n) => m.replace(n, String(actualValue)));
+    fixed.push(`${label} — ${statedValue} → ${actualValue}`);
   } else {
     const msg = `${label} — CLAUDE.md ${statedValue} vs 실제 ${actualValue} (${where})`;
     if (warnCounts) warnings.push(msg);
     else errors.push(`✗ ${msg}`);
   }
+}
+
+if (write && fixed.length > 0) {
+  writeFileSync(join(ROOT, "CLAUDE.md"), rewritten);
+  for (const f of fixed) console.log(`✎ ${f}`);
+  console.log(`\nCLAUDE.md의 카운트 ${fixed.length}건을 실제 값으로 고쳤습니다.`);
+} else if (write) {
+  console.log("✎ 고칠 카운트가 없습니다.");
 }
 
 // ── 3. README 2종에 tool이 문서화됐는지 ────────────────────────────────
