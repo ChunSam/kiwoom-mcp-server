@@ -10,11 +10,14 @@ npm run typecheck  # tsc --noEmit
 npm test           # vitest run (네트워크 없음, 오프라인 통과)
 npm run build      # tsc → dist/
 
+npm run check:write # CLAUDE.md 카운트를 실제 값으로 고쳐 씀 (버전은 안 건드림)
+
 python3 scripts/sweep.py          # 전체 tool 실전 스윕 (VIRTUAL 기본, .env 필요)
 python3 scripts/sweep.py --real    # REAL 모드 명시 허용
+python3 scripts/sweep.py --only get_gold_price --full   # 한 tool만, 출력 전문
 ```
 
-`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 5곳 동기화, 아래 실측 카운트, README 2종의 tool 문서화 셋을 본다 — 전부 손으로 맞춰야 해서 조용히 드리프트한다. `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부. `check`는 버전 5곳 동기화, 아래 실측 카운트, README 2종의 tool 문서화 셋을 본다 — 셋 다 조용히 드리프트하므로 **카운트가 어긋나면 손으로 세지 말고 `npm run check:write`**로 고친다(실제 값은 스크립트가 이미 세고 있다 — 버전은 정답을 모르므로 건드리지 않는다). `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). **tool을 새로 붙였으면 `--only <tool> --full`로 표·각주·가드 문구까지 눈으로 확인한다** — 기본 스윕은 첫 줄만 찍어 렌더 오류를 못 잡는다. 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
 
 ## 아키텍처
 

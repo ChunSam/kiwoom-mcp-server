@@ -46,6 +46,16 @@ def read_mode() -> str:
     return mode or "VIRTUAL"  # server default
 
 
+def arg_value(flag):
+    """`--flag value` 또는 `--flag=value` 둘 다 받는다."""
+    for i, a in enumerate(sys.argv):
+        if a == flag:
+            return sys.argv[i + 1] if i + 1 < len(sys.argv) else None
+        if a.startswith(flag + "="):
+            return a.split("=", 1)[1]
+    return None
+
+
 def main() -> int:
     if not DIST.exists():
         print(f"dist/index.js not found — run `npm run build` first ({DIST})")
@@ -56,7 +66,15 @@ def main() -> int:
         print("KIWOOM_MODE=REAL — refusing to sweep a live account without --real.")
         print("(All calls are read-only, but be deliberate: rerun with --real.)")
         return 1
-    print(f"mode: {mode}")
+    # --only <tool>: 그 tool의 호출만 돌린다. --full: 첫 줄이 아니라 전체 출력을 찍는다.
+    # 새 tool을 붙인 직후 표·각주·가드 문구를 눈으로 확인하는 용도 — 전 tool을 얕게 훑는
+    # 기본 스윕과 목적이 다르다(라운드마다 같은 확인 스크립트를 새로 쓰던 걸 대체한다).
+    #
+    # 한계: 앞선 응답에서 인자를 받아 오는 tool(get_watchlist·get_theme_stocks)을 --only로
+    # 단독 실행하면 체이닝이 끊긴다 — 전자는 "SKIPPED", 후자는 기본 테마코드로 돈다.
+    only = arg_value("--only")
+    full = "--full" in sys.argv
+    print(f"mode: {mode}" + (f" | only={only}" if only else "") + (" | full" if full else ""))
 
     proc = subprocess.Popen(
         ["node", str(DIST)],
@@ -109,6 +127,8 @@ def main() -> int:
         text = r["content"][0]["text"] if r.get("content") else ""
         is_err = bool(r.get("isError"))
         first = text.splitlines()[0][:90] if text else "(empty)"
+        if full:
+            print(f"\n{'=' * 100}\n{name}({json.dumps(args, ensure_ascii=False)})\n{'=' * 100}\n{text or '(empty)'}", flush=True)
         expected = (not is_err) or (mode == "VIRTUAL" and name in EXPECTED_MOCK_ERRORS)
         results.append((name, is_err, expected, first))
         time.sleep(CALL_INTERVAL_S)
@@ -221,6 +241,14 @@ def main() -> int:
         ("get_order_executions", {"stock_code": "005930", "side": "buy"}),
         ("get_trading_journal", {}),
     ]
+
+    if only:
+        plan = [(n, a) for n, a in plan if n == only]
+        if not plan:
+            print(f"--only {only}: 스윕 계획에 없는 tool입니다.")
+            proc.stdin.close()
+            proc.terminate()
+            return 1
 
     for name, args in plan:
         if name == "get_watchlist" and args is None:

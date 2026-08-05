@@ -42,6 +42,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "check": "node scripts/check-consistency.mjs",
+    "check:write": "node scripts/check-consistency.mjs --write",
     "prepublishOnly": "npm run check && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
