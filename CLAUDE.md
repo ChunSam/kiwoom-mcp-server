@@ -93,7 +93,9 @@ tool 작성 관례:
 - `src/server.ts` `SERVER_VERSION`
 - `package-lock.json` `version`, `packages[""].version` — `npm install --package-lock-only`로 맞춘다
 
-tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`. main 직접 커밋 대신 PR을 거친다.
+tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`.
+
+**main은 브랜치 보호가 걸려 있다(2026-08-05).** 직접 push 불가, PR 필수, **CI 2체크(Node 20·22)가 green이어야 머지**되고, 이는 관리자에게도 적용된다(`enforce_admins`). 브랜치는 main 기준 최신이어야 하며(`strict`) 히스토리는 선형이라 squash·rebase만 된다. 그래서 **`gh pr merge --squash` 대신 `gh pr merge --auto --squash`를 쓴다** — CI가 아직 안 붙었을 때 즉시 실패하는 대신 green이 되면 GitHub이 머지한다. 이전에 체크가 보고되기 전에 머지가 나간 적이 있어 건 장치다.
 
 배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **발행 절차와 함정은 `/release` 스킬**에 있다 — 순서(npm → 레지스트리), 레지스트리 확인법, 대화형 인증 위임, npm README 스냅샷. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
 
