@@ -30,8 +30,8 @@ jobs:
 
       - run: npm ci
 
-      # 버전 4곳 동기화 + CLAUDE.md 실측 카운트. pre-commit은 카운트를 경고로만
-      # 넘기므로, 머지 전에 막는 건 여기다.
+      # 버전 5곳 동기화 + CLAUDE.md 실측 카운트 + README tool 문서화. pre-commit은
+      # 카운트를 경고로만 넘기므로, 머지 전에 막는 건 여기다.
       - run: npm run check
 
       - run: npm run typecheck
@@ -39,3 +39,25 @@ jobs:
       - run: npm test
 
       - run: npm run build
+
+  # 브랜치 보호가 요구하는 **유일한 체크**. 이름이 고정돼 있어야 하므로 matrix에서 떼어냈다.
+  #
+  # 예전에는 보호 규칙이 `typecheck · test · build (20)`·`(22)`를 직접 요구했는데, 그러면
+  # job name이나 matrix를 건드리는 순간 보호가 조용히 깨진다 — 없어진 체크를 영원히
+  # 기다리거나(머지 불가), 새로 생긴 체크가 요구 목록에 없어 그냥 통과한다(장치 무력화).
+  # 이제 matrix에 Node를 넣고 빼도 보호 규칙은 그대로 둔다.
+  #
+  # `if: always()`가 핵심이다. 이게 없으면 matrix가 실패했을 때 이 job은 **skipped**가 되고,
+  # GitHub은 skipped 필수 체크를 실패로 보지 않아 머지가 통과해 버린다.
+  ci:
+    name: ci
+    if: always()
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Matrix 결과 확인
+        env:
+          RESULT: ${{ needs.check.result }}
+        run: |
+          echo "check job result: $RESULT"
+          test "$RESULT" = "success"
