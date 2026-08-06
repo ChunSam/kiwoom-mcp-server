@@ -46,3 +46,29 @@ Glama·MCP Changefeed·mcp.so는 남이 크롤하는 곳이라 발행 완료 조
 `Claim`과 PulseMCP `/submit`은 하지 않기로 했다 — 전자는 재크롤로 따라오고, 후자는 v0beta
 API가 2026-09 sunset 예정이라 유입 가치가 낮다. **둘 다 사용자 로그인이 필요해 에이전트가
 대신 할 수도 없다.** 상세는 `surfaces.md`.
+
+## npm publish를 위임하면 사용자가 레지스트리까지 돌려 놓는다
+
+**2026-08-05·08-06 두 번 연속**으로 같은 일이 있었다. 절차 3번대로 `! npm publish`를
+위임했더니 사용자가 이어서 `mcp-publisher publish`까지 실행했고, 4번에서 부른 레지스트리
+발행이 둘 다 이렇게 떨어졌다:
+
+```
+Error: publish failed: server returned status 400:
+{"errors":[{"message":"invalid version: cannot publish duplicate version"}]}
+```
+
+**실패가 아니다** — 레지스트리는 append-only라 덮어쓴 것도 없고, 조회해 보면 이미
+`isLatest=true`로 올라가 있다(8/6엔 내 호출 40초 전에 등록돼 있었다). 하지만 400 에러는
+실패로 오독하기 쉽고, 매번 "정말 올라갔나" 확인하는 왕복이 붙는다.
+
+처방 두 가지:
+
+1. **위임 문구에 범위를 못박는다** — "`npm publish`만 해 주세요, 레지스트리·태그·Release는
+   이어서 제가 합니다". 가장 싸다.
+2. **4번 앞에 선조회를 넣는다** — `&version=latest`로 부르고
+   `_meta["io.modelcontextprotocol.registry/official"].isLatest`가 이미 목표 버전이면
+   publish를 건너뛴다.
+
+어느 쪽이든 **400을 받았다고 발행이 안 된 것으로 보고하지 말 것** — 조회로 확인한 뒤에
+판정한다.
