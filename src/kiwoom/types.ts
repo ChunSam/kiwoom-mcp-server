@@ -651,6 +651,37 @@ export const intradayForeignResponseSchema = z.looseObject({
   opmr_invsr_trde: z.array(intradayForeignItemSchema).default([]),
 });
 
+// ── ka10065: 장중투자자별매매상위 (ka10063의 "상위" 판, 주체 6개) ──
+// 배열 키가 `opmr_invsr_trde_upper`로 ka10063(`opmr_invsr_trde`)의 상위 변형임이 드러난다.
+// 실제로 orgn_tp="9000"(외국인)의 값은 ka10063과 **교집합 49종목이 한 자리도 다르지 않다**
+// (2026-08-06 12:20 정규장 실측) — 같은 잠정 시리즈에 주체만 넓힌 것이다.
+//
+// **`netslmt`는 이름이 "순매도"인데 값은 순매수 방향이다.** 키움 어휘로 netslmt=순매도,
+// netprps=순매수인데(ka90009의 for_netslmt/for_netprps 대조) 이 TR의 값은
+// `|buy_qty| - |sel_qty|`와 정확히 맞고 trde_tp=1(순매수)에서 양수다 — 6개 orgn_tp
+// 전 행에서 산술이 성립했다. 이름을 믿지 말 것.
+//
+// `sel_qty`의 `-`는 값의 부호가 아니라 방향 표기다(ka10002·ka10037과 같은 규약) —
+// 수량은 절대값으로 읽는다.
+//
+// 값은 ka10063과 같은 **1,000주 단위 반올림 잠정치**이고, 마감 후에도 응답은 오지만
+// 확정치로 갱신되지 않는다 — 2026-08-06 16:35 실측에서 005935가 ka10065 +261,000인데
+// ka10059 확정치는 **-99,219로 부호까지 반대**였다. 마감 후 값을 확정치로 읽지 말 것.
+
+export const intradayInvestorRankItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  sel_qty: str(), // 매도량 (부호는 방향 표기, 수량은 절대값)
+  buy_qty: str(),
+  netslmt: str(), // 이름과 달리 **순매수 방향** = |buy_qty| - |sel_qty|
+});
+export type IntradayInvestorRankItem = z.infer<typeof intradayInvestorRankItemSchema>;
+
+export const intradayInvestorRankResponseSchema = z.looseObject({
+  ...envelope,
+  opmr_invsr_trde_upper: z.array(intradayInvestorRankItemSchema).default([]),
+});
+
 // ── ka10027/ka10030/ka10032: 순위 TR item shapes ──
 
 export const priceChangeRankItemSchema = z.looseObject({
