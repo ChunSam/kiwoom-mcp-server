@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { intradayForeignResponseSchema } from "../src/kiwoom/types.js";
-import { formatForeignIntraday, type ForeignIntradayOptions } from "../src/tools/foreign-intraday.js";
+import { intradayForeignResponseSchema, intradayInvestorRankResponseSchema } from "../src/kiwoom/types.js";
+import {
+  formatForeignIntraday,
+  formatIntradayInvestorRank,
+  type ForeignIntradayOptions,
+} from "../src/tools/foreign-intraday.js";
 
 const MODE = "실전투자";
 
@@ -129,8 +133,105 @@ describe("formatForeignIntraday", () => {
 
   it("장 밖의 빈 결과는 오류가 아니라 안내다", () => {
     const text = formatForeignIntraday([], base, 20, false, MODE);
-    expect(text).toContain("정규장(09:00~15:30)에만 산출");
+    // "정규장에만 산출된다"고 쓰지 않는다 — 마감 후에도 응답은 온다(갱신이 멈출 뿐).
+    expect(text).toContain("장 시작 전에는 빈 결과가 정상");
     expect(text).toContain("get_net_buy_rank");
+    expect(text).toContain(`[${MODE}]`);
+  });
+});
+
+/**
+ * ka10065 실측 (REAL 2026-08-06 16:4x KST, mrkt_tp=000). 두 조합에서 상위 3행씩 땄다.
+ *
+ * **마감(15:30) 뒤에 뜬 응답이다** — 이 TR은 장 밖에서도 100행을 주지만 값이 확정치로
+ * 갱신되지 않는다. 같은 시각 ka10059 확정치와 대조하면 005935가 이 지표 +261,000인데
+ * 확정 -99,219로 부호까지 반대였다. fixture를 마감 후 값으로 둔 건 그 성격을 남기기 위해서다.
+ *
+ * 살려둔 특이값:
+ *  - `sel_qty`가 전부 음수 부호로 온다 — 값의 부호가 아니라 **방향 표기**라 표에는
+ *    절대값으로 찍는다(ka10002·ka10037과 같은 규약).
+ *  - `netslmt`는 이름이 "순매도"인데 값은 `|buy_qty| - |sel_qty|`로 **순매수 방향**이다:
+ *    빛과전자 7,526,000 - 8,801,000 = -1,275,000.
+ *  - 전 행이 1,000의 배수 — ka10063과 같은 1,000주 단위 반올림 잠정치다.
+ */
+const { opmr_invsr_trde_upper: sellRows } = intradayInvestorRankResponseSchema.parse({
+  return_code: 0,
+  return_msg: "정상적으로 처리되었습니다",
+  opmr_invsr_trde_upper: [
+    { stk_cd: "069540", stk_nm: "빛과전자", sel_qty: "-8801000", buy_qty: "+7526000", netslmt: "-1275000" },
+    { stk_cd: "215790", stk_nm: "이노인스트루먼트", sel_qty: "-2379000", buy_qty: "+1858000", netslmt: "-521000" },
+    { stk_cd: "003280", stk_nm: "흥아해운", sel_qty: "-1148000", buy_qty: "+633000", netslmt: "-515000" },
+  ],
+});
+
+/** 같은 실측의 orgn_tp=6000(연기금등) 순매수 상위 3행. */
+const { opmr_invsr_trde_upper: pensionRows } = intradayInvestorRankResponseSchema.parse({
+  return_code: 0,
+  return_msg: "정상적으로 처리되었습니다",
+  opmr_invsr_trde_upper: [
+    { stk_cd: "006360", stk_nm: "GS건설", sel_qty: "-33000", buy_qty: "+111000", netslmt: "+78000" },
+    { stk_cd: "047040", stk_nm: "대우건설", sel_qty: "-297000", buy_qty: "+367000", netslmt: "+70000" },
+    { stk_cd: "028050", stk_nm: "삼성E&A", sel_qty: "-12000", buy_qty: "+78000", netslmt: "+66000" },
+  ],
+});
+
+describe("formatIntradayInvestorRank (ka10065)", () => {
+  const dataRows = (text: string) =>
+    text.split("\n").filter((l) => l.startsWith("| ") && !l.startsWith("| 순위") && !l.startsWith("|---"));
+
+  it("연기금등 순매수 상위를 키움이 준 순서대로 렌더한다", () => {
+    const text = formatIntradayInvestorRank(pensionRows, "pension", "all", "buy", 20, MODE);
+    expect(text).toContain("연기금등 순매수 상위");
+    expect(dataRows(text).map((l) => l.split(" | ")[1])).toEqual(["GS건설", "대우건설", "삼성E&A"]);
+  });
+
+  it("매수·매도는 절대값으로, 순매수는 부호를 살려 찍는다", () => {
+    const text = formatIntradayInvestorRank(sellRows, "foreign", "all", "sell", 20, MODE);
+    const [first = ""] = dataRows(text);
+    expect(first).toContain("| -1,275,000 |"); // netslmt — 순매도라 부호를 살린다
+    expect(first).toContain("| 7,526,000주 |"); // buy_qty
+    expect(first).toContain("| 8,801,000주 |"); // sel_qty — 방향 표기 `-`를 뗀 절대값
+    expect(first).not.toContain("-8,801,000");
+  });
+
+  it("netslmt는 이름과 달리 매수 − 매도와 맞는다", () => {
+    for (const r of [...sellRows, ...pensionRows]) {
+      const buy = Math.abs(Number(r.buy_qty.replace(/^[+-]+/, "")));
+      const sell = Math.abs(Number(r.sel_qty.replace(/^[+-]+/, "")));
+      const net = Number(r.netslmt.replace(/^\+/, ""));
+      expect(buy - sell).toBe(net);
+    }
+  });
+
+  it("금액 단위를 요청하면 조용히 넘어가지 않고 경고한다", () => {
+    const text = formatIntradayInvestorRank(pensionRows, "pension", "all", "buy", 20, MODE, "amount");
+    expect(text).toContain("⚠️");
+    expect(text).toContain("금액을 주지 않아 수량으로 표시");
+    expect(text).toContain("investor=foreign");
+  });
+
+  it("수량 단위 요청에는 경고를 붙이지 않는다", () => {
+    const text = formatIntradayInvestorRank(pensionRows, "pension", "all", "buy", 20, MODE, "quantity");
+    expect(text).not.toContain("⚠️");
+  });
+
+  it("100행 상한과 잠정치 성격을 각주로 밝힌다", () => {
+    const text = formatIntradayInvestorRank(pensionRows, "pension", "all", "buy", 20, MODE);
+    expect(text).toContain("최대 100종목");
+    expect(text).toContain("확정치로 갱신되지 않습니다");
+    expect(text).toContain("1,000주 단위로 반올림");
+  });
+
+  it("top으로 자르면 그 사실을 밝힌다", () => {
+    const text = formatIntradayInvestorRank(pensionRows, "pension", "all", "buy", 2, MODE);
+    expect(dataRows(text)).toHaveLength(2);
+    expect(text).toContain("3종목 중 2종목만 표시");
+  });
+
+  it("빈 결과는 오류가 아니라 안내다", () => {
+    const text = formatIntradayInvestorRank([], "trust", "kospi", "buy", 20, MODE);
+    expect(text).toContain("투신");
+    expect(text).toContain("빈 결과가 정상");
     expect(text).toContain(`[${MODE}]`);
   });
 });

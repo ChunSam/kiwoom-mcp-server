@@ -188,9 +188,13 @@ def main() -> int:
         ("get_net_buy_rank", {"subject": "pension", "market": "kospi", "top": 3}),
         ("get_net_buy_rank", {"subject": "trust", "market": "kosdaq", "direction": "bottom",
                               "unit": "quantity", "top": 3}),  # 순매도 상위 + 수량 경로
-        # ka10063 — 정규장 밖에서는 빈 결과가 정상이다 (오류 아님).
+        # ka10063 — 장 시작 전에는 빈 결과가 정상이다 (오류 아님).
         ("get_foreign_intraday", {"top": 3}),
         ("get_foreign_intraday", {"market": "kospi", "direction": "sell", "unit": "quantity", "top": 3}),
+        # ka10065 — 주체 확장 모드. pension+amount는 "금액 없음" 경고 경로를 태운다.
+        ("get_foreign_intraday", {"investor": "institution", "top": 3}),
+        ("get_foreign_intraday", {"investor": "pension", "unit": "amount", "top": 3}),
+        ("get_foreign_intraday", {"investor": "trust", "direction": "sell", "market": "kosdaq", "top": 3}),
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_info", {"stock_code": "005930"}),  # non-ETF guard path (shared ka40002 discriminator)
         ("get_etf_returns", {"stock_code": "069500"}),

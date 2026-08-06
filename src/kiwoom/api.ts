@@ -43,6 +43,7 @@ import {
   goldDailyResponseSchema,
   institutionTrendResponseSchema,
   intradayForeignResponseSchema,
+  intradayInvestorRankItemSchema,
   investorDailyItemSchema,
   investorRankDailyItemSchema,
   investorStreakItemSchema,
@@ -117,6 +118,7 @@ import {
   type InstitutionTrendResponse,
   type IndexItem,
   type IntradayForeignItem,
+  type IntradayInvestorRankItem,
   type InvestorDailyItem,
   type InvestorRankDailyItem,
   type InvestorStreakItem,
@@ -810,6 +812,56 @@ export async function fetchIntradayForeign(
   }
 
   return { rows, truncated: res.hasNext };
+}
+
+/**
+ * ka10065가 받는 투자자 주체 — 값은 키움 투자자 코드표다. 2026-08-06 정규장에 코드표
+ * 전체를 스윕하고, 각 코드의 상위 3종목 `netslmt`가 ka10059(같은 종목·같은 날 12주체)의
+ * **어느 컬럼과 일치하는지**로 역산해 확정했다 (6개 전부 3/3 일치).
+ *
+ * 여기 없는 코드는 조회는 되지만 0행이다 — 1000 금융투자 · 3100 사모 · 4000 은행 ·
+ * 5000 기타금융 · 7000 국가 · 8000 개인 · 9001 기타외국인. 장중·마감 후 모두 0행이라
+ * **시간대 문제가 아니라 이 TR이 제공하지 않는 주체**다(ka10059는 마감 후 전 주체를 준다).
+ */
+export const INTRADAY_INVESTOR_CODES = {
+  foreign: "9000",
+  institution: "9999",
+  insurance: "2000",
+  trust: "3000",
+  pension: "6000",
+  other_corp: "7100",
+} as const;
+export type IntradayInvestor = keyof typeof INTRADAY_INVESTOR_CODES;
+
+/**
+ * ka10065 장중투자자별매매상위 — ka10063의 "상위" 판. 주체를 6개로 넓힌 대신 필드는
+ * 5개뿐이다(가격·금액 없음, 수량만).
+ *
+ * - `trde_tp` **1=순매수 / 2=순매도**. 100행의 부호를 세어 확정했다(1은 전부 양수,
+ *   2는 전부 음수, 두 집합의 교집합 0). **`0`은 2와 부호까지 같은 완전 중복**이라
+ *   노출하지 않는다 — ka10062는 0이 2와 부호만 반대였는데 여기는 다르다.
+ *   **인접 TR의 매핑을 복사하지 말 것.**
+ * - `stex_tp`를 받지 않고 응답 코드에 `_AL`/`_NX`도 안 붙지만 **값은 이미 통합**이다
+ *   (통합 기준 ka10063과 교집합 49종목 값 완전일치, 2026-08-06 12:20 실측).
+ * - `cont-yn=N`으로 페이지네이션이 없고 상한은 100행. 주체에 따라 26~100행으로 갈리는데
+ *   상한이 아니라 그 주체가 그만큼만 매매했다는 뜻이다.
+ */
+export async function fetchIntradayInvestorRank(
+  client: KiwoomClient,
+  market: RankingMarket,
+  investor: IntradayInvestor,
+  direction: "buy" | "sell",
+): Promise<IntradayInvestorRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10065",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      trde_tp: direction === "buy" ? "1" : "2",
+      orgn_tp: INTRADAY_INVESTOR_CODES[investor],
+    },
+  });
+  return parseArray(res.json, "opmr_invsr_trde_upper", intradayInvestorRankItemSchema);
 }
 
 /** ka10027 전일대비상위 — sort_tp "1"=상승률, "3"=하락률 (live-verified). */
