@@ -10,6 +10,8 @@ const config: AppConfig = {
   mode: "VIRTUAL",
   modeLabel: "모의투자",
   isaType: "GENERAL",
+  isaEnabled: false,
+  isaOpenedOn: undefined,
   baseUrl: "https://mockapi.kiwoom.com",
 };
 

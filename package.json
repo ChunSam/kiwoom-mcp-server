@@ -39,8 +39,8 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
     "check": "node scripts/check-consistency.mjs",
     "check:write": "node scripts/check-consistency.mjs --write",
     "prepublishOnly": "npm run check && npm run typecheck && npm test && npm run build"

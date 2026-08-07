@@ -40,6 +40,17 @@ jobs:
 
       - run: npm run build
 
+      # 프로덕션 의존성만, high 이상만 막는다. 이 서버는 실계좌를 앞에 두므로 런타임에
+      # 실제로 실리는 코드의 취약점은 알고 넘어가면 안 된다 — 실제로 SDK 전이 의존성
+      # 3건(hono ReDoS · ip-address SSRF 우회 2건 · fast-uri host confusion)이 아무도
+      # 모르는 채 쌓여 있었다. devDependencies는 tarball에 안 실려 제외한다.
+      #
+      # 새 advisory가 뜨면 관련 없는 PR도 빨개진다 — 그게 이 단계의 값이자 비용이다.
+      # 대개 `npm audit fix`(lockfile만 변경)로 풀리고, 고칠 수 없는 건이면
+      # `--audit-level=critical`로 임시 완화하되 이유를 커밋에 남긴다.
+      - name: 프로덕션 의존성 취약점 (high 이상)
+        run: npm audit --omit=dev --audit-level=high
+
   # 브랜치 보호가 요구하는 **유일한 체크**. 이름이 고정돼 있어야 하므로 matrix에서 떼어냈다.
   #
   # 예전에는 보호 규칙이 `typecheck · test · build (20)`·`(22)`를 직접 요구했는데, 그러면

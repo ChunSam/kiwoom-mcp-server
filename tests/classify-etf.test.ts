@@ -11,7 +11,11 @@ type Handler = (code: string) => Record<string, unknown> | Error;
 /** Minimal KiwoomClient stand-in: routes ka40002 bodies through `handler`. */
 function fakeClient(handler: Handler) {
   const call = vi.fn(async (req: { apiId: string; body: Record<string, string> }) => {
-    const out = handler(req.body.stk_cd);
+    // noUncheckedIndexedAccess 때문에 인덱스 접근은 `string | undefined`다. ka40002 요청에
+    // stk_cd가 없으면 스텁 설정이 잘못된 것이므로 조용히 넘기지 않고 여기서 깬다.
+    const stockCode = req.body.stk_cd;
+    if (stockCode === undefined) throw new Error("fakeClient: ka40002 요청에 stk_cd가 없다");
+    const out = handler(stockCode);
     if (out instanceof Error) throw out;
     return { json: { return_code: 0, ...out }, hasNext: false, nextKey: "" };
   });

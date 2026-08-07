@@ -36,7 +36,9 @@ describe("formatEtfReturns", () => {
   });
 
   it("renders dash rows for periods that returned no data", () => {
-    const rows = [rows069500[0], null, null, rows069500[3]];
+    // 인덱스 접근은 noUncheckedIndexedAccess 때문에 `| undefined`가 붙는다 — 구조분해로 꺼낸다.
+    const [week, , , year] = rows069500;
+    const rows = [week ?? null, null, null, year ?? null];
     const text = formatEtfReturns(rows, "KODEX 200", "069500", "201", MODE);
     expect(text).toContain("| 1주 | -5.43% |");
     expect(text).toContain("| 1개월 | - | - | - | - |");

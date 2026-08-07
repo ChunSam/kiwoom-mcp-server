@@ -141,6 +141,34 @@ for (const readme of ["README.md", "README.en.md"]) {
   }
 }
 
+// ── 4. tools/가 export한 register*Tool이 server.ts에서 다 불리는지 ─────
+// tool 수 검사(2번)는 server.ts의 호출 개수를 세어 CLAUDE.md와만 대조하므로, 파일은
+// 만들었는데 server.ts 등록을 빠뜨리면 "실제 값"이 그 누락을 포함한 채로 계산된다 —
+// 카운트는 맞고 tool은 안 뜨는 상태로 통과하고, `--write`는 오히려 숫자를 맞춰 은폐한다.
+// README 검사(3번)도 tools/ 쪽 이름만 보므로 이 드리프트를 못 잡는다.
+const exportedRegistrars = new Map();
+for (const file of readdirSync(join(ROOT, "src/tools"))) {
+  if (!file.endsWith(".ts")) continue;
+  for (const m of read(join("src/tools", file)).matchAll(/export function (register\w+Tool)/g)) {
+    exportedRegistrars.set(m[1], file);
+  }
+}
+const calledRegistrars = new Set(registrations.map((r) => r.replace("(server)", "")));
+
+const unregistered = [...exportedRegistrars.keys()].filter((n) => !calledRegistrars.has(n));
+const orphanCalls = [...calledRegistrars].filter((n) => !exportedRegistrars.has(n));
+
+if (unregistered.length === 0 && orphanCalls.length === 0) {
+  console.log(`✓ server.ts 등록 — ${exportedRegistrars.size}개 register*Tool 전부 호출됨`);
+} else {
+  for (const n of unregistered) {
+    errors.push(`✗ ${n} (src/tools/${exportedRegistrars.get(n)})이 server.ts에 등록되지 않았습니다`);
+  }
+  for (const n of orphanCalls) {
+    errors.push(`✗ server.ts가 ${n}을 부르는데 src/tools/ 어디에도 export가 없습니다`);
+  }
+}
+
 // ── 결과 ───────────────────────────────────────────────────────────────
 for (const w of warnings) console.warn(`⚠️  ${w}`);
 for (const e of errors) console.error(e);
