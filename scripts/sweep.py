@@ -220,9 +220,12 @@ def main() -> int:
         # ka10036/ka10034 외국인 보유(한도) 계열 시장 전체 순위
         ("get_foreign_holding", {"rank": "limit_surge", "top": 3}),
         ("get_foreign_holding", {"rank": "period_net", "days": "20", "direction": "net_buy", "top": 3}),
+        ("get_foreign_holding", {"rank": "streak", "direction": "net_buy", "top": 3}),  # ka10035
         # ka10037 외국계 창구 순매매 상위 — trde_tp가 ka10034와 반대(1=순매수)
         ("get_broker_activity", {"top": 3}),  # stock_code 생략 → 시장 전체 순위
         ("get_broker_activity", {"direction": "net_sell", "days": "5", "sort": "quantity", "top": 3}),
+        ("get_broker_activity", {"stock_code": "005930", "view": "broker_rank", "top": 5}),  # ka10038
+        ("get_broker_activity", {"stock_code": "005930", "view": "broker_rank", "direction": "net_buy", "top": 3}),
         ("get_ranking", {"type": "credit_ratio", "top": 3}),  # ka10033 신용비율
         # ka10062 — trde_tp 0은 순매도를 양수로 주므로 1/2만 노출한다
         ("get_equal_net_trade", {"top": 3}),

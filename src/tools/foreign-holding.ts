@@ -6,6 +6,7 @@ import {
   fetchForeignHolding,
   fetchForeignLimitSurge,
   fetchForeignPeriodTrade,
+  fetchForeignStreakTrade,
   FOREIGN_LIMIT_SURGE_DAYS,
   FOREIGN_PERIOD_DAYS,
   type ForeignLimitSurgeDays,
@@ -16,6 +17,7 @@ import {
   type ForeignHoldingItem,
   type ForeignLimitSurgeItem,
   type ForeignPeriodTradeItem,
+  type ForeignStreakTradeItem,
 } from "../kiwoom/types.js";
 import { formatDateDashed } from "../utils/date.js";
 import { formatKRW, formatNumber, formatPercent, formatQuantity, formatRatioPercent, formatSigned, isSaturatedInt, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
@@ -190,16 +192,75 @@ export function formatForeignHolding(
   return lines.join("\n");
 }
 
+/**
+ * 외국인 3일 연속 순매매 상위 (ka10035).
+ *
+ * `dm1`~`dm3`은 일별 순매매고 `tot`이 합계다. 전 100행에서 세 값의 부호가 같은 것이
+ * "연속"의 정의라, 표는 세 날을 그대로 펼쳐 사용자가 흐름을 볼 수 있게 한다.
+ */
+export function formatForeignStreakTrade(
+  rows: ForeignStreakTradeItem[],
+  market: RankingMarket,
+  direction: "net_sell" | "net_buy",
+  top: number,
+  modeLabel: string,
+): string {
+  const marketLabel = MARKET_LABELS[market];
+  const dirLabel = direction === "net_buy" ? "순매수" : "순매도";
+  if (rows.length === 0) {
+    return (
+      `[${modeLabel}] ${marketLabel} 외국인 3일 연속 ${dirLabel} 종목이 없습니다.\n` +
+      "※ 3일 연속 같은 방향이라는 조건이 엄격합니다 — 휴장일이 끼면 빈 결과가 나올 수 있습니다."
+    );
+  }
+
+  const n = parseKiwoomNumber;
+  const shown = rows.slice(0, top);
+  const lines = [
+    `[${modeLabel}] ${marketLabel} 외국인 3일 연속 ${dirLabel} 상위 (${shown.length}종목)`,
+    "",
+    "| 순위 | 종목명 | 코드 | 현재가 | 3일전 | 2일전 | 1일전 | 3일 합계 | 한도소진율 |",
+    "|---:|---|---|---:|---:|---:|---:|---:|---:|",
+  ];
+
+  shown.forEach((r, i) => {
+    lines.push(
+      row([
+        String(i + 1),
+        r.stk_nm || "-",
+        r.stk_cd,
+        formatKRW(parseKiwoomPrice(r.cur_prc)),
+        formatSigned(n(r.dm3), 0),
+        formatSigned(n(r.dm2), 0),
+        formatSigned(n(r.dm1), 0),
+        formatSigned(n(r.tot), 0),
+        formatRatioPercent(n(r.limit_exh_rt)),
+      ]),
+    );
+  });
+
+  lines.push(
+    "",
+    `※ 3일 합계 내림차순입니다. **세 날 모두 같은 방향(${dirLabel})**인 종목만 나옵니다 — ` +
+      "그게 이 TR이 말하는 '연속'입니다. 수량 단위는 주입니다.",
+    "※ 한도소진율 = 외국인 보유 / 외국인 한도. 이 tool은 외국인 **보유·한도** 계열이라 " +
+      "투자자 매매 기준인 get_net_buy_rank·get_investor_trend와 부호가 반대일 수 있습니다.",
+    UNIFIED_EXCHANGE_NOTE,
+  );
+  return lines.join("\n");
+}
+
 export function registerForeignHoldingTool(server: McpServer): void {
   server.registerTool(
     "get_foreign_holding",
     {
       title: "외국인 보유 추이 조회",
       description:
-        "외국인 보유(한도) 동향을 조회합니다 (키움 ka10008/ka10036/ka10034). " +
+        "외국인 보유(한도) 동향을 조회합니다 (키움 ka10008/ka10036/ka10034/ka10035). " +
         "stock_code를 주면 **그 종목의 일자별 추이** — 종가·거래량·외국인 순변동수량·보유주식수·보유비중·한도소진률. " +
         "stock_code 없이 rank를 주면 **시장 전체 순위**입니다: " +
-        "limit_surge(한도소진율이 가장 많이 오른 종목)/period_net(기간 누적 순매매 상위). " +
+        "limit_surge(한도소진율이 가장 많이 오른 종목)/period_net(기간 누적 순매매 상위)/" +
+        "streak(3일 **연속** 같은 방향으로 순매매한 종목 — 누적 크기가 아니라 방향의 지속성을 볼 때). " +
         "이 tool은 전부 외국인 **보유·한도** 계열이라, 투자자 매매 기준인 get_net_buy_rank·" +
         "get_investor_trend·get_foreign_intraday와는 데이터 소스가 다릅니다(같은 종목에서 부호가 반대일 수 있음).",
       inputSchema: {
@@ -209,10 +270,11 @@ export function registerForeignHoldingTool(server: McpServer): void {
           .optional()
           .describe("조회할 6자리 종목코드 — 주면 종목 추이 모드"),
         rank: z
-          .enum(["limit_surge", "period_net"])
+          .enum(["limit_surge", "period_net", "streak"])
           .optional()
           .describe(
-            "시장 전체 순위 종류 — limit_surge(한도소진율 증가 상위)/period_net(기간 누적 순매매 상위). stock_code를 생략할 때 씁니다",
+            "시장 전체 순위 종류 — limit_surge(한도소진율 증가 상위)/period_net(기간 누적 순매매 상위)/" +
+              "streak(3일 연속 같은 방향 순매매). stock_code를 생략할 때 씁니다",
           ),
         market: z
           .enum(["all", "kospi", "kosdaq"])
@@ -228,7 +290,7 @@ export function registerForeignHoldingTool(server: McpServer): void {
         direction: z
           .enum(["net_sell", "net_buy"])
           .optional()
-          .describe("period_net 방향 — net_sell(순매도, 기본)/net_buy(순매수)"),
+          .describe("period_net·streak 방향 — net_sell(순매도, 기본)/net_buy(순매수)"),
         limit: z
           .number()
           .int()
@@ -283,8 +345,15 @@ export function registerForeignHoldingTool(server: McpServer): void {
           );
         }
 
-        const periodDays = (days ?? DEFAULT_PERIOD_DAYS) as ForeignPeriodDays;
         const dir = direction ?? "net_sell";
+
+        if (rank === "streak") {
+          // ka10035는 3일 고정이라 days를 받지 않는다 — 조용히 무시하지 않고 각주로 밝힌다.
+          const rows = await fetchForeignStreakTrade(client, m, dir);
+          return textResult(formatForeignStreakTrade(rows, m, dir, count, config.modeLabel));
+        }
+
+        const periodDays = (days ?? DEFAULT_PERIOD_DAYS) as ForeignPeriodDays;
         const rows = await fetchForeignPeriodTrade(client, m, periodDays, dir);
         return textResult(
           formatForeignPeriodTrade(rows, m, periodDays, dir, count, config.modeLabel),
