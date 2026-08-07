@@ -1,0 +1,15 @@
+{
+  // `npm run typecheck`가 보는 설정. 베이스(tsconfig.json)의 include는 ["src"]뿐이라
+  // tests/는 tsc가 한 번도 컴파일하지 않았고, 그 결과 `const config: AppConfig = {...}`
+  // 같은 타입 주석이 아무것도 강제하지 못했다 (필수 필드 2개가 빠진 채 초록불이었다).
+  //
+  // 베이스에 tests를 그냥 넣으면 rootDir:"src"와 충돌해 dist/ 레이아웃이 바뀌고
+  // `npm run build`가 깨진다. 그래서 emit을 끈 별도 설정으로 분리한다 —
+  // build는 tsconfig.json, typecheck는 이 파일.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src", "tests"]
+}
