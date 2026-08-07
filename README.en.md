@@ -87,11 +87,11 @@ allowance.
 | `get_account_holdings` | Per-holding quantity / average cost / current price / valuation P&L | kt00018 |
 | `get_account_today` | Today's account activity — trade value, fees, taxes, cash in/out + D+2 estimates (REAL only) | kt00017 |
 | `get_account_trend` | Daily estimated-deposit-asset trend + period return / valuation P&L / cash-flow summary (default 30 days; not served on VIRTUAL) | kt00002, kt00016 |
-| `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount) | kt00015 |
+| `get_transactions` | Transaction history for a period (trade date, unit price, settlement amount; not served on VIRTUAL) | kt00015 |
 | `get_pending_orders` | Open/unfilled orders (order no., side, status, ordered/unfilled qty, price) | ka10075 |
 | `get_order_executions` | Filled orders (order no., side, status, ordered/filled qty, prices, fees+tax; side/stock/order-no filters) | ka10076 |
 | `get_trading_journal` | The day's trading journal (per-stock buy/sell avg price, qty, realized P&L, totals) | ka10170 |
-| `calc_isa_tax_status` | ISA aggregated net gain vs. the tax-free allowance (realized + full-liquidation scenario) | kt00015, ka10074, kt00018 |
+| `calc_isa_tax_status` | ISA aggregated net gain vs. the tax-free allowance (realized + full-liquidation scenario; depends on kt00015, so not served on VIRTUAL) | kt00015, ka10074, kt00018 |
 
 Plus `ping` (connectivity check, no app key needed). Every response is prefixed
 with `[모의투자]` (VIRTUAL) / `[실전투자]` (REAL) so you can tell which server
@@ -107,9 +107,11 @@ Electronics, measured intraday on 2026-08-03, was KRX 19.2M / NXT 15.5M /
 **combined 34.7M**. If a number disagrees with an HTS or portal screen that shows
 KRX only, this is usually why.
 
-Two exceptions: **broker activity (`get_broker_activity`) stays on KRX** —
-Kiwoom does not serve it combined. And **`get_after_hours`** cannot be queried
-combined at all; NXT-enabled symbols are absent from that TR to begin with. The
+Two exceptions: **the per-stock broker breakdown of `get_broker_activity`
+(ka10002) stays on KRX** — Kiwoom does not serve that TR combined; the same
+tool's market-wide foreign-desk ranking (ka10037) *is* on the combined basis.
+And **`get_after_hours`** cannot be queried combined at all; NXT-enabled symbols
+are absent from that TR to begin with. The
 order book moved to the combined basis in v0.37.0: it now uses ka10007 instead of
 ka10004. Samsung Electronics, measured intraday on 2026-08-04, had best-bid size
 of KRX 18,421 / NXT 17,081 / **combined 36,319**.
@@ -282,7 +284,11 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
   outside a registered IP (e.g. in the cloud) can fail auth. Validate remote
   setups with a VIRTUAL key first.
 
-The stdio behavior (Claude Desktop/Code) is unchanged when run without arguments.
+The stdio behavior (Claude Desktop/Code) is unchanged when run without arguments
+— unless `MCP_TRANSPORT=http` is set in the environment or in `.env`, which is
+loaded before the transport is chosen: an argument-less run then takes the HTTP
+path too (and refuses to start at all without `MCP_AUTH_TOKEN`). Pass
+**`--stdio`** to force stdio regardless of `MCP_TRANSPORT`.
 
 ## Smoke test
 
@@ -311,11 +317,19 @@ printf '%s\n' \
 ## Development
 
 ```sh
-npm run dev        # run the source directly with tsx
-npm run typecheck  # tsc --noEmit
-npm test           # vitest
-npm run build      # tsc → dist/
+npm run dev         # run the source directly with tsx
+npm run check       # version sync · counts · tool docs in both READMEs · server.ts registration
+npm run check:write # rewrite the counts above to their measured values (leaves versions alone)
+npm run typecheck   # tsc --noEmit -p tsconfig.test.json (src + tests)
+npm test            # vitest
+npm run build       # tsc → dist/
 ```
+
+All four run in CI (`.github/workflows/ci.yml`, Node 20 and 22), plus one extra
+step: `npm audit --omit=dev --audit-level=high`. Type-checking uses
+`tsconfig.test.json` because the build config sets `rootDir` to `src` — putting
+`tests` in that same config would change the `dist/` layout. The build still
+uses `tsconfig.json`.
 
 Structure: `src/kiwoom/` (auth / HTTP / TR layer) → `src/tools/` (MCP tools with
 formatters split out) → `src/isa/` (tax-type classification / realized-P&L
