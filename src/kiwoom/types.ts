@@ -1744,6 +1744,73 @@ export type ForeignPeriodTradeItem = z.infer<
   typeof foreignPeriodTradeResponseSchema
 >["for_dt_trde_upper"][number];
 
+// ── ka10035: 외인연속순매매상위 ──
+
+/**
+ * 외국인이 **3일 연속** 같은 방향으로 순매매한 종목 상위 100 (REAL 실측 2026-08-07).
+ *
+ * `dm1`~`dm3`이 3일치 일별 순매매이고 `tot`이 그 합계다. "연속"의 정의가 여기서 확인된다 —
+ * 100/100 행에서 `dm1`~`dm3` 부호가 3일 모두 같았다.
+ *
+ * `pred_pre_1`~`pred_pre_3`은 **전 행 공백**이라 선언하지 않는다.
+ * ka10034와 같은 외국인 한도/보유 계열이라 `limit_exh_rt`(한도소진율)가 같이 온다.
+ */
+export const foreignStreakTradeResponseSchema = z.looseObject({
+  ...envelope,
+  for_cont_nettrde_upper: z
+    .array(
+      z.looseObject({
+        stk_cd: code(),
+        stk_nm: str(),
+        cur_prc: str(),
+        pred_pre_sig: str(),
+        pred_pre: str(),
+        dm1: str(), // 1일 전 순매매
+        dm2: str(), // 2일 전
+        dm3: str(), // 3일 전
+        tot: str(), // 3일 합계
+        limit_exh_rt: str(), // 한도소진율(%)
+      }),
+    )
+    .default([]),
+});
+
+export type ForeignStreakTradeItem = z.infer<
+  typeof foreignStreakTradeResponseSchema
+>["for_cont_nettrde_upper"][number];
+
+// ── ka10038: 종목별증권사순위 ──
+
+/**
+ * 한 종목을 거래한 **전 거래원**의 순위 (REAL 실측 2026-08-07, 005930에서 50행 · cont-yn=N).
+ * ka10002(`get_broker_activity` 종목 모드)가 상위 5개만 주는 것과 달리 전체를 준다.
+ *
+ * 응답 스칼라 `rank_1`/`rank_2`/`rank_3`은 표시된 거래원들의 매수·매도·순매매 **합계**이고,
+ * `prid_trde_qty`는 **기간 정의를 확정하지 못해 선언하지 않는다** — 005930 기준 8/4
+ * 8,914,099,446 → 8/7 8,937,714,459로 3거래일에 +23.6M인데 일 거래량(19~35M)과 안 맞는다.
+ * 단위·기간을 모르는 값은 `※` 각주로도 못 밝히므로 아예 노출하지 않는 쪽이 맞다.
+ *
+ * `acc_netprps_qty`는 `--34274015`처럼 **이중부호**로 온다 — parseKiwoomNumber가 흡수한다.
+ */
+export const brokerStockRankResponseSchema = z.looseObject({
+  ...envelope,
+  stk_sec_rank: z
+    .array(
+      z.looseObject({
+        rank: str(),
+        mmcm_nm: str(), // 거래원명 — ka10002·ka10102와 같은 표기(이중 공백 포함)
+        buy_qty: str(),
+        sell_qty: str(),
+        acc_netprps_qty: str(), // 누적 순매매 수량 (이중부호 주의)
+      }),
+    )
+    .default([]),
+});
+
+export type BrokerStockRankItem = z.infer<
+  typeof brokerStockRankResponseSchema
+>["stk_sec_rank"][number];
+
 // ── ka10033: 신용비율상위 ──
 
 /**

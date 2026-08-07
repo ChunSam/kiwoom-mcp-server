@@ -50,14 +50,14 @@ allowance.
 | `get_investor_rank` | Top stocks net-bought/sold by foreigners & institutions / N-day buying streaks | ka90009, ka10131 |
 | `get_net_buy_rank` | Top net-buying stocks per investor type — 12 subjects (retail, foreign, institution, financial inv., insurance, trust, bank, pension, private fund, other finance, nation, other corp.); last completed session | ka10066 |
 | `get_foreign_intraday` | Intraday top net-buy/sell stocks by investor type — foreigners, institutions, insurance, trusts, pensions, other corporates (live provisional) | ka10063, ka10065 |
-| `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037 |
+| `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), the full 50-broker cumulative ranking (`view=broker_rank`), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037, ka10038 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
 | `get_etf_rank` | Market-wide ETF screener — sort by disparity (premium/discount), change, volume or tracking error; filter by tax type, manager brand or tracked index | ka40004 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
 | `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
-| `get_foreign_holding` | Foreign holding/limit activity — per-stock trend, or market-wide rankings (limit-usage surge / period net trading) | ka10008, ka10036, ka10034 |
+| `get_foreign_holding` | Foreign holding/limit activity — per-stock trend, or market-wide rankings (limit-usage surge / period net trading / three-day net-trading streak) | ka10008, ka10036, ka10034, ka10035 |
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) | ka90003, ka90010, ka90005, ka90013 |
 | `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |
 | `get_execution_strength` | Execution-strength trend (buy÷sell executed volume ×100; 100 = balanced) — 60 sessions daily or 60 minutes intraday | ka10046, ka10047 |

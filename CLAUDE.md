@@ -58,7 +58,7 @@ utils/          num/date/redact/sleep/stock-code
 
 **새 축은 기존 tool의 모드·부가정보로 붙이는 것이 기본값이다(권고).** v0.36~0.39 네 라운드가 전부 tool 수 47을 유지했다 — ka10024는 `get_market_movers`의 `signal`, ka10028은 `get_ranking`의 `type`, ka10102는 `get_broker_activity`의 외국계 표시, ka10007은 `get_orderbook`의 TR 교체로 들어갔다. tool을 새로 늘리는 쪽이 예외이고, 그때만 아래 7단계를 전부 밟는다.
 
-1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 120개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
+1. `kiwoom/types.ts` — 응답 zod 스키마. **`z.looseObject` + `const str = () => z.string().default("")` 헬퍼**가 예외 없는 관례다(현재 looseObject 124개, `z.object` 0개). 미선언 필드는 그냥 통과하므로 **서버가 실제로 쓰는 필드만** 선언하고, 문자열 필드는 새 헬퍼를 만들지 말고 `str()`을 쓴다. `...envelope`로 `return_code`/`return_msg`를 포함시킨다. `.optional()`은 값이 **정말 없을 수 있는** 응답(토큰 발급 실패 등)에만 쓴다 — 키움이 미제공 필드를 빈 문자열로 주는 케이스는 `str()`이 이미 흡수한다.
 2. `kiwoom/api.ts` — `fetch<X>()` 추가. JSDoc 첫 줄은 `/** ka10046 체결강도요청 */`처럼 **TR 코드 + 키움 공식 TR명**.
 3. `tools/<name>.ts` — `register<X>Tool(server)` + `export function format<X>(...)`. 핸들러는 얇게(입력 정규화 → fetch → format), 렌더링은 전부 순수 포맷터에.
 4. `server.ts`에 등록 (해당 섹션 주석 아래).
@@ -85,7 +85,7 @@ tool 작성 관례:
 
 - vitest, `tests/*.test.ts`. **네트워크를 타지 않는다** — 포맷터·파서·설정·전송선택 같은 순수 로직만 검증.
 - fixture는 mockapi/실계좌에서 **실측한 응답을 그대로** 넣고, 언제 어느 TR/종목에서 땄는지 주석으로 남긴다. 빈 문자열·이상한 값도 손대지 않는다 — 그 이상함이 보통 테스트의 이유다.
-- TR 응답 fixture는 **반드시** `types.ts`의 스키마로 `.parse()`해서 넣는다 — 현재 TR 응답을 다루는 36개 파일 전부가 예외 없이 이렇게 한다. 스키마와 fixture가 같이 어긋나는 걸 막는 장치다. (순수 유틸·전송·OAuth 테스트는 애초에 TR 응답을 다루지 않으므로 해당 없음.)
+- TR 응답 fixture는 **반드시** `types.ts`의 스키마로 `.parse()`해서 넣는다 — 현재 TR 응답을 다루는 37개 파일 전부가 예외 없이 이렇게 한다. 스키마와 fixture가 같이 어긋나는 걸 막는 장치다. (순수 유틸·전송·OAuth 테스트는 애초에 TR 응답을 다루지 않으므로 해당 없음.)
 - "왜 이 폴백이 필요한가"를 아는 테스트는 그 근거를 주석에 남긴다 (예: ka10047은 `trde_qty`가 전 행 공백이라 `acc_trde_qty`로 폴백).
 
 ## 버전 / 릴리스

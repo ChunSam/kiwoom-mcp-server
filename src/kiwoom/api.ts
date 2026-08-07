@@ -18,6 +18,7 @@ import {
   bidRatioSurgeResponseSchema,
   bidSurgeResponseSchema,
   brokerActivityResponseSchema,
+  brokerStockRankResponseSchema,
   brokerCodeListResponseSchema,
   creditRatioRankResponseSchema,
   creditTrendResponseSchema,
@@ -39,6 +40,7 @@ import {
   foreignHoldingResponseSchema,
   foreignLimitSurgeResponseSchema,
   foreignPeriodTradeResponseSchema,
+  foreignStreakTradeResponseSchema,
   goldContractResponseSchema,
   goldDailyResponseSchema,
   institutionTrendResponseSchema,
@@ -94,6 +96,7 @@ import {
   type BidSurgeItem,
   type BrokerActivityResponse,
   type BrokerCodeItem,
+  type BrokerStockRankItem,
   type CreditRatioRankItem,
   type CreditTrendResponse,
   type DailyAssetItem,
@@ -113,6 +116,7 @@ import {
   type ForeignBrokerRankItem,
   type ForeignLimitSurgeItem,
   type ForeignPeriodTradeItem,
+  type ForeignStreakTradeItem,
   type GoldContractItem,
   type GoldDailyItem,
   type InstitutionTrendResponse,
@@ -2256,6 +2260,67 @@ export async function fetchForeignPeriodTrade(
     },
   });
   return foreignPeriodTradeResponseSchema.parse(res.json).for_dt_trde_upper;
+}
+
+/**
+ * ka10035 외인연속순매매상위 — 외국인이 3일 연속 같은 방향으로 순매매한 종목 100행.
+ *
+ * `trde_tp` **1=순매도 / 2=순매수**다. ka10034와 같은 매핑이지만 복사한 게 아니라
+ * `tot` 부호를 100행 세어 확인했다(1→음수 100/100, 2→양수 100/100, REAL 2026-08-07).
+ *
+ * `base_dt_tp`는 **실질 2갈래**다 — `"0"`은 연속 조건이 엄격해 2~4행만 나오고 `"1"`·`"2"`·
+ * `"4"`는 100행이 완전히 동일하다. 갈래가 값을 바꾸지 않으므로 tool 입력으로 노출하지 않고
+ * 100행을 주는 `"1"`로 고정한다.
+ */
+export async function fetchForeignStreakTrade(
+  client: KiwoomClient,
+  market: RankingMarket,
+  direction: "net_sell" | "net_buy",
+): Promise<ForeignStreakTradeItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10035",
+    body: {
+      mrkt_tp: RANKING_MARKET_CODES[market],
+      trde_tp: direction === "net_sell" ? "1" : "2",
+      base_dt_tp: "1",
+      stex_tp: STEX_UNIFIED,
+    },
+  });
+  return foreignStreakTradeResponseSchema.parse(res.json).for_cont_nettrde_upper;
+}
+
+/** ka10038의 `qry_tp` — 기간이 아니라 **거래원 집합**을 고른다 (아래 JSDoc 참조). */
+export type BrokerRankSide = "net_sell" | "net_buy" | "all";
+
+const BROKER_RANK_SIDE_CODES: Record<BrokerRankSide, string> = {
+  net_sell: "1",
+  net_buy: "2",
+  all: "3",
+};
+
+/**
+ * ka10038 종목별증권사순위 — 한 종목을 거래한 **전 거래원**의 순위 (005930에서 50행).
+ *
+ * **`qry_tp`는 기간 선택자가 아니라 거래원 분할이다** (REAL 실측 2026-08-07). 2026-08-04에
+ * "기간 불명"으로 보류했던 건 파라미터 모델을 잘못 잡은 탓이었다. 집합 연산으로 확정:
+ * `1`(13개) ∩ `2`(37개) = ∅ 이고 `1` ∪ `2` = `3`(50개)이며, 합계(`rank_1`)도
+ * 3.415B + 5.513B = 8.928B로 정확히 맞는다. 방향은 `rank_3` 부호로 갈렸다 —
+ * `1`은 −194,329,965(순매도 거래원), `2`는 +192,253,405(순매수 거래원).
+ *
+ * cont-yn=N인 단일 페이지라 페이지네이션이 없다.
+ */
+export async function fetchBrokerStockRank(
+  client: KiwoomClient,
+  stockCode: string,
+  side: BrokerRankSide,
+): Promise<BrokerStockRankItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10038",
+    body: { stk_cd: stockCode, qry_tp: BROKER_RANK_SIDE_CODES[side] },
+  });
+  return brokerStockRankResponseSchema.parse(res.json).stk_sec_rank;
 }
 
 /**
