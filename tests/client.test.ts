@@ -137,4 +137,48 @@ describe("KiwoomClient.call", () => {
     expect(headers["cont-yn"]).toBe("Y");
     expect(headers["next-key"]).toBe("NEXT123");
   });
+
+  /**
+   * `AbortSignal.timeout`은 헤더 수신 이후 **본문 스트리밍에도** 계속 걸린다. 키움이 헤더만
+   * 먼저 주고 본문이 지연되면 `fetch`는 성공으로 resolve되고 `response.text()`에서 던진다
+   * (로컬 http 서버가 헤더+부분 본문만 보내고 멈추는 실험으로 재현: `DOMException
+   * TimeoutError`). 이때 text()가 try 밖이면 재시도도 `KiwoomApiError` 래핑도 건너뛴다.
+   */
+  const bodyFails = (error: unknown): Response =>
+    ({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: () => Promise.reject(error),
+    }) as unknown as Response;
+
+  it("retries once when the response body read times out", async () => {
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(bodyFails(timeout))
+      .mockResolvedValueOnce(jsonResponse(okBody));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new KiwoomClient(config, fakeTokens());
+    const res = await client.call({ path: "/api/dostk/stkinfo", apiId: "ka10001", body: {} });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((res.json as { cur_prc: string }).cur_prc).toBe("+61300");
+  });
+
+  it("wraps a persistent body-read failure as KiwoomApiError naming the TR", async () => {
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(bodyFails(timeout)));
+
+    const client = new KiwoomClient(config, fakeTokens());
+    const error = await client
+      .call({ path: "/api/dostk/stkinfo", apiId: "ka10001", body: {} })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(KiwoomApiError);
+    // 어느 TR인지 모르는 raw DOMException이 그대로 새어 나가면 안 된다.
+    expect((error as KiwoomApiError).message).toContain("ka10001");
+    expect((error as KiwoomApiError).details?.apiId).toBe("ka10001");
+  });
 });

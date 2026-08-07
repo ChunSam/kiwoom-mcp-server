@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import { fetchSectorNetBuy, type InvestorUnit, type SectorMarket } from "../kiwoom/api.js";
 import type { SectorNetBuyItem } from "../kiwoom/types.js";
-import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber } from "../utils/num.js";
+import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 15;
@@ -16,9 +16,19 @@ const MARKET_LABELS: Record<SectorMarket, string> = { kospi: "코스피", kosdaq
 /** 금액은 백만원, 수량은 천주 — 같은 응답의 trde_qty가 천주인 데 맞춘 해석이다. */
 const UNIT_LABELS: Record<InvestorUnit, string> = { amount: "백만원", quantity: "천주" };
 
-/** ka10051은 지수·등락률을 ×100 정수로 준다 (ka20003과 교차검증). */
-const scaleIndex = (raw: string): number | null => {
+/** ka10051은 지수·등락률을 ×100 정수로 준다 (ka20003과 교차검증). 등락률은 부호가 값의 부호다. */
+const scaleRate = (raw: string): number | null => {
   const value = parseKiwoomNumber(raw);
+  return value === null ? null : value / 100;
+};
+
+/**
+ * 지수 값은 `parseKiwoomPrice`로 읽는다 — 키움은 `cur_prc`의 `-`를 값의 부호가 아니라
+ * **전일대비 방향**으로 쓴다. `parseKiwoomNumber`로 읽으면 하락일 KOSPI 종합지수가
+ * `-6,241.19`로 찍힌다 (2026-08-03 실측 행, tests/sector-flow.test.ts).
+ */
+const scaleIndex = (raw: string): number | null => {
+  const value = parseKiwoomPrice(raw);
   return value === null ? null : value / 100;
 };
 
@@ -35,7 +45,7 @@ const SORT_KEYS: Record<SectorFlowSort, (row: SectorNetBuyItem) => number> = {
   foreign: (r) => parseKiwoomNumber(r.frgnr_netprps) ?? 0,
   institution: (r) => parseKiwoomNumber(r.orgn_netprps) ?? 0,
   individual: (r) => parseKiwoomNumber(r.ind_netprps) ?? 0,
-  change: (r) => scaleIndex(r.flu_rt) ?? 0,
+  change: (r) => scaleRate(r.flu_rt) ?? 0,
 };
 
 export function formatSectorFlow(
@@ -73,7 +83,7 @@ export function formatSectorFlow(
       r.inds_nm || "-",
       r.inds_cd,
       formatNumber(scaleIndex(r.cur_prc)),
-      formatPercent(scaleIndex(r.flu_rt)),
+      formatPercent(scaleRate(r.flu_rt)),
       formatSigned(n(r.ind_netprps), 0),
       formatSigned(n(r.frgnr_netprps), 0),
       formatSigned(n(r.orgn_netprps), 0),

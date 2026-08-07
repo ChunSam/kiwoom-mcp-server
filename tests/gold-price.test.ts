@@ -175,4 +175,30 @@ describe("formatGoldDaily", () => {
     expect(empty).toContain("데이터가 없습니다");
     expect(empty).toContain("휴장일");
   });
+
+  /**
+   * 헤더의 전일대비는 `latest` 행에서만 나오는데 위 fixture의 최신 행이 상승일이라
+   * 하락 케이스가 한 번도 안 돌았다. 실측 하락일 행(20260623)을 최신으로 세우면
+   * `parseKiwoomPrice`(절대값)를 쓸 때 `(+3,320, -1.61%)`라는 자기모순이 나왔다.
+   */
+  it("최신 행이 하락일이면 전일대비도 음수로 낸다 (등락률과 방향이 같아야 한다)", () => {
+    const falling = goldDailyResponseSchema.parse({
+      return_code: 0,
+      return_msg: "정상적으로 처리되었습니다",
+      gold_daly_trnsn: [
+        {
+          cur_prc: "-202730", pred_pre: "-3320", flu_rt: "-1.61", trde_qty: "568427",
+          acc_trde_prica: "116003", open_pric: "206050", high_pric: "+206400",
+          low_pric: "-201890", dt: "20260623", pre_sig: "5",
+          orgn_netprps: "-114", for_netprps: "0", ind_netprps: "-115",
+        },
+      ],
+    });
+    const text = formatGoldDaily(falling.gold_daly_trnsn, "1kg", 20, "실전투자");
+
+    expect(text).toContain("(-3,320, -1.61%)");
+    expect(text).not.toContain("(+3,320");
+    // 종가 자체는 여전히 절대값이다 — 부호 규약이 필드마다 다르다는 게 요점.
+    expect(text).toContain("202,730원/g");
+  });
 });

@@ -221,11 +221,14 @@ describe("formatMarketMovers — volume_renew (ka10024)", () => {
     expect(text).toContain("| 0 | 5,000 | +5,000 | - |");
   });
 
-  it("페이지 상한에 걸리면 잘렸을 수 있다고 알린다", () => {
+  // ka10024도 종목코드 순 전량 스냅샷 — ka10028(open-price-change.test.ts)과 같은 처방이다.
+  it("페이지 상한에 걸리면 뒤가 잘린 게 아니라 일부 종목이 빠졌다고 알린다", () => {
     const text = formatMarketMovers("volume_renew", "all", volumeRenewItems, 20, MODE, undefined, {
       truncated: true,
     });
 
-    expect(text).toContain("결과가 잘렸을 수 있습니다");
+    expect(text).toContain("일부 종목이 빠졌습니다");
+    expect(text).toContain("종목코드 순으로 오기 때문에");
+    expect(text).not.toContain("결과가 잘렸을 수 있습니다");
   });
 });

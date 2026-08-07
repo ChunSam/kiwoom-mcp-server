@@ -52,11 +52,16 @@ export function formatExecutionStrength(
   const [ma5, ma20, ma60] = MA_LABELS[view];
   const axis = view === "intraday" ? "시각" : "일자";
 
-  const latest = n(shown[0]?.cntr_str) ?? 0;
+  // 값 없음(빈 문자열)을 0으로 접으면 describeStrength가 임계값 80 미만이라 "매도 체결이
+  // 크게 우세"라는 없는 신호를 만든다 — null을 유지해 "-"로 렌더한다.
+  const [first] = shown;
+  const latest = first ? n(first.cntr_str) : null;
   const lines = [
     `[${modeLabel}] 체결강도 ${viewLabel} 추이 — 종목 ${stockCode} (${shown.length}행)`,
     "",
-    `최근 체결강도 ${latest.toFixed(2)} — ${describeStrength(latest)}`,
+    latest === null
+      ? "최근 체결강도 - — 값이 오지 않았습니다 (장 시작 직후이거나 체결이 없는 구간)"
+      : `최근 체결강도 ${latest.toFixed(2)} — ${describeStrength(latest)}`,
     "",
     `| ${axis} | 현재가 | 등락률 | 거래량 | 체결강도 | ${ma5} | ${ma20} | ${ma60} |`,
     "|---|---:|---:|---:|---:|---:|---:|---:|",
@@ -70,10 +75,10 @@ export function formatExecutionStrength(
       formatKRW(parseKiwoomPrice(r.cur_prc)),
       formatPercent(n(r.flu_rt)),
       formatQuantity(volume),
-      (n(r.cntr_str) ?? 0).toFixed(2),
-      (n(r.cntr_str_5min) ?? 0).toFixed(2),
-      (n(r.cntr_str_20min) ?? 0).toFixed(2),
-      (n(r.cntr_str_60min) ?? 0).toFixed(2),
+      strength(r.cntr_str),
+      strength(r.cntr_str_5min),
+      strength(r.cntr_str_20min),
+      strength(r.cntr_str_60min),
     ];
     lines.push(`| ${cells.join(" | ")} |`);
   }
@@ -91,6 +96,12 @@ export function formatExecutionStrength(
     lines.push(`※ 조회된 ${rows.length}행 중 최근 ${shown.length}행만 표시했습니다 (count로 조정).`);
   }
   return lines.join("\n");
+}
+
+/** 빈 값은 0이 아니라 "-" — 0으로 접으면 없는 매도 신호가 된다. */
+function strength(raw: string): string {
+  const value = parseKiwoomNumber(raw);
+  return value === null ? "-" : value.toFixed(2);
 }
 
 /** 100 균형 기준의 짧은 해석. 경계값은 임의가 아니라 ±10%p 밴드로 잡았다. */

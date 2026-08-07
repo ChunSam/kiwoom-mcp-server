@@ -189,8 +189,14 @@ export function formatMarketMovers(
         "정렬은 증가량(당일 − 직전최대) 순입니다.",
     );
   }
+  // ka10024도 종목코드 순 전량 스냅샷이고 정렬은 호출부가 한다 — ranking.ts와 같은 이유로
+  // "뒤가 잘렸다"가 아니라 "일부 종목이 빠졌다"로 쓴다.
   if (options?.truncated) {
-    lines.push("", "⚠️ 페이지 상한에 걸려 결과가 잘렸을 수 있습니다 — 조회 범위를 좁혀 주세요.");
+    lines.push(
+      "",
+      "⚠️ 페이지 상한에 걸려 **일부 종목이 빠졌습니다** — 이 TR은 종목코드 순으로 오기 때문에 " +
+        "뒤쪽 코드가 순위에서 통째로 누락됐을 수 있습니다. 조회 범위를 좁혀 주세요.",
+    );
   }
   lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
