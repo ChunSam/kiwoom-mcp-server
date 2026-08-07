@@ -89,8 +89,16 @@ export function formatSupplyConcentration(
   if (rows.length > shown.length) {
     lines.push(`※ 조회된 ${rows.length}건 중 상위 ${shown.length}건만 표시했습니다 (top으로 조정).`);
   }
+  // ka10025는 `prps_rt` **오름차순**으로 온다 (REAL 실측 2026-08-07: 하한 20에서 3,042행
+  // 16페이지가 20.00→100.00으로 단조 증가). 포맷터는 내림차순 상위 N을 보여주므로 상한에
+  // 걸리면 **최고값이 있는 뒷페이지가 통째로 빠져** 표가 "상위"라면서 최하위를 보여준다 —
+  // 다른 TR의 "일부 종목이 빠졌다"보다 나쁜 실패라 문구를 따로 쓴다.
   if (truncated) {
-    lines.push("※ 페이지 상한에 걸려 **결과가 잘렸을 수 있습니다** — min_ratio를 올려 범위를 좁혀 보세요.");
+    lines.push(
+      "⚠️ 페이지 상한에 걸려 **이 순위를 믿을 수 없습니다** — 이 TR은 매물비율 **오름차순**으로 " +
+        "오기 때문에 잘린 뒷부분에 더 높은 비율의 종목이 남아 있습니다. min_ratio를 올려 " +
+        "모수를 좁힌 뒤 다시 조회하세요.",
+    );
   }
   lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");

@@ -180,9 +180,13 @@ describe("formatEtfRank", () => {
     expect(text).toContain("필터를 완화해 보세요");
   });
 
+  // ka40004는 종목코드 순 전량 스냅샷이다 (REAL 실측 2026-08-07: 300행 중 역전 1곳).
+  // 정렬을 포맷터가 하므로 잘리면 표의 꼬리가 아니라 정렬 모수에서 종목이 빠진다.
   it("top 초과분과 페이지 상한 절단을 각각 알린다", () => {
     const text = formatEtfRank(rows, filters(), 2, true, MODE);
     expect(text).toContain("6종목 중 상위 2종목");
-    expect(text).toContain("결과가 잘렸을 수 있습니다");
+    expect(text).toContain("일부 종목이 빠졌습니다");
+    expect(text).toContain("종목코드 순으로 오기 때문에");
+    expect(text).not.toContain("결과가 잘렸을 수 있습니다");
   });
 });

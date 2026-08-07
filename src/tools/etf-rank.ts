@@ -190,8 +190,14 @@ export function formatEtfRank(
   if (matched.length > shown.length) {
     lines.push(`※ 조건에 맞는 ${matched.length}종목 중 상위 ${shown.length}종목만 표시했습니다 (top으로 조정).`);
   }
+  // ka40004는 종목코드 순 전량 스냅샷이다 (REAL 실측 2026-08-07: 300행 중 역전 1곳,
+  // 선두 153270만 예외이고 rows[1:]는 코드 오름차순). 정렬은 위 compare가 하므로 상한에
+  // 걸리면 표의 꼬리가 아니라 정렬 모수에서 종목이 빠진다 — get_net_buy_rank와 같은 처방.
   if (truncated) {
-    lines.push("※ 페이지 상한에 걸려 **결과가 잘렸을 수 있습니다** — tax_type으로 범위를 좁혀 보세요.");
+    lines.push(
+      "※ 페이지 상한에 걸려 **일부 종목이 빠졌습니다** — 이 TR은 종목코드 순으로 오기 때문에 " +
+        "뒤쪽 코드가 순위에서 통째로 누락됐을 수 있습니다. tax_type으로 모수를 좁혀 보세요.",
+    );
   }
   lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
