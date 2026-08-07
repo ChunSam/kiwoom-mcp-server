@@ -23,6 +23,8 @@ const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000;
 const MAX_CONSENT_FAILURES = 10;
 const CONSENT_FAILURE_WINDOW_MS = 10 * 60 * 1000;
 const MAX_BODY_BYTES = 64 * 1024;
+/** 무인증 `/register`가 상태파일을 무한히 키우지 못하도록 — 초과분은 오래된 것부터 버린다. */
+const MAX_REGISTERED_CLIENTS = 50;
 
 interface OAuthClient {
   clientId: string;
@@ -151,6 +153,15 @@ export class OAuthProvider {
       createdAt: Date.now(),
     };
     this.clients.set(client.clientId, client);
+    // RFC 7591 등록 엔드포인트는 인증이 없다(스펙대로). 그런데 등록 한 건마다 상태파일
+    // 전체를 동기로 다시 쓰므로, 상한이 없으면 반복 POST만으로 파일이 무한히 자라고 매
+    // 요청이 점점 느려진다. 가장 오래된 것부터 버려 유한하게 묶는다 — 실사용은 커넥터
+    // 몇 개뿐이라 정상 사용자가 밀려날 여지는 사실상 없다.
+    while (this.clients.size > MAX_REGISTERED_CLIENTS) {
+      const [oldest] = this.clients.keys();
+      if (oldest === undefined) break;
+      this.clients.delete(oldest);
+    }
     this.save();
     return client;
   }
@@ -164,9 +175,23 @@ export class OAuthProvider {
     return this.consentFailures >= MAX_CONSENT_FAILURES;
   }
 
-  /** Validates the consent password; counts failures for the rate limit. */
+  /**
+   * Validates the consent password; counts failures for the rate limit.
+   *
+   * 성공하면 카운터를 **비운다** — 안 비우면 공격자가 쌓아 둔 실패가 소유자가 정상 승인한
+   * 뒤에도 남아, 소유자의 다음 시도가 남의 실패 때문에 막힌다.
+   *
+   * 카운터가 IP별이 아니라 전역인 건 의도다. 이 서버는 소유자 한 명의 계좌를 앞에 두고
+   * 비밀 하나(`MCP_AUTH_TOKEN`)로 지키므로, IP별로 나누면 공격자가 IP를 갈아 가며 시도
+   * 횟수를 곱하기로 늘릴 수 있다. 전역이면 공격자가 창을 채우는 동안 소유자도 막히지만,
+   * 창은 10분이면 저절로 풀리고 소유자는 대개 정답을 한 번에 넣어 카운터를 비운다.
+   */
   checkConsent(password: string): boolean {
-    if (timingSafeStringEqual(password, this.consentToken)) return true;
+    if (timingSafeStringEqual(password, this.consentToken)) {
+      this.consentFailures = 0;
+      this.consentWindowStart = 0;
+      return true;
+    }
     if (Date.now() - this.consentWindowStart > CONSENT_FAILURE_WINDOW_MS) {
       this.consentWindowStart = Date.now();
       this.consentFailures = 0;

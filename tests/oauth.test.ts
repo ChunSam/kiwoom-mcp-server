@@ -152,6 +152,46 @@ describe("OAuthProvider", () => {
     expect(p.checkConsent(CONSENT)).toBe(true);
     expect(p.consentRateLimited()).toBe(false);
   });
+
+  /**
+   * 성공이 카운터를 비우지 않으면, 공격자가 쌓아 둔 실패가 소유자의 정상 승인 뒤에도 남아
+   * **소유자의 다음 시도**가 남의 실패 때문에 막힌다. 창(10분)이 지나면 저절로 풀리긴 하지만
+   * 그 사이 소유자가 잠기는 건 실제 피해다.
+   */
+  it("clears the failure counter once the correct password succeeds", () => {
+    const p = new OAuthProvider({ consentToken: CONSENT });
+    for (let i = 0; i < 9; i += 1) expect(p.checkConsent("wrong")).toBe(false);
+    expect(p.consentRateLimited()).toBe(false); // 아직 한 칸 남았다
+
+    expect(p.checkConsent(CONSENT)).toBe(true);
+
+    // 성공 후에는 다시 10번을 온전히 써야 잠긴다 — 남의 실패가 이월되지 않는다.
+    for (let i = 0; i < 9; i += 1) expect(p.checkConsent("wrong")).toBe(false);
+    expect(p.consentRateLimited()).toBe(false);
+  });
+
+  /**
+   * `/register`는 RFC 7591대로 무인증이고, 등록 한 건마다 상태파일 전체를 동기로 다시 쓴다.
+   * 상한이 없으면 반복 POST만으로 파일이 무한히 자라고 매 요청이 점점 느려진다.
+   */
+  it("caps registered clients and evicts the oldest", () => {
+    const p = new OAuthProvider({ consentToken: CONSENT });
+    const ids: string[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const c = p.registerClient({ redirect_uris: [REDIRECT], client_name: `c${i}` });
+      if (!("error" in c)) ids.push(c.clientId);
+    }
+
+    const [firstId] = ids;
+    const lastId = ids[ids.length - 1];
+    expect(firstId).toBeDefined();
+    expect(lastId).toBeDefined();
+    // 가장 오래된 것은 밀려나고 가장 최근 것은 살아 있다.
+    expect(p.getClient(firstId as string)).toBeUndefined();
+    expect(p.getClient(lastId as string)).toBeDefined();
+    // 상한(50) 이하로 유지된다.
+    expect(ids.filter((id) => p.getClient(id) !== undefined)).toHaveLength(50);
+  });
 });
 
 describe("OAuth over HTTP (end-to-end against the real server)", () => {
