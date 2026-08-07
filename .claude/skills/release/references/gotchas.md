@@ -26,6 +26,25 @@ MCP 레지스트리는 `server.json`의 `packages[0].version`이 **npm에 실제
 v0.36.1(#51)은 코드 변경 없이 이 목적만으로 낸 patch다 — #50(MCP_PUBLIC_URL 문서화)이
 v0.36.0 태그 뒤에 머지돼 npm에서 보이지 않았다.
 
+## 토큰 없는 발행(OIDC)의 조용한 실패 지점
+
+2026-08-07에 손 발행에서 로그인이 **두 번** 필요했다 — npm은 계정 2FA 때문에 `EOTP`
+(`~/.npmrc`에 토큰이 있어도 그 종류로는 못 넘는다), `mcp-publisher`는 JWT 만료로
+`401 token is expired`. 그래서 `.github/workflows/release.yml`로 옮겼고 **둘 다 토큰을
+쓰지 않는다**(npm trusted publishing / `mcp-publisher login github-oidc`).
+
+물릴 자리 셋:
+
+- **npm CLI 11.5.1 미만이면 OIDC를 안 쓴다.** Node 22가 번들하는 npm은 10.x라 그대로면
+  조용히 토큰 인증으로 떨어져 실패한다. 워크플로가 `npm install -g npm@latest` 후
+  **버전을 확인까지** 하는 이유다(Node도 22.14+ 필요).
+- **npmjs.com의 trusted publisher 설정은 저장 시 검증되지 않는다.** 워크플로 **파일명**을
+  대소문자까지 정확히(`release.yml`) 넣어야 하고, 틀리면 발행 시점에야 드러난다.
+- **`id-token: write`가 없으면 둘 다 죽는다.** npm OIDC와 `login github-oidc`가 같은 권한을 쓴다.
+
+classic automation token은 2025-11에 없어졌다 — 지금 남은 로컬 대안은 granular 토큰의
+"Bypass 2FA" 옵션뿐이고, 그건 npm만 풀고 레지스트리 로그인은 그대로 남는다.
+
 ## 게이트는 5종인데 `npm publish`는 4종만 돌린다
 
 CI(`.github/workflows/ci.yml`)는 `check`·`typecheck`·`test`·`build` 뒤에

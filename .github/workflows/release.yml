@@ -1,0 +1,141 @@
+name: Release
+
+# 버전 태그를 밀면 npm → MCP 레지스트리 → GitHub Release 순으로 발행한다.
+#
+# **왜 CI로 옮겼나**: 손으로 발행하면 매번 로그인이 두 번 필요했다 — npm은 계정 2FA 때문에
+# 브라우저 OTP(`EOTP`)를 요구했고, `mcp-publisher`의 레지스트리 JWT는 수명이 짧아 자주
+# 만료됐다(2026-08-07 발행에서 둘 다 겪었다). 여기서는 **토큰을 쓰지 않는다** — npm은
+# trusted publishing(OIDC), 레지스트리는 `login github-oidc`로 워크플로 신원을 직접 증명한다.
+#
+# 발행은 되돌리기 어렵다(npm unpublish 72시간, 레지스트리는 버전 단위 append). 그래서
+# ① 태그와 package.json이 다르면 시작조차 하지 않고 ② 게이트를 전부 통과해야 하며
+# ③ 각 표면은 **선조회 후** 이미 있으면 건너뛴다(재실행이 안전해야 중간 실패를 고칠 수 있다).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # GitHub Release 생성 + 태그 주석 읽기
+  id-token: write # npm trusted publishing · mcp-publisher github-oidc 양쪽이 요구한다
+
+env:
+  PACKAGE_NAME: kiwoom-mcp-server
+  SERVER_NAME: io.github.ChunSam/kiwoom-mcp-server
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 태그 주석을 릴리스 노트로 쓰므로 얕은 클론으로는 안 된다.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          # trusted publishing은 Node >=22.14를 요구한다. 게이트(CI)가 보는 20·22와 달리
+          # 여기는 발행 전용이라 최신 LTS를 써도 호환성 판정에 영향이 없다.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      # Node가 번들하는 npm이 11.5.1보다 낮으면 OIDC를 못 쓰고 조용히 토큰 인증으로 떨어진다.
+      # 올리고 **확인까지** 한다 — 조용한 실패가 가장 나쁘다.
+      - name: npm 버전 확인 (trusted publishing 요건 11.5.1+)
+        run: |
+          npm install -g npm@latest
+          V=$(npm --version)
+          MIN=$(printf '%s\n11.5.1\n' "$V" | sort -V | head -1)
+          echo "npm $V"
+          test "$MIN" = "11.5.1" || { echo "::error::npm >= 11.5.1이 필요합니다 (현재 $V)"; exit 1; }
+
+      # 태그를 잘못 밀면 엉뚱한 버전이 영구히 나간다. `npm run check`가 버전 5곳의 상호
+      # 일치를 이미 보므로, 여기서는 **태그 ↔ package.json** 한 축만 더 묶으면 전부 잠긴다.
+      - name: 태그와 package.json 버전 일치 확인
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          echo "태그 $GITHUB_REF_NAME / package.json $PKG"
+          test "$TAG" = "$PKG" || { echo "::error::태그($TAG)와 package.json($PKG)이 다릅니다"; exit 1; }
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      # 로컬 게이트 4종 + 프로덕션 취약점. `prepublishOnly`가 audit을 돌지 않으므로
+      # (release 스킬 gotchas 참조) 발행 경로에서는 여기가 유일한 audit 지점이다.
+      - name: 게이트
+        run: |
+          npm run check
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --audit-level=high
+
+      # ── 표면 1: npm ──────────────────────────────────────────────────────
+      # 레지스트리가 `packages[0].version`이 npm에 실재하는지 검증하므로 npm이 먼저다.
+      - name: npm 발행
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          if npm view "$PACKAGE_NAME@$V" version >/dev/null 2>&1; then
+            echo "npm에 $V가 이미 있습니다 — 건너뜁니다."
+          else
+            # 토큰 없음: npm CLI가 OIDC 환경을 자동 감지한다. provenance도 자동 생성된다.
+            npm publish
+          fi
+
+      # ── 표면 2: MCP 레지스트리 ───────────────────────────────────────────
+      - name: mcp-publisher 설치
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: MCP 레지스트리 발행
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          # 선조회 — 이미 올라가 있는데 publish하면 400 "duplicate version"이 난다. 그건
+          # 실패가 아니지만(append-only) 로그가 실패처럼 보여 매번 확인 왕복이 붙는다.
+          # `&version=latest` 없이 부르면 낡은 버전이 와서 미발행으로 오독한다.
+          CURRENT=$(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest" \
+            | jq -r --arg n "$SERVER_NAME" '.servers[] | select(.server.name == $n) | .server.version')
+          echo "레지스트리 현재 버전: ${CURRENT:-(없음)}"
+          if [ "$CURRENT" = "$V" ]; then
+            echo "레지스트리에 $V가 이미 있습니다 — 건너뜁니다."
+          else
+            ./mcp-publisher login github-oidc
+            ./mcp-publisher publish
+          fi
+
+      # ── 표면 3: GitHub Release ───────────────────────────────────────────
+      # 노트는 **주석 태그의 메시지**를 그대로 쓴다. 자동 생성 노트는 커밋 제목 나열이라
+      # 이 저장소가 릴리스마다 손으로 쓰던 설명을 대체하지 못한다 — 태그를 만들 때
+      # `git tag -a vX.Y.Z -F notes.md`로 노트를 실어 보내면 여기서 그대로 발행된다.
+      - name: GitHub Release 생성
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG가 이미 있습니다 — 건너뜁니다."
+            exit 0
+          fi
+          SUBJECT=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:subject)')
+          BODY=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:body)')
+          if [ -n "$BODY" ]; then
+            gh release create "$TAG" --title "${SUBJECT:-$TAG}" --notes "$BODY"
+          else
+            # 주석 없는 경량 태그로 밀린 경우의 폴백 — 노트 품질은 떨어지지만 릴리스는 남는다.
+            echo "::warning::태그 $TAG에 주석 본문이 없어 자동 생성 노트를 씁니다."
+            gh release create "$TAG" --title "${SUBJECT:-$TAG}" --generate-notes
+          fi
+
+      - name: 발행 표면 확인
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          echo "npm       : $(npm view "$PACKAGE_NAME" version)"
+          echo "레지스트리: $(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest" \
+            | jq -r --arg n "$SERVER_NAME" '.servers[] | select(.server.name == $n) | "\(.server.version) isLatest=\(._meta["io.modelcontextprotocol.registry/official"].isLatest)"')"
+          echo "발행 대상 : $V"
