@@ -26,6 +26,21 @@ MCP 레지스트리는 `server.json`의 `packages[0].version`이 **npm에 실제
 v0.36.1(#51)은 코드 변경 없이 이 목적만으로 낸 patch다 — #50(MCP_PUBLIC_URL 문서화)이
 v0.36.0 태그 뒤에 머지돼 npm에서 보이지 않았다.
 
+## 게이트는 5종인데 `npm publish`는 4종만 돌린다
+
+CI(`.github/workflows/ci.yml`)는 `check`·`typecheck`·`test`·`build` 뒤에
+`npm audit --omit=dev --audit-level=high`를 한 단계 더 돌리지만, `package.json`의
+`prepublishOnly`는 앞의 4종뿐이다 — publish 경로에는 audit이 없어, **마지막 CI 이후 새로 뜬
+advisory는 발행 시점에 아무도 못 본다.** 발행 직전에 손으로 한 번 돌린다(#72에서 SDK 전이
+의존성 high 2건·moderate 1건이 아무도 모르는 채 쌓여 있었다).
+
+**audit이 초록이어도 그건 우리 트리 얘기다.** #72의 수정은 `package-lock.json`에만
+들어갔고(fast-uri·hono·ip-address 전이 의존성 범프) `dependencies` range
+(`@modelcontextprotocol/sdk: ^1.29.0`)는 그대로다. npm은 lockfile을 tarball에 싣지
+않으므로(v0.44.1 `npm pack --dry-run` 실측: 75파일, `package-lock.json` 없음) 사용자는
+range로 전이 의존성을 스스로 푼다. 그러니 릴리스 노트에 "취약점 0건"이라고 쓰지 않는다 —
+소비자까지 고치려면 range를 올려야 한다.
+
 ## lockfile은 손범프 절차에서 빠진다
 
 `package-lock.json`은 `npm install`이 알아서 맞춰 주는 자리라 사람이 올리는 목록에서

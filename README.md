@@ -84,11 +84,11 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 | `get_account_holdings` | 보유 종목별 수량/평균단가/현재가/평가손익 | kt00018 |
 | `get_account_today` | 계좌 당일 현황 — 매매대금·수수료·세금·입출금 + D+2 추정 (실전 전용) | kt00017 |
 | `get_account_trend` | 일별 추정예탁자산 추이 + 기간 수익률/평가손익/입출금 요약 (기본 30일, 모의투자 미지원) | kt00002, kt00016 |
-| `get_transactions` | 기간별 거래내역 (체결일·단가·정산금액) | kt00015 |
+| `get_transactions` | 기간별 거래내역 (체결일·단가·정산금액, 모의투자 미지원) | kt00015 |
 | `get_pending_orders` | 미체결 주문 (주문번호·구분·상태·주문/미체결수량·주문가격) | ka10075 |
 | `get_order_executions` | 체결 내역 (주문번호·구분·상태·주문/체결 수량·가격·수수료+세금, side/종목/주문번호 필터) | ka10076 |
 | `get_trading_journal` | 당일매매일지 (종목별 매수/매도 평균가·수량·실현손익, 총손익) | ka10170 |
-| `calc_isa_tax_status` | ISA 손익통산 순이익의 비과세 한도 대비 현황 (확정 + 전량매도 시나리오) | kt00015, ka10074, kt00018 |
+| `calc_isa_tax_status` | ISA 손익통산 순이익의 비과세 한도 대비 현황 (확정 + 전량매도 시나리오, kt00015 의존이라 모의투자 미지원) | kt00015, ka10074, kt00018 |
 
 그 외 `ping`(연결 확인, 앱키 불필요). 모든 응답은 `[모의투자]`/`[실전투자]` 접두어로
 어느 서버가 답했는지 표시합니다. `search_stock` 첫 호출은 종목 마스터(~4,300종목)를
@@ -101,8 +101,9 @@ v0.31.0부터 시세·랭킹 tool은 **통합(SOR) 기준**으로 조회합니�
 크게 늘어납니다 — 삼성전자 실측(2026-08-03 정규장) KRX 19.2M / NXT 15.5M / **통합 34.7M**.
 KRX만 표시하는 HTS·포털 화면과 숫자가 다르면 대개 이 차이입니다.
 
-예외 두 가지: **거래원(`get_broker_activity`)은 KRX 기준**입니다(키움이 통합으로 주지
-않습니다). **`get_after_hours`(시간외 단일가)** 역시 통합 조회가 불가능하며, NXT 거래가능
+예외 두 가지: **`get_broker_activity`의 종목별 거래원(ka10002)은 KRX 기준**입니다(키움이
+이 TR을 통합으로 주지 않습니다) — 같은 tool이라도 시장 전체 외국계 창구 순매매 상위(ka10037)는
+**통합 기준**입니다. **`get_after_hours`(시간외 단일가)** 역시 통합 조회가 불가능하며, NXT 거래가능
 종목은 애초에 이 TR에서 조회되지 않습니다. 호가는 v0.37.0에서 통합으로 넘어왔습니다 —
 ka10004 대신 ka10007(시세표성정보)을 쓰며, 삼성전자 실측(2026-08-04 정규장) 매수1 잔량이
 KRX 18,421 / NXT 17,081 / **통합 36,319**이었습니다.
@@ -111,8 +112,10 @@ KRX 18,421 / NXT 17,081 / **통합 36,319**이었습니다.
 
 - 집계 시작일: `.env`의 `ISA_OPENED_ON`(계좌 개설일)이 기본값, 호출 시 `from_date`로 오버라이드 가능.
 - 배당·분배금이 거래내역에서 자동 감지되지 않으면 `dividends_received` 인자로 수동 입력.
-- 종목 과세유형(과세대상 vs 국내주식형)은 종목명 기반 자동 분류이며, 틀린 경우
-  `overrides: [{stock_code, tax_type}]`로 수정. 결과는 참고용 — 실제 과세는 증권사 정산 기준.
+- 종목 과세유형(과세대상 vs 국내주식형)은 자동 분류입니다 — **ETF는 키움이 주는
+  `etftxon_type`(ka40002)으로 확정**하고(조회 실패 시 종목명 휴리스틱으로 폴백), 개별주식 등
+  그 밖에는 종목명 기반으로 추정합니다. 틀린 경우 `overrides: [{stock_code, tax_type}]`로
+  수정. 결과는 참고용 — 실제 과세는 증권사 정산 기준.
 
 ## 요구 사항
 
@@ -264,7 +267,10 @@ MCP_AUTH_TOKEN="$(openssl rand -hex 32)" npx -y kiwoom-mcp-server --http --port 
   인증(8050)이 IP에 묶이므로, 등록된 IP가 아닌 곳(클라우드 등)에서 실행하면 인증 오류가
   날 수 있습니다. 원격 노출은 모의투자로 먼저 검증하세요.
 
-기존 stdio 동작(Claude Desktop/Code 연결)은 인자 없이 실행하면 그대로입니다.
+기존 stdio 동작(Claude Desktop/Code 연결)은 인자 없이 실행하면 그대로입니다 — 단, `.env`나
+환경변수에 `MCP_TRANSPORT=http`가 있으면 예외입니다. `.env`는 전송 방식을 고르기 전에 읽히므로
+인자 없이 실행해도 HTTP 경로를 타고, `MCP_AUTH_TOKEN`이 없으면 아예 기동을 거부합니다.
+`MCP_TRANSPORT` 값과 무관하게 stdio로 강제하려면 **`--stdio`**를 넘기세요.
 
 ## 동작 확인
 
@@ -293,11 +299,19 @@ printf '%s\n' \
 ## 개발
 
 ```sh
-npm run dev        # tsx로 소스 직접 실행
-npm run typecheck  # tsc --noEmit
-npm test           # vitest
-npm run build      # tsc → dist/
+npm run dev         # tsx로 소스 직접 실행
+npm run check       # 버전 5곳 동기화 · 카운트 · README 2종 tool 문서화 · server.ts 등록 누락
+npm run check:write # 위 카운트를 실제 값으로 고쳐 씀 (버전은 안 건드림)
+npm run typecheck   # tsc --noEmit -p tsconfig.test.json (src + tests)
+npm test            # vitest
+npm run build       # tsc → dist/
 ```
+
+네 가지 모두 CI(`.github/workflows/ci.yml`, Node 20·22)에서 돌고, 거기에
+`npm audit --omit=dev --audit-level=high`가 한 단계 더 붙습니다. 타입체크가
+`tsconfig.test.json`을 쓰는 이유는 빌드용 `tsconfig.json`의 `rootDir`가 `src`라
+테스트를 거기 넣으면 `dist/` 레이아웃이 바뀌기 때문입니다 — 빌드는 그대로
+`tsconfig.json`을 씁니다.
 
 구조: `src/kiwoom/`(인증·HTTP·TR 계층) → `src/tools/`(MCP tool, 포맷터 분리) →
 `src/isa/`(과세유형 분류·실현손익 재구성·손익통산). 상세 규칙과 검증된 API
