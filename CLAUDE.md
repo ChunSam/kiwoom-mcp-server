@@ -103,7 +103,7 @@ tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — 
 
 보호 규칙이 요구하는 체크는 **`ci` 하나뿐**이다. `.github/workflows/ci.yml`의 matrix(Node 20·22) 위에 이름이 고정된 집계 job을 두고 그것만 요구한다 — **matrix에 Node를 넣고 빼도 보호 규칙은 건드리지 않는다.** 집계 job의 `if: always()`를 지우면 matrix 실패 시 skipped가 되고, GitHub은 skipped 필수 체크를 실패로 보지 않아 **장치가 조용히 무력화된다**(실패 주입으로 확인함).
 
-배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **발행 절차와 함정은 `/release` 스킬**에 있다 — 순서(npm → 레지스트리), 레지스트리 확인법, 대화형 인증 위임, npm README 스냅샷. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
+배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **셋 다 `.github/workflows/release.yml`이 발행한다** — 노트를 실은 주석 태그(`git tag -a vX.Y.Z -F notes.md`)를 push하면 npm → 레지스트리 → Release 순으로 나간다. 토큰은 안 쓴다(npm trusted publishing + `mcp-publisher login github-oidc`). **손으로 `npm publish` 하지 않는다** — 계정 2FA 때문에 OTP를 요구하고, 그걸 피하려고 만든 게 이 워크플로다. **절차와 함정은 `/release` 스킬**에 있다. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
 
 **발행은 PR 머지에 딸려 오지 않는다** — "진행해"의 범위는 테스트·PR·CI 확인·머지까지이고, 배포는 매번 별도 지시로만 한다.
 
