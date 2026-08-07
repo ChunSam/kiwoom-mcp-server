@@ -117,8 +117,18 @@ export function getConfig(): AppConfig {
  * tax tool. Loads `.env` if present and reads only the opt-in flag — it does NOT
  * validate credentials, so the server still starts (and `ping` works) without a
  * full config. Defaults to false → general-account-first.
+ *
+ * 결과를 캐시한다. HTTP 모드는 **요청마다** `createServer()`를 부르므로(stateless 전송)
+ * 캐시가 없으면 매 요청이 `process.loadEnvFile()`로 디스크를 동기 재읽기했다. 크리덴셜은
+ * `getConfig()`가 이미 캐시하고 있어, ISA 토글만 매 요청 갱신되는 비대칭이기도 했다 —
+ * 이제 둘 다 프로세스 수명 동안 고정이고, 값을 바꾸려면 재시작한다.
  */
+let isaEnabledCache: boolean | undefined;
+
 export function isIsaEnabled(): boolean {
-  loadDotEnv();
-  return parseBool(process.env.ISA_ENABLED);
+  if (isaEnabledCache === undefined) {
+    loadDotEnv();
+    isaEnabledCache = parseBool(process.env.ISA_ENABLED);
+  }
+  return isaEnabledCache;
 }

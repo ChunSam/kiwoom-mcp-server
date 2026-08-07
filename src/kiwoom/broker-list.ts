@@ -12,17 +12,27 @@ import type { BrokerCodeItem } from "./types.js";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 let cache: { fetchedAt: number; items: BrokerCodeItem[] } | null = null;
+/** 진행 중인 적재를 공유한다 — master-list·sector-list와 같은 꼴 (TokenManager 패턴). */
+let inflight: Promise<BrokerCodeItem[]> | null = null;
 
-export async function loadBrokerCodes(client: KiwoomClient): Promise<BrokerCodeItem[]> {
-  if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return cache.items;
+async function fetchAndCache(client: KiwoomClient): Promise<BrokerCodeItem[]> {
   const items = await fetchBrokerCodes(client);
   cache = { fetchedAt: Date.now(), items };
   return items;
 }
 
+export async function loadBrokerCodes(client: KiwoomClient): Promise<BrokerCodeItem[]> {
+  if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return cache.items;
+  inflight ??= fetchAndCache(client).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
 /** Test hook — clears the module-level 거래원 코드표 캐시. */
 export function clearBrokerCodeCache(): void {
   cache = null;
+  inflight = null;
 }
 
 /** ka10102 `gb` — 0=국내, 1=외국계, 2=현재 거래에 나타나지 않는 옛 거래원. */

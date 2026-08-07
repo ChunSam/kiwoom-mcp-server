@@ -22,10 +22,10 @@ const MARKET_LABELS: Record<string, string> = {
 };
 
 let cache: { fetchedAt: number; items: SectorCodeItem[] } | null = null;
+/** 5콜짜리 적재라 중복이 특히 비싸다 — 진행 중인 것을 공유한다 (TokenManager와 같은 패턴). */
+let inflight: Promise<SectorCodeItem[]> | null = null;
 
-export async function loadSectorList(client: KiwoomClient): Promise<SectorCodeItem[]> {
-  if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return cache.items;
-
+async function fetchAllMarkets(client: KiwoomClient): Promise<SectorCodeItem[]> {
   const items: SectorCodeItem[] = [];
   for (const [index, marketTp] of SECTOR_CODE_MARKETS.entries()) {
     if (index > 0) await sleep(SECTOR_FETCH_GAP_MS);
@@ -35,9 +35,18 @@ export async function loadSectorList(client: KiwoomClient): Promise<SectorCodeIt
   return items;
 }
 
+export async function loadSectorList(client: KiwoomClient): Promise<SectorCodeItem[]> {
+  if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return cache.items;
+  inflight ??= fetchAllMarkets(client).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
 /** Test hook — clears the module-level sector-list cache. */
 export function clearSectorListCache(): void {
   cache = null;
+  inflight = null;
 }
 
 /**

@@ -32,7 +32,7 @@ kiwoom/
   client.ts     TR 1회 호출. 10s 타임아웃, 429/5xx/네트워크 재시도, return_code≠0 → KiwoomApiError
   api.ts        TR별 fetch* 함수 (경로·api-id·body·페이지네이션). 도메인 계층의 중심
   types.ts      키움 응답 zod 스키마 + 타입
-  master-list.ts ka10099 종목 마스터 인프로세스 캐시 (12h TTL)
+  master-list.ts ka10099 종목 마스터 인프로세스 캐시 (12h TTL + KST 날짜 — `lastPrice`가 매 거래일 바뀐다)
   broker-list.ts ka10102 거래원 코드표 캐시 (12h TTL) + 외국계 판정
   sector-list.ts ka10101 업종 코드표 캐시 (12h TTL) — 업종명↔코드 해석, 이름이 중복이면 고르지 않고 후보 목록 에러
 tools/*.ts      MCP tool 등록 + 포맷터. 파일당 register<X>Tool + export된 순수 format 함수
@@ -41,6 +41,8 @@ utils/          num/date/redact/sleep/stock-code
 ```
 
 의존 방향은 `tools → kiwoom/api → kiwoom/client → auth`. tool이 `client.call`을 직접 부르지 않고 항상 `api.ts`의 `fetch*`를 거친다.
+
+**마스터 캐시 3종(master/broker/sector-list)은 `auth.ts`와 같은 in-flight 공유를 쓴다** — 캐시가 콜드일 때 tool이 동시에 들어오면 각자 전체 시퀀스(ka10099 2콜·ka10101 5콜)를 처음부터 돌아 레이트리밋을 밀어붙이기 때문이다. 새 캐시 계층을 만들면 `inflight ??= load().finally(...)` 패턴을 같이 붙이고, 테스트 훅은 `cache`와 `inflight`를 **둘 다** 비운다.
 
 ## 절대 규칙
 
