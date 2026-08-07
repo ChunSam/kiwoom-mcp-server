@@ -575,12 +575,18 @@ export async function fetchAllIndices(client: KiwoomClient, indsCd: "001" | "101
 }
 
 /**
- * ka20001/ka20002의 mrkt_tp는 inds_cd 선행 자리에서 유도한다
- * (0xx→"0" 코스피, 1xx→"1" 코스닥, 2xx→"2" 코스피200; mock-probed 2026-07-09).
- * inds_cd 자체는 ka20003의 업종코드 공간을 그대로 쓴다.
+ * ka20001/ka20002의 mrkt_tp는 inds_cd 선행 자리에서 유도한다. 선행자리는 ka10101의
+ * 시장구분과 1:1이다 (REAL 실측 2026-08-07): 0xx·**6xx**→"0" 코스피 / 1xx→"1" 코스닥 /
+ * 2xx→"2" KOSPI200 / 4xx→"4" KOSPI100 / 7xx→"7" KRX100.
+ *
+ * **두 TR 모두 mrkt_tp를 실제로는 무시한다** — 같은 inds_cd에 "0"~"7"을 넣어 보면 응답이
+ * 전부 동일하다(ka20001 701/401, ka20002 701/401/001 각각 응답 지문 1종). 그래서 이 함수가
+ * 틀려도 값은 안 틀어지지만, 예전 매핑(1xx·2xx 외 전부 "0")은 4xx·7xx를 코스피로 뭉개
+ * 읽는 사람마다 버그로 의심했다. 사실대로 적어 두고 재조사를 끊는다.
  */
 function sectorMarketType(indsCd: string): string {
-  return indsCd.startsWith("1") ? "1" : indsCd.startsWith("2") ? "2" : "0";
+  const prefix = indsCd.slice(0, 1);
+  return prefix === "1" || prefix === "2" || prefix === "4" || prefix === "7" ? prefix : "0";
 }
 
 /** ka20001 업종현재가 — 업종 지수 스냅샷 + 시간대별 추이. */

@@ -89,7 +89,12 @@ describe("formatSupplyConcentration", () => {
     expect(entry).toContain("현재가 진입");
     expect(entry).toContain("현재가가 매물대 구간에 들어온 종목만");
     expect(entry).toContain("조회된 6건 중 상위 2건만 표시했습니다");
-    expect(entry).toContain("결과가 잘렸을 수 있습니다");
+    // ka10025는 prps_rt **오름차순**이라(REAL 실측 2026-08-07, 하한 20에서 3,042행이
+    // 20.00→100.00 단조 증가) 잘리면 최고값이 있는 뒷페이지가 통째로 빠진다. 포맷터는
+    // 내림차순 상위 N을 보여주므로 "일부가 빠졌다"가 아니라 순위 자체가 거짓이 된다.
+    expect(entry).toContain("이 순위를 믿을 수 없습니다");
+    expect(entry).toContain("오름차순");
+    expect(entry).not.toContain("결과가 잘렸을 수 있습니다");
   });
 
   it("빈 결과는 에러가 아니라 조건 완화를 안내한다", () => {
