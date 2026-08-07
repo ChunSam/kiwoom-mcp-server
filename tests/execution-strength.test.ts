@@ -127,4 +127,23 @@ describe("formatExecutionStrength — 공통", () => {
 
     expect(out).toContain("100이 균형");
   });
+
+  /**
+   * 값 없음을 0으로 접으면 describeStrength의 최저 밴드(80 이하)에 걸려 "매도 체결이 크게
+   * 우세"라는 **없는 신호**가 만들어진다. 체결강도 0은 매도 우세가 아니라 데이터 부재다.
+   */
+  it("renders a missing 체결강도 as '-' instead of inventing a sell signal", () => {
+    const out = formatExecutionStrength([strengthRow("")], "002990", "daily", 30, MODE);
+
+    expect(out).toContain("최근 체결강도 -");
+    expect(out).not.toContain("매도 체결이 크게 우세");
+    expect(out).not.toContain("0.00");
+  });
+
+  it("still reports a genuine 0.00 as the strong-sell band", () => {
+    const out = formatExecutionStrength([strengthRow("0")], "002990", "daily", 30, MODE);
+
+    expect(out).toContain("최근 체결강도 0.00");
+    expect(out).toContain("매도 체결이 크게 우세");
+  });
 });

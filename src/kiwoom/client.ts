@@ -87,7 +87,25 @@ export class KiwoomClient {
         });
       }
 
-      const rawBody = await response.text();
+      // 본문 스트리밍에도 위 AbortSignal이 그대로 걸려 있다 — text()에서 나는 타임아웃·연결
+      // 끊김도 fetch 실패와 같은 재시도·래핑 경로를 타야 한다. try 밖에 두면 raw DOMException이
+      // 새어 나가 어느 TR인지 알 수 없는 영문 메시지만 사용자에게 뜬다. 모든 TR이 조회라
+      // 재시도는 안전하다.
+      let rawBody: string;
+      try {
+        rawBody = await response.text();
+      } catch (error) {
+        if (retries < 1) {
+          retries += 1;
+          await sleep(RETRY_5XX_BASE_MS);
+          continue;
+        }
+        throw new KiwoomApiError(
+          `키움 API 응답 본문을 받지 못했습니다 (네트워크 오류 또는 시간 초과, ${request.apiId}): ${this.describe(error, token)}`,
+          { apiId: request.apiId },
+        );
+      }
+
       let json: unknown;
       try {
         json = JSON.parse(rawBody);

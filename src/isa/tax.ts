@@ -80,7 +80,13 @@ export function computeIsaTaxStatus(input: IsaTaxInput): IsaTaxStatus {
 
   const taxableUnrealized = sumByType(input.unrealized, "TAXABLE");
   const domesticUnrealizedNet = sumByType(input.unrealized, "DOMESTIC_EQUITY");
-  const scenarioNet = confirmedNet + taxableUnrealized + Math.min(0, domesticUnrealizedNet);
+  // 전량 매도 시나리오에서는 미실현분도 실현되므로, 국내주식형 **클래스 전체**를 합산한 뒤
+  // min(0,·)을 한 번만 건다. 실현분·미실현분에 따로 걸면 한쪽 손실이 다른 쪽 이익으로
+  // 상쇄되지 않아 손실이 이중 차감되고(실현 −100만 / 미실현 +150만 → 합산 +50만인데 −100만
+  // 차감), 예상 세금이 과소·잔여 한도가 과대 계상된다.
+  const scenarioDomesticNet = domesticRealizedNet + domesticUnrealizedNet;
+  const scenarioNet =
+    input.dividends + taxableRealized + taxableUnrealized + Math.min(0, scenarioDomesticNet);
   const scenario = settle(scenarioNet, input.limit);
 
   return {

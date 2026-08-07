@@ -179,8 +179,15 @@ export function formatRanking(
       "※ 종목별 신용잔고의 시계열 추이는 get_credit_trend를 쓰세요.",
     );
   }
+  // ka10028은 종목코드 순 전량 스냅샷이고 정렬은 위 sortByOpenChange가 한다 — 상한에 걸리면
+  // 잘리는 건 표의 꼬리가 아니라 **정렬 모수**다. "결과가 잘렸다"로 쓰면 상위권이 틀렸다는
+  // 사실이 가려진다 (get_net_buy_rank와 같은 처방).
   if (options?.truncated) {
-    lines.push("", "⚠️ 페이지 상한에 걸려 결과가 잘렸을 수 있습니다 — 거래량 하한을 올려 다시 조회하세요.");
+    lines.push(
+      "",
+      "⚠️ 페이지 상한에 걸려 **일부 종목이 빠졌습니다** — 이 TR은 종목코드 순으로 오기 때문에 " +
+        "뒤쪽 코드가 순위에서 통째로 누락됐을 수 있습니다. 거래량 하한(min_volume)을 올려 모수를 좁히세요.",
+    );
   }
   lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");

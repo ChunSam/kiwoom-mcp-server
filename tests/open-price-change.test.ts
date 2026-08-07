@@ -81,10 +81,15 @@ describe("formatRanking — open_rise / open_fall (ka10028)", () => {
     expect(text).toContain("거래량 1만주 이상"); // minVolume 미지정 시 기본값 라벨
   });
 
-  it("페이지 상한에 걸리면 거래량 하한을 올리라고 안내한다", () => {
+  // ka10028은 종목코드 순 전량 스냅샷이고 정렬은 포맷터가 한다 — 상한에 걸리면 표의 꼬리가
+  // 아니라 정렬 모수가 빠지므로, "뒤가 잘렸다"로 읽히면 상위권이 틀렸다는 사실이 가려진다.
+  it("페이지 상한에 걸리면 뒤가 잘린 게 아니라 일부 종목이 빠졌다고 알린다", () => {
     const text = formatRanking("open_rise", "kospi", items, 20, MODE, { truncated: true });
 
-    expect(text).toContain("거래량 하한을 올려 다시 조회하세요");
+    expect(text).toContain("일부 종목이 빠졌습니다");
+    expect(text).toContain("종목코드 순으로 오기 때문에");
+    expect(text).toContain("min_volume");
+    expect(text).not.toContain("결과가 잘렸을 수 있습니다");
   });
 
   it("빈 결과는 에러가 아니라 안내로 답한다", () => {

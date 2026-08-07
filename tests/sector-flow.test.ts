@@ -127,6 +127,29 @@ describe("formatSectorFlow", () => {
     expect(out).not.toContain("_AL");
     expect(out).toContain("001");
   });
+
+  /**
+   * 같은 하락일 실측 행(2026-08-03, `cur_prc: "-624119"`)의 두 번째 요점 — 지수의 `-`는
+   * 값의 부호가 아니라 전일대비 방향이다. `parseKiwoomNumber`로 읽으면 KOSPI 종합지수가
+   * `-6,241.19`로 찍혔다. 등락률(`flu_rt`)은 반대로 부호가 값의 부호라 그대로 둬야 한다.
+   */
+  it("renders a falling index as a positive value (sign is direction, not magnitude)", () => {
+    const row = sectorNetBuyItemSchema.parse({
+      inds_cd: "001", inds_nm: "종합(KOSPI)", cur_prc: "-624119", pre_smbol: "5",
+      pred_pre: "-35426", flu_rt: "-537", trde_qty: "219079", sc_netprps: "-21123",
+      insrnc_netprps: "+463", invtrt_netprps: "-16", bank_netprps: "+67",
+      jnsinkm_netprps: "+242", endw_netprps: "-940", etc_corp_netprps: "+458",
+      ind_netprps: "+55317", frgnr_netprps: "-34512", native_trmt_frgnr_netprps: "+166",
+      natn_netprps: "+0", samo_fund_netprps: "-121", orgn_netprps: "-21429",
+    });
+
+    const out = formatSectorFlow([row], "kospi", "amount", "foreign", 15, null, MODE);
+
+    expect(out).toContain("6,241.19");
+    expect(out).not.toContain("-6,241.19");
+    // 등락률은 부호가 살아 있어야 한다 — 지수만 절대값이다.
+    expect(out).toContain("-5.37%");
+  });
 });
 
 // ka10101 마스터 (실측 2026-08-03): 5개 시장구분 합쳐 124행, code는 전부 3자리.

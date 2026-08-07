@@ -153,6 +153,41 @@ describe("computeIsaTaxStatus", () => {
     expect(status.confirmedNet).toBe(500_000 + 300_000 - 100_000);
   });
 
+  /**
+   * 전량 매도 시나리오에서는 미실현분도 실현되므로 국내주식형은 **클래스 전체**를 합산한
+   * 뒤에 min(0,·)을 한 번만 걸어야 한다. 실현분·미실현분에 따로 걸면 실현 손실이 미실현
+   * 이익으로 상쇄되지 않아 이중 차감된다 — 아래 케이스가 scenarioNet 200만(세금 0원)으로
+   * 나왔고, 옳은 값은 300만(세금 99,000원)이다.
+   */
+  it("nets the domestic-equity class as a whole in the sell-everything scenario", () => {
+    const status = computeIsaTaxStatus({
+      limit: ISA_LIMITS.GENERAL,
+      dividends: 3_000_000,
+      realized: [entry(-1_000_000, "DOMESTIC_EQUITY")],
+      unrealized: [entry(1_500_000, "DOMESTIC_EQUITY")],
+    });
+
+    // 확정분은 실현 기준이므로 손실 차감이 그대로 살아 있다.
+    expect(status.domesticLossDeduction).toBe(-1_000_000);
+    expect(status.confirmedNet).toBe(2_000_000);
+
+    // 시나리오는 클래스 합산이 +50만(순이익)이라 차감이 사라진다.
+    expect(status.scenarioNet).toBe(3_000_000);
+    expect(status.scenarioEstimatedTax).toBeCloseTo(1_000_000 * 0.099, 5);
+  });
+
+  it("still deducts the domestic-equity loss when the class nets negative overall", () => {
+    const status = computeIsaTaxStatus({
+      limit: ISA_LIMITS.GENERAL,
+      dividends: 3_000_000,
+      realized: [entry(-1_000_000, "DOMESTIC_EQUITY")],
+      unrealized: [entry(400_000, "DOMESTIC_EQUITY")],
+    });
+
+    // 합산 −60만 → 그만큼만 차감된다 (실현분 −100만을 통째로 쓰지 않는다).
+    expect(status.scenarioNet).toBe(2_400_000);
+  });
+
   it("computes 9.9% tax on the over-limit portion", () => {
     const status = computeIsaTaxStatus({
       limit: ISA_LIMITS.GENERAL,

@@ -62,7 +62,17 @@ export class TokenManager {
       );
     }
 
-    const rawBody = await response.text();
+    // fetch와 같은 AbortSignal이 본문 읽기에도 걸린다 — try 밖에 두면 raw DOMException이
+    // KiwoomAuthError를 건너뛰어 앱키 안내 문구 없이 영문 메시지만 나간다 (client.ts와 동일).
+    let rawBody: string;
+    try {
+      rawBody = await response.text();
+    } catch (error) {
+      throw new KiwoomAuthError(
+        `키움 토큰 발급 응답 본문을 받지 못했습니다 (네트워크 오류 또는 시간 초과): ${this.describe(error)}`,
+      );
+    }
+
     let parsedJson: unknown;
     try {
       parsedJson = JSON.parse(rawBody);

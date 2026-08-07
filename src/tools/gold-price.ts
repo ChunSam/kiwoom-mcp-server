@@ -60,7 +60,9 @@ export function formatGoldTicks(
   const lines = [
     `[${modeLabel}] KRX 금현물 체결 — ${label}`,
     "",
-    `현재가 **${formatKRW(price)}/g** (${formatSigned(parseKiwoomPrice(latest.pred_pre))}, ` +
+    // `pred_pre`(전일대비)는 부호가 곧 값의 부호다 — 가격 필드가 아니므로 `parseKiwoomPrice`
+    // (절대값)를 쓰면 안 된다. 하락일에 전일대비만 `+`로 뒤집혀 등락률과 모순됐다.
+    `현재가 **${formatKRW(price)}/g** (${formatSigned(parseKiwoomNumber(latest.pred_pre))}, ` +
       `${formatPercent(parseKiwoomNumber(latest.flu_rt))}) · ` +
       `누적 거래량 ${formatNumber(parseKiwoomNumber(latest.trde_qty))}g · ` +
       `누적 거래대금 ${formatKRW(parseKiwoomNumber(latest.acc_trde_prica))} · ` +
@@ -111,7 +113,8 @@ export function formatGoldDaily(
     `[${modeLabel}] KRX 금현물 일별추이 — ${label}`,
     "",
     `최근 종가 **${formatKRW(parseKiwoomPrice(latest.cur_prc))}/g** ` +
-      `(${formatSigned(parseKiwoomPrice(latest.pred_pre))}, ${formatPercent(parseKiwoomNumber(latest.flu_rt))}) ` +
+      // 전일대비는 부호가 값의 부호 — 위 formatGoldTicks와 같은 이유로 parseKiwoomNumber.
+      `(${formatSigned(parseKiwoomNumber(latest.pred_pre))}, ${formatPercent(parseKiwoomNumber(latest.flu_rt))}) ` +
       `· ${formatDateDashed(latest.dt)}`,
     "",
     "| 일자 | 종가 | 등락률 | 시가 | 고가 | 저가 | 거래량(g) | 거래대금(백만) | 기관 | 개인 |",
