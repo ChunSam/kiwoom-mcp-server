@@ -147,9 +147,17 @@ jobs:
       - name: 발행 표면 확인
         run: |
           V="${{ steps.version.outputs.version }}"
-          # npm의 읽기 복제본은 발행 직후 잠깐 낡은 값을 준다 — 여기 숫자가 한 박자 늦어도
-          # 실패가 아니다. 판정은 위 발행 스텝의 성공 여부로 한다.
-          echo "npm       : $(npm view "$PACKAGE_NAME" version) (발행 직후엔 늦을 수 있음)"
-          echo "레지스트리: $(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&limit=100" \
-            | jq -r --arg n "$SERVER_NAME" --arg v "$V" '.servers[] | select(.server.name == $n and .server.version == $v) | "\(.server.version) isLatest=\(._meta["io.modelcontextprotocol.registry/official"].isLatest)"')"
-          echo "발행 대상 : $V"
+          # 전부 정보성이다 — npm 읽기 복제본도, 레지스트리의 두 조회도 발행 직후 각자 낡는다.
+          # 판정은 위 발행 스텝의 성공 여부로 한다. 여기 값이 늦어도 실패가 아니다.
+          #
+          # 레지스트리를 두 갈래로 부르는 이유: v0.45.0엔 version=latest가 낡고 전체 목록이
+          # 최신이었는데, v0.47.1엔 정반대였다(전체 목록에 아직 없고 version=latest만 최신).
+          # 한쪽만 찍으면 빈 줄이 나가고 그게 미발행으로 오독된다.
+          reg() {
+            curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&$1" \
+              | jq -r --arg n "$SERVER_NAME" --arg v "$V" '[.servers[] | select(.server.name == $n and .server.version == $v)] | if length > 0 then "\($v) isLatest=\(.[0]._meta["io.modelcontextprotocol.registry/official"].isLatest)" else "(아직 안 보임 — 지연이지 실패가 아니다)" end'
+          }
+          echo "npm              : $(npm view "$PACKAGE_NAME" version)"
+          echo "레지스트리 latest : $(reg 'version=latest')"
+          echo "레지스트리 목록   : $(reg 'limit=100')"
+          echo "발행 대상        : $V"

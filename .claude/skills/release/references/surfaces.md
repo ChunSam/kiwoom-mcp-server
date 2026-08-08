@@ -5,13 +5,18 @@
 ## 우리가 발행하는 곳 (여기까지가 발행 완료 조건)
 
 ```sh
-curl -s https://registry.npmjs.org/kiwoom-mcp-server | jq .dist-tags
+curl -s https://registry.npmjs.org/kiwoom-mcp-server | jq '.["dist-tags"]'
 curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest"
+curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&limit=100"
 gh release list --limit 5
 ```
 
-레지스트리 응답은 `_meta["io.modelcontextprotocol.registry/official"].isLatest`가 판정
-기준이다. `&version=latest` 없이 부르면 낡은 버전이 와서 미발행으로 오독한다.
+레지스트리는 **두 조회를 다 부른다** — `&version=latest`와 전체 목록이 각자 다른 시점에
+낡고, 두 라운드에서 정반대로 물렸다(상세는 `gotchas.md`). 목표 버전이 나온 응답에서
+`_meta["io.modelcontextprotocol.registry/official"].isLatest`를 본다. **둘 다 낡았다고
+미발행으로 판정하지 않는다** — 1차 근거는 발행 스텝의 성공 여부다.
+
+`jq .dist-tags`는 `-`를 뺄셈으로 파싱해 컴파일 에러가 난다. `jq '.["dist-tags"]'`로 부른다.
 
 ## 남이 크롤하는 곳 (조치하지 않는다)
 
