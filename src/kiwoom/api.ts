@@ -18,6 +18,7 @@ import {
   bidRatioSurgeResponseSchema,
   bidSurgeResponseSchema,
   brokerActivityResponseSchema,
+  brokerDropoutResponseSchema,
   brokerStockRankResponseSchema,
   brokerCodeListResponseSchema,
   creditRatioRankResponseSchema,
@@ -96,6 +97,7 @@ import {
   type BidSurgeItem,
   type BrokerActivityResponse,
   type BrokerCodeItem,
+  type BrokerDropoutItem,
   type BrokerStockRankItem,
   type CreditRatioRankItem,
   type CreditTrendResponse,
@@ -2321,6 +2323,24 @@ export async function fetchBrokerStockRank(
     body: { stk_cd: stockCode, qry_tp: BROKER_RANK_SIDE_CODES[side] },
   });
   return brokerStockRankResponseSchema.parse(res.json).stk_sec_rank;
+}
+
+/**
+ * ka10053 당일상위이탈원 — 당일 상위 거래원에서 빠진 거래원과 그 시각·수량.
+ *
+ * 파라미터는 `stk_cd` 하나이고 cont-yn=N인 단일 페이지다(종목당 4~8행 실측).
+ * 응답의 부호 접두사·컬럼 독립성 같은 함정은 types.ts의 스키마 주석에 있다.
+ */
+export async function fetchBrokerDropout(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<BrokerDropoutItem[]> {
+  const res = await client.call({
+    path: RANK_PATH,
+    apiId: "ka10053",
+    body: { stk_cd: stockCode },
+  });
+  return brokerDropoutResponseSchema.parse(res.json).tdy_upper_scesn_ori;
 }
 
 /**

@@ -50,7 +50,7 @@ allowance.
 | `get_investor_rank` | Top stocks net-bought/sold by foreigners & institutions / N-day buying streaks | ka90009, ka10131 |
 | `get_net_buy_rank` | Top net-buying stocks per investor type — 12 subjects (retail, foreign, institution, financial inv., insurance, trust, bank, pension, private fund, other finance, nation, other corp.); last completed session | ka10066 |
 | `get_foreign_intraday` | Intraday top net-buy/sell stocks by investor type — foreigners, institutions, insurance, trusts, pensions, other corporates (live provisional) | ka10063, ka10065 |
-| `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), the full 50-broker cumulative ranking (`view=broker_rank`), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037, ka10038 |
+| `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), the full 50-broker cumulative ranking (`view=broker_rank`), desks that dropped out of today's top ranks (`view=dropout`), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037, ka10038, ka10053 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
 | `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
 | `get_etf_rank` | Market-wide ETF screener — sort by disparity (premium/discount), change, volume or tracking error; filter by tax type, manager brand or tracked index | ka40004 |

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import {
   fetchBrokerActivity,
+  fetchBrokerDropout,
   fetchBrokerStockRank,
   fetchForeignBrokerRank,
   FOREIGN_BROKER_DAYS,
@@ -15,6 +16,7 @@ import { brokerIndexByName, isForeignBroker, loadBrokerCodes } from "../kiwoom/b
 import type {
   BrokerActivityResponse,
   BrokerCodeItem,
+  BrokerDropoutItem,
   BrokerStockRankItem,
   ForeignBrokerRankItem,
 } from "../kiwoom/types.js";
@@ -234,16 +236,98 @@ export function formatBrokerStockRank(
   return lines.join("\n");
 }
 
+/**
+ * 이름 앞의 `+`/`-`를 뗀다. 이건 **외국계 표시**이고 부호는 컬럼(매도/매수)의 중복이라
+ * 정보가 없다 — 10종목 62행 교차표에서 매도 쪽 외국계는 전부 `-`, 매수 쪽 외국계는 전부
+ * `+`였고 국내에는 하나도 안 붙었다(예외 0건). 떼지 않으면 이름이 ka10102 코드표와 안 맞아
+ * 외국계 판정이 통째로 실패한다.
+ */
+function stripDeskMark(raw: string): string {
+  const name = raw.trim();
+  return name && (name.startsWith("+") || name.startsWith("-")) ? name.slice(1).trim() : name;
+}
+
+/**
+ * 당일 상위 거래원 이탈 (ka10053).
+ *
+ * **매도/매수 두 컬럼은 짝이 아니다** — 각자 독립적으로 시각 내림차순 정렬된 별개 목록이라
+ * 같은 행의 두 값을 한 사건으로 읽으면 안 된다. 한쪽만 채워진 행도 실재한다.
+ */
+export function formatBrokerDropout(
+  rows: BrokerDropoutItem[],
+  stockCode: string,
+  modeLabel: string,
+  brokerCodes?: BrokerCodeItem[],
+): string {
+  if (rows.length === 0) {
+    return (
+      `[${modeLabel}] ${stockCode}의 당일 거래원 이탈 내역이 없습니다.\n` +
+      "※ 상위 거래원이 바뀌지 않았거나 장이 열리지 않은 날입니다 — 종목코드도 확인해 주세요."
+    );
+  }
+
+  const index = brokerCodes ? brokerIndexByName(brokerCodes) : null;
+  const n = parseKiwoomNumber;
+  const label = (raw: string): string => {
+    const name = stripDeskMark(raw);
+    if (!name) return "-";
+    return index && isForeignBroker(index, name) ? `${name} 🌐` : name;
+  };
+  const clock = (t: string): string => {
+    const v = t.trim();
+    return v.length === 6 ? `${v.slice(0, 2)}:${v.slice(2, 4)}:${v.slice(4)}` : v || "-";
+  };
+  const qty = (raw: string): string => {
+    const value = n(raw);
+    return value === null ? "-" : formatNumber(value, 0);
+  };
+
+  const lines = [
+    `[${modeLabel}] ${stockCode} 당일 상위 거래원 이탈 (${rows.length}건)`,
+    "",
+    "| 매도 이탈 | 시각 | 수량(주) | 매수 이탈 | 시각 | 수량(주) |",
+    "|---|---|---:|---|---|---:|",
+  ];
+  for (const r of rows) {
+    lines.push(
+      `| ${[
+        label(r.sel_upper_scesn_ori),
+        r.sel_upper_scesn_ori.trim() ? clock(r.sel_scesn_tm) : "-",
+        r.sel_upper_scesn_ori.trim() ? qty(r.sell_qty) : "-",
+        label(r.buy_upper_scesn_ori),
+        r.buy_upper_scesn_ori.trim() ? clock(r.buy_scesn_tm) : "-",
+        r.buy_upper_scesn_ori.trim() ? qty(r.buy_qty) : "-",
+      ].join(" | ")} |`,
+    );
+  }
+
+  lines.push(
+    "",
+    "※ 당일 매수·매도 **상위 5개 거래원**에 있다가 빠진 창구와 그 시각입니다. " +
+      "수량은 이탈 시점까지 그 창구가 쌓은 누적 수량입니다.",
+    "※ **좌우 두 칸은 서로 다른 사건입니다** — 매도 이탈과 매수 이탈이 각각 시각 내림차순으로 " +
+      "정렬된 별개 목록이라 같은 줄이라고 짝지어 읽으면 안 됩니다(한쪽만 있는 줄도 있습니다).",
+  );
+  if (index) {
+    lines.push(
+      "※ 🌐 = 외국계 창구 (키움 ka10102 거래원 구분). 현재 상위 거래원은 " +
+        "stock_code만 주고 view를 생략해 보세요(ka10002).",
+    );
+  }
+  lines.push(KRX_ONLY_NOTE);
+  return lines.join("\n");
+}
+
 export function registerBrokerActivityTool(server: McpServer): void {
   server.registerTool(
     "get_broker_activity",
     {
       title: "거래원 동향 조회",
       description:
-        "증권사 창구별 매매 동향을 조회합니다 (키움 ka10002/ka10102/ka10037/ka10038). " +
+        "증권사 창구별 매매 동향을 조회합니다 (키움 ka10002/ka10102/ka10037/ka10038/ka10053). " +
         "stock_code를 주면 **그 종목의 당일 거래원 상위 5개사**(매수/매도)이고, 외국계 창구에는 🌐를 붙입니다. " +
-        "같은 종목을 `view=broker_rank`로 부르면 **전 거래원 50개사의 누적 순위**를 순매수/순매도로 갈라 봅니다 " +
-        "(상위 5개사 밖의 창구까지 봐야 할 때). " +
+        "같은 종목을 `view=broker_rank`로 부르면 **전 거래원 50개사의 누적 순위**를 순매수/순매도로 갈라 보고, " +
+        "`view=dropout`이면 **당일 상위에서 빠진 창구와 그 시각**을 봅니다(누가 언제 발을 뺐는지). " +
         "stock_code를 생략하면 **시장 전체에서 외국계 창구 순매매가 큰 종목 순위**입니다 " +
         "(direction: net_buy 기본/net_sell/all, days: 1·5·10일 누적). " +
         "둘 다 **창구 기준**이라 투자자 주체별 순매수와는 다릅니다 — 외국인 순매수 자체는 " +
@@ -255,10 +339,11 @@ export function registerBrokerActivityTool(server: McpServer): void {
           .optional()
           .describe("조회할 6자리 종목코드 — 주면 종목별 거래원, 생략하면 시장 전체 외국계 창구 순위"),
         view: z
-          .enum(["top5", "broker_rank"])
+          .enum(["top5", "broker_rank", "dropout"])
           .optional()
           .describe(
-            "stock_code를 줬을 때의 표 종류 — top5(당일 상위 5개사, 기본)/broker_rank(전 거래원 50개사 누적 순위)",
+            "stock_code를 줬을 때의 표 종류 — top5(당일 상위 5개사, 기본)/broker_rank(전 거래원 50개사 누적 순위)/" +
+              "dropout(당일 상위에서 이탈한 창구와 그 시각)",
           ),
         market: z
           .enum(["all", "kospi", "kosdaq"])
@@ -294,6 +379,15 @@ export function registerBrokerActivityTool(server: McpServer): void {
 
         if (!stock_code && view) {
           throw new Error("view는 stock_code와 함께 씁니다 — 시장 전체 순위에는 적용되지 않습니다.");
+        }
+
+        if (stock_code && view === "dropout") {
+          const code = stock_code.toUpperCase();
+          const [rows, brokerCodes] = await Promise.all([
+            fetchBrokerDropout(client, code),
+            loadBrokerCodes(client).catch(() => undefined),
+          ]);
+          return textResult(formatBrokerDropout(rows, code, config.modeLabel, brokerCodes));
         }
 
         if (stock_code && view === "broker_rank") {
