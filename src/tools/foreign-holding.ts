@@ -29,6 +29,8 @@ const DEFAULT_TOP = 20;
 const MAX_TOP = 100;
 const DEFAULT_SURGE_DAYS: ForeignLimitSurgeDays = "5";
 const DEFAULT_PERIOD_DAYS: ForeignPeriodDays = "20";
+/** ka10035가 고정으로 보는 연속 일수 — 파라미터가 아니라 TR의 정의다(dm1~dm3). */
+const STREAK_DAYS = "3";
 
 const MARKET_LABELS: Record<RankingMarket, string> = {
   all: "전체",
@@ -197,6 +199,12 @@ export function formatForeignHolding(
  *
  * `dm1`~`dm3`은 일별 순매매고 `tot`이 합계다. 전 100행에서 세 값의 부호가 같은 것이
  * "연속"의 정의라, 표는 세 날을 그대로 펼쳐 사용자가 흐름을 볼 수 있게 한다.
+ *
+ * **정렬은 `tot`의 절대값 내림차순이다** — 부호 기준이 아니다(REAL 실측 2026-08-09,
+ * `plans/tools/probe_ka10035_order.py`). 순매도(`trde_tp=1`)는 100행이 전부 음수라
+ * 부호로는 **오름차순**이고(−5,926,663 → −146,097), 순매수는 부호 내림차순이다. 두 방향
+ * 모두 위쪽이 가장 크게 매매한 종목이라 `top` 슬라이스는 맞지만, "합계 내림차순"이라고
+ * 적으면 순매도에서 틀린 말이 된다.
  */
 export function formatForeignStreakTrade(
   rows: ForeignStreakTradeItem[],
@@ -204,6 +212,7 @@ export function formatForeignStreakTrade(
   direction: "net_sell" | "net_buy",
   top: number,
   modeLabel: string,
+  requestedDays?: string,
 ): string {
   const marketLabel = MARKET_LABELS[market];
   const dirLabel = direction === "net_buy" ? "순매수" : "순매도";
@@ -239,9 +248,19 @@ export function formatForeignStreakTrade(
     );
   });
 
+  if (requestedDays && requestedDays !== STREAK_DAYS) {
+    lines.push(
+      "",
+      `⚠️ 요청한 ${requestedDays}일은 이 순위에 적용되지 않습니다 — ` +
+        `streak는 키움이 **${STREAK_DAYS}일 연속**으로 고정한 축이라 기간을 받지 않습니다. ` +
+        "기간을 바꾸려면 rank=period_net을 쓰세요.",
+    );
+  }
   lines.push(
     "",
-    `※ 3일 합계 내림차순입니다. **세 날 모두 같은 방향(${dirLabel})**인 종목만 나옵니다 — ` +
+    `※ 3일 합계의 **크기(절대값)** 내림차순입니다 — ${dirLabel}는 합계가 ` +
+      `${direction === "net_sell" ? "음수라 −가 큰" : "양수라 +가 큰"} 종목이 위입니다. ` +
+      `**세 날 모두 같은 방향(${dirLabel})**인 종목만 나옵니다 — ` +
       "그게 이 TR이 말하는 '연속'입니다. 수량 단위는 주입니다.",
     "※ 한도소진율 = 외국인 보유 / 외국인 한도. 이 tool은 외국인 **보유·한도** 계열이라 " +
       "투자자 매매 기준인 get_net_buy_rank·get_investor_trend와 부호가 반대일 수 있습니다.",
@@ -285,7 +304,8 @@ export function registerForeignHoldingTool(server: McpServer): void {
           .optional()
           .describe(
             `기준 기간(거래일) — limit_surge는 ${FOREIGN_LIMIT_SURGE_DAYS.join("/")} (기본 ${DEFAULT_SURGE_DAYS}), ` +
-              `period_net은 ${FOREIGN_PERIOD_DAYS.join("/")} (기본 ${DEFAULT_PERIOD_DAYS})`,
+              `period_net은 ${FOREIGN_PERIOD_DAYS.join("/")} (기본 ${DEFAULT_PERIOD_DAYS}). ` +
+              `streak는 ${STREAK_DAYS}일 고정이라 이 값을 받지 않습니다`,
           ),
         direction: z
           .enum(["net_sell", "net_buy"])
@@ -348,9 +368,12 @@ export function registerForeignHoldingTool(server: McpServer): void {
         const dir = direction ?? "net_sell";
 
         if (rank === "streak") {
-          // ka10035는 3일 고정이라 days를 받지 않는다 — 조용히 무시하지 않고 각주로 밝힌다.
+          // ka10035는 3일 고정이라 days를 받지 않는다 — 받은 days는 **조용히 버리지 않고**
+          // 포맷터가 ⚠️로 밝힌다(limit_surge의 기간 대체 경고와 같은 처방).
           const rows = await fetchForeignStreakTrade(client, m, dir);
-          return textResult(formatForeignStreakTrade(rows, m, dir, count, config.modeLabel));
+          return textResult(
+            formatForeignStreakTrade(rows, m, dir, count, config.modeLabel, days),
+          );
         }
 
         const periodDays = (days ?? DEFAULT_PERIOD_DAYS) as ForeignPeriodDays;
