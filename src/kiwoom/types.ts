@@ -31,8 +31,6 @@ export const tokenResponseSchema = z.looseObject({
   expires_dt: z.string().optional(),
 });
 
-export type TokenResponse = z.infer<typeof tokenResponseSchema>;
-
 // ── ka10001: 주식기본정보 (subset) ──
 
 export const stockInfoResponseSchema = z.looseObject({
@@ -109,8 +107,6 @@ export const holdingItemSchema = z.looseObject({
   poss_rt: str(), // 보유비중(%)
   pred_close_pric: str(), // 전일종가
 });
-
-export type HoldingItem = z.infer<typeof holdingItemSchema>;
 
 export const accountEvaluationResponseSchema = z.looseObject({
   ...envelope,
@@ -252,8 +248,6 @@ export const pendingOrdersResponseSchema = z.looseObject({
   oso: z.array(pendingOrderItemSchema).default([]),
 });
 
-export type PendingOrdersResponse = z.infer<typeof pendingOrdersResponseSchema>;
-
 // ── ka10076: 체결요청 — 계좌의 체결 내역 (ka10075 미체결의 반대편) ──
 // Envelope + the `cntr` array key are live-verified (mock 2026-07-31, 5 bodies, rc=0, cont-yn N).
 // Item VALUES are unobservable without placing an order (out of scope by design), so the field
@@ -288,8 +282,6 @@ export const executionsResponseSchema = z.looseObject({
   ...envelope,
   cntr: z.array(executionItemSchema).default([]),
 });
-
-export type ExecutionsResponse = z.infer<typeof executionsResponseSchema>;
 
 // ── ka10099: 종목정보요약 — NOTE: this TR answers in camelCase (live-verified) ──
 
@@ -850,8 +842,6 @@ export const themeStockItemSchema = z.looseObject({
   dt_prft_rt_n: str(), // 기간수익률(%)
 });
 
-export type ThemeStockItem = z.infer<typeof themeStockItemSchema>;
-
 export const themeStocksResponseSchema = z.looseObject({
   ...envelope,
   flu_rt: str(), // 테마 전체 등락률(%)
@@ -948,8 +938,6 @@ export const institutionTrendItemSchema = z.looseObject({
   for_daly_nettrde_qty: str(), // 외국인 일별 순매수
   limit_exh_rt: str(), // 외국인 한도소진률(%) — 비방향성 비율
 });
-
-export type InstitutionTrendItem = z.infer<typeof institutionTrendItemSchema>;
 
 export const institutionTrendResponseSchema = z.looseObject({
   ...envelope,
@@ -1166,8 +1154,6 @@ export const tradingJournalItemSchema = z.looseObject({
   buy_amt: str(), // 매수금액
   prft_rt: str(), // 수익률(%)
 });
-
-export type TradingJournalItem = z.infer<typeof tradingJournalItemSchema>;
 
 export const tradingJournalResponseSchema = z.looseObject({
   ...envelope,
@@ -1569,8 +1555,6 @@ export const creditTrendItemSchema = z.looseObject({
   shr_rt: str(), // 공여율(%) — 비방향성 비율
   remn_rt: str(), // 잔고율(%) — 잔고/상장주식수
 });
-
-export type CreditTrendItem = z.infer<typeof creditTrendItemSchema>;
 
 export const creditTrendResponseSchema = z.looseObject({
   ...envelope,
