@@ -17,7 +17,7 @@ python3 scripts/sweep.py --real    # REAL 모드 명시 허용
 python3 scripts/sweep.py --only get_gold_price --full   # 한 tool만, 출력 전문
 ```
 
-`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부 — CI에는 `npm audit --omit=dev --audit-level=high` 한 단계가 더 붙는다(프로덕션 의존성만, 새 advisory가 뜨면 관련 없는 PR도 빨개진다). `typecheck`는 `tsconfig.test.json`으로 돈다 — 베이스 `tsconfig.json`의 `include`는 `["src"]`뿐이라 **빌드 산출물 레이아웃을 지키려면 tests를 거기 넣으면 안 되고**, 그러면 테스트가 타입체크에서 통째로 빠진다(실제로 픽스처가 필수 필드를 빠뜨린 채 통과했다). `check`는 버전 5곳 동기화, 아래 실측 카운트, README 2종의 tool 문서화, **`src/tools/`가 export한 `register*Tool`이 `server.ts`에서 다 불리는지** 넷을 본다 — 마지막 검사가 없으면 파일만 만들고 등록을 빠뜨렸을 때 카운트가 그 누락을 포함한 채 계산돼 조용히 통과하고 `--write`가 숫자를 맞춰 은폐한다. 앞의 셋은 조용히 드리프트하므로 **카운트가 어긋나면 손으로 세지 말고 `npm run check:write`**로 고친다(실제 값은 스크립트가 이미 세고 있다 — 버전은 정답을 모르므로 건드리지 않는다). `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). **tool을 새로 붙였으면 `--only <tool> --full`로 표·각주·가드 문구까지 눈으로 확인한다** — 기본 스윕은 첫 줄만 찍어 렌더 오류를 못 잡는다. 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
+`npm run check && npm run typecheck && npm test && npm run build` 네 가지가 로컬 게이트이자 CI(Node 20/22 매트릭스, `.github/workflows/ci.yml`)에서 도는 전부 — CI에는 `npm audit --omit=dev --audit-level=high` 한 단계가 더 붙는다(프로덕션 의존성만, 새 advisory가 뜨면 관련 없는 PR도 빨개진다). `typecheck`는 `tsconfig.test.json`으로 돈다 — 베이스 `tsconfig.json`의 `include`는 `["src"]`뿐이라 **빌드 산출물 레이아웃을 지키려면 tests를 거기 넣으면 안 되고**, 그러면 테스트가 타입체크에서 통째로 빠진다(실제로 픽스처가 필수 필드를 빠뜨린 채 통과했다). `check`는 버전 5곳 동기화, 아래 실측 카운트, README 2종의 tool 문서화, **`src/tools/`가 export한 `register*Tool`이 `server.ts`에서 다 불리는지**, **레이어 불변식** 다섯을 본다 — 네 번째가 없으면 파일만 만들고 등록을 빠뜨렸을 때 카운트가 그 누락을 포함한 채 계산돼 조용히 통과하고 `--write`가 숫자를 맞춰 은폐한다. 다섯 번째는 순환 의존 0건 · `kiwoom/`·`utils/`가 상위(`tools/`·`isa/`·`server`·`http`·`oauth`·`context`)를 import하지 않음 · `.call(`이 `kiwoom/api.ts` 안에만 있음 셋인데, 전부 **typecheck와 테스트가 원리상 못 잡는 자리**다(포맷터 테스트는 받은 값을 렌더할 뿐이고 순환 import는 런타임에야 터진다). 여기엔 카운트를 CLAUDE.md와 대조하지 않는다 — 건수를 문서에 박으면 그 숫자가 또 낡는다. 카운트 검사 셋은 조용히 드리프트하므로 **카운트가 어긋나면 손으로 세지 말고 `npm run check:write`**로 고친다(실제 값은 스크립트가 이미 세고 있다 — 버전은 정답을 모르므로 건드리지 않는다). `git config core.hooksPath .githooks`를 한 번 걸어 두면 pre-commit에서도 돈다(카운트는 경고, 버전은 차단). sweep은 라이브 크리덴셜이 필요해 CI에 없고, tool을 추가·변경한 뒤 수동으로 돌린다 (`npm run build` 후 `dist/index.js`를 띄움). **tool을 새로 붙였으면 `--only <tool> --full`로 표·각주·가드 문구까지 눈으로 확인한다** — 기본 스윕은 첫 줄만 찍어 렌더 오류를 못 잡는다. 기대값: `unexpected_errors=0`, 모의투자에서는 `get_transactions`(kt00015)·`get_account_trend`(kt00002)·`get_account_today`(kt00017) 세 개만 `err(exp)`(전부 RC9000).
 
 ## 아키텍처
 
@@ -40,7 +40,7 @@ isa/            ISA 전용: 과세유형 분류, 실현손익 재구성, 손익�
 utils/          num/date/redact/sleep/stock-code
 ```
 
-의존 방향은 `tools → kiwoom/api → kiwoom/client → auth`. tool이 `client.call`을 직접 부르지 않고 항상 `api.ts`의 `fetch*`를 거친다.
+의존 방향은 `tools → kiwoom/api → kiwoom/client → auth`. tool이 `client.call`을 직접 부르지 않고 항상 `api.ts`의 `fetch*`를 거친다. **이 방향과 봉인은 `npm run check`가 강제한다**(순환·역방향 import·`api.ts` 밖의 `.call(`) — 글로만 있던 시절엔 어겨도 게이트가 전부 초록이었다.
 
 **마스터 캐시 3종(master/broker/sector-list)은 `auth.ts`와 같은 in-flight 공유를 쓴다** — 캐시가 콜드일 때 tool이 동시에 들어오면 각자 전체 시퀀스(ka10099 2콜·ka10101 5콜)를 처음부터 돌아 레이트리밋을 밀어붙이기 때문이다. 새 캐시 계층을 만들면 `inflight ??= load().finally(...)` 패턴을 같이 붙이고, 테스트 훅은 `cache`와 `inflight`를 **둘 다** 비운다.
 
