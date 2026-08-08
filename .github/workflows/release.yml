@@ -30,9 +30,9 @@ jobs:
     steps:
       # 얕은 클론으로 충분하다 — 릴리스 노트는 로컬 git이 아니라 GitHub API로 읽는다
       # (아래 "GitHub Release 생성" 주석 참조).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # trusted publishing은 Node >=22.14를 요구한다. 게이트(CI)가 보는 20·22와 달리
           # 여기는 발행 전용이라 최신 LTS를 써도 호환성 판정에 영향이 없다.
