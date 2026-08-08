@@ -99,11 +99,11 @@ tool 작성 관례:
 
 tool 추가 = minor 범프. 커밋/PR 제목은 `feat(tools): 체결 내역 — get_order_executions (ka10076), v0.27.0` 형식(타입 영어, 본문 한국어, 관련 TR과 버전 명시). 수정은 `fix(...)`, 문서 `docs:`, 의존성 `chore(deps):`.
 
-**main은 브랜치 보호가 걸려 있다(2026-08-05).** 직접 push 불가, PR 필수, 관리자도 우회 불가(`enforce_admins`). 브랜치는 main 기준 최신이어야 하며(`strict`) 히스토리는 선형이라 squash·rebase만 된다. 그래서 **`gh pr merge --squash` 대신 `gh pr merge --auto --squash`를 쓴다** — green이 되면 GitHub이 머지한다. 체크가 보고되기 전에 머지가 나간 적이 있어 건 장치다.
+**main은 브랜치 보호가 걸려 있다(2026-08-05).** 직접 push 불가, PR 필수, 관리자도 우회 불가(`enforce_admins`). 브랜치는 main 기준 최신이어야 하며(`strict`) 히스토리는 선형이라 squash·rebase만 된다. 그래서 **`gh pr merge --squash` 대신 `gh pr merge --auto --squash`를 쓴다** — green이 되면 GitHub이 머지한다. 체크가 보고되기 전에 머지가 나간 적이 있어 건 장치다. **브랜치부터 머지·정리까지의 한 바퀴는 `/pr-cycle` 스킬**에 있다("진행해"의 범위가 그것이다).
 
 보호 규칙이 요구하는 체크는 **`ci` 하나뿐**이다. `.github/workflows/ci.yml`의 matrix(Node 20·22) 위에 이름이 고정된 집계 job을 두고 그것만 요구한다 — **matrix에 Node를 넣고 빼도 보호 규칙은 건드리지 않는다.** 집계 job의 `if: always()`를 지우면 matrix 실패 시 skipped가 되고, GitHub은 skipped 필수 체크를 실패로 보지 않아 **장치가 조용히 무력화된다**(실패 주입으로 확인함).
 
-배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **셋 다 `.github/workflows/release.yml`이 발행한다** — 노트를 실은 주석 태그(`git tag -a vX.Y.Z -F notes.md`)를 push하면 npm → 레지스트리 → Release 순으로 나간다. 토큰은 안 쓴다(npm trusted publishing + `mcp-publisher login github-oidc`). **손으로 `npm publish` 하지 않는다** — 계정 2FA 때문에 OTP를 요구하고, 그걸 피하려고 만든 게 이 워크플로다. **절차와 함정은 `/release` 스킬**에 있다. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
+배포 표면: npm(`kiwoom-mcp-server`), MCP 레지스트리(`server.json`), git 태그 + GitHub Release. **셋 다 `.github/workflows/release.yml`이 발행한다** — 노트를 실은 주석 태그(`git tag -a vX.Y.Z --cleanup=verbatim -F notes.md` — `verbatim`이 빠지면 `##` 제목이 지워진다)를 push하면 npm → 레지스트리 → Release 순으로 나간다. 토큰은 안 쓴다(npm trusted publishing + `mcp-publisher login github-oidc`). **손으로 `npm publish` 하지 않는다** — 계정 2FA 때문에 OTP를 요구하고, 그걸 피하려고 만든 게 이 워크플로다. **절차와 함정은 `/release` 스킬**에 있다. `files: ["dist"]`가 막는 건 `src/`·`tests/`·`.env`이고 `README*`·LICENSE·`package.json`은 npm이 항상 tarball에 넣는다.
 
 **발행은 PR 머지에 딸려 오지 않는다** — "진행해"의 범위는 테스트·PR·CI 확인·머지까지이고, 배포는 매번 별도 지시로만 한다.
 
