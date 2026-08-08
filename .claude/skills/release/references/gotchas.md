@@ -26,6 +26,27 @@ MCP 레지스트리는 `server.json`의 `packages[0].version`이 **npm에 실제
 v0.36.1(#51)은 코드 변경 없이 이 목적만으로 낸 patch다 — #50(MCP_PUBLIC_URL 문서화)이
 v0.36.0 태그 뒤에 머지돼 npm에서 보이지 않았다.
 
+## 태그 노트가 조용히 망가지는 두 자리 (v0.45.0에서 둘 다 물렸다)
+
+노트를 주석 태그에 싣는 방식이라 여기서 깨지면 Release가 엉뚱한 내용으로 나간다.
+
+- **`git tag -a -F notes.md`는 `#`으로 시작하는 줄을 지운다.** 기본 정리 모드가 그것을
+  주석으로 보기 때문이다 — 마크다운 `##` 제목 4개가 통째로 사라졌다.
+  **`--cleanup=verbatim`을 반드시 붙인다.** 붙인 뒤 `git for-each-ref ... %(contents:body)`로
+  제목 수를 세어 확인하는 게 빠르다.
+- **CI에서는 `git for-each-ref %(contents)`가 태그 주석을 못 준다.** actions/checkout이
+  태그 push에서 `refs/tags/*`를 경량 태그로 materialize해 **커밋 메시지로 폴백**한다 —
+  v0.45.0 Release 제목이 PR 커밋 제목(`ci: 태그를 밀면...(#77)`)으로 나갔다. 워크플로는
+  이제 GitHub API(`git/ref/tags/*` → `git/tags/{sha}` → `.message`)로 읽는다.
+
+## 레지스트리 `&version=latest`는 발행 직후 낡은 값을 준다
+
+v0.45.0 발행 직후 그 조회만 **계속 0.44.1**을 줬는데, 같은 시각 전체 목록
+(`?search=kiwoom&limit=100`)에는 0.45.0이 `isLatest=true`로 있었다. CI 안에서 부른 같은
+조회는 0.45.0을 줬으므로 캐시 엣지 차이로 보인다. **"올라갔나"를 판정할 때는 전체 목록에서
+그 버전을 찾는다** — `version=latest` 하나만 보고 미발행이라 단정하지 말 것.
+(npm도 발행 직후 `npm view`가 한 박자 늦는다. 판정은 발행 명령의 성공 여부로 한다.)
+
 ## 토큰 없는 발행(OIDC)의 조용한 실패 지점
 
 2026-08-07에 손 발행에서 로그인이 **두 번** 필요했다 — npm은 계정 2FA 때문에 `EOTP`

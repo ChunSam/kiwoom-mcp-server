@@ -28,10 +28,9 @@ jobs:
     name: release
     runs-on: ubuntu-latest
     steps:
+      # 얕은 클론으로 충분하다 — 릴리스 노트는 로컬 git이 아니라 GitHub API로 읽는다
+      # (아래 "GitHub Release 생성" 주석 참조).
       - uses: actions/checkout@v4
-        with:
-          # 태그 주석을 릴리스 노트로 쓰므로 얕은 클론으로는 안 된다.
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -98,10 +97,15 @@ jobs:
           V="${{ steps.version.outputs.version }}"
           # 선조회 — 이미 올라가 있는데 publish하면 400 "duplicate version"이 난다. 그건
           # 실패가 아니지만(append-only) 로그가 실패처럼 보여 매번 확인 왕복이 붙는다.
-          # `&version=latest` 없이 부르면 낡은 버전이 와서 미발행으로 오독한다.
-          CURRENT=$(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest" \
-            | jq -r --arg n "$SERVER_NAME" '.servers[] | select(.server.name == $n) | .server.version')
-          echo "레지스트리 현재 버전: ${CURRENT:-(없음)}"
+          #
+          # `&version=latest`가 아니라 **전체 목록에서 이 버전이 있는지**를 본다. 판단 대상이
+          # "최신이 무엇인가"가 아니라 "이 버전이 이미 있는가"라서 그게 맞고, `version=latest`
+          # 응답은 발행 직후 낡은 값을 주는 걸 실측했다(v0.45.0 발행 직후 그 조회만 0.44.1을
+          # 계속 줬고, 전체 목록에는 0.45.0이 isLatest=true로 있었다).
+          CURRENT=$(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&limit=100" \
+            | jq -r --arg n "$SERVER_NAME" --arg v "$V" \
+              '[.servers[] | select(.server.name == $n and .server.version == $v)] | if length > 0 then $v else "" end')
+          echo "레지스트리에 $V 존재 여부: ${CURRENT:-없음}"
           if [ "$CURRENT" = "$V" ]; then
             echo "레지스트리에 $V가 이미 있습니다 — 건너뜁니다."
           else
@@ -110,9 +114,14 @@ jobs:
           fi
 
       # ── 표면 3: GitHub Release ───────────────────────────────────────────
-      # 노트는 **주석 태그의 메시지**를 그대로 쓴다. 자동 생성 노트는 커밋 제목 나열이라
-      # 이 저장소가 릴리스마다 손으로 쓰던 설명을 대체하지 못한다 — 태그를 만들 때
-      # `git tag -a vX.Y.Z -F notes.md`로 노트를 실어 보내면 여기서 그대로 발행된다.
+      # 노트는 **주석 태그의 메시지**를 쓴다. 자동 생성 노트는 커밋 제목 나열이라 이 저장소가
+      # 릴리스마다 손으로 쓰던 설명을 대체하지 못한다 — `git tag -a vX.Y.Z -F notes.md`로
+      # 노트를 실어 보내면 여기서 그대로 발행된다. **`--cleanup=verbatim`을 잊지 말 것**:
+      # 기본 정리 모드는 `#`으로 시작하는 줄을 주석으로 보고 지워 마크다운 제목이 통째로 사라진다.
+      #
+      # 로컬 git이 아니라 **API로 읽는다**. actions/checkout은 태그 push에서 `refs/tags/*`를
+      # 경량 태그로 materialize해, `git for-each-ref %(contents)`가 태그 주석 대신 **커밋
+      # 메시지**로 폴백한다(v0.45.0 발행에서 Release 제목이 PR 커밋 제목으로 나갔다).
       - name: GitHub Release 생성
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -122,20 +131,25 @@ jobs:
             echo "Release $TAG가 이미 있습니다 — 건너뜁니다."
             exit 0
           fi
-          SUBJECT=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:subject)')
-          BODY=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:body)')
-          if [ -n "$BODY" ]; then
-            gh release create "$TAG" --title "${SUBJECT:-$TAG}" --notes "$BODY"
+          OBJ_TYPE=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.type')
+          if [ "$OBJ_TYPE" = "tag" ]; then
+            SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')
+            gh api "repos/$GITHUB_REPOSITORY/git/tags/$SHA" --jq '.message' > /tmp/tagmsg.txt
+            SUBJECT=$(head -1 /tmp/tagmsg.txt)
+            tail -n +3 /tmp/tagmsg.txt > /tmp/tagbody.txt
+            gh release create "$TAG" --title "${SUBJECT:-$TAG}" --notes-file /tmp/tagbody.txt
           else
             # 주석 없는 경량 태그로 밀린 경우의 폴백 — 노트 품질은 떨어지지만 릴리스는 남는다.
-            echo "::warning::태그 $TAG에 주석 본문이 없어 자동 생성 노트를 씁니다."
-            gh release create "$TAG" --title "${SUBJECT:-$TAG}" --generate-notes
+            echo "::warning::태그 $TAG가 경량 태그라 자동 생성 노트를 씁니다."
+            gh release create "$TAG" --title "$TAG" --generate-notes
           fi
 
       - name: 발행 표면 확인
         run: |
           V="${{ steps.version.outputs.version }}"
-          echo "npm       : $(npm view "$PACKAGE_NAME" version)"
-          echo "레지스트리: $(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest" \
-            | jq -r --arg n "$SERVER_NAME" '.servers[] | select(.server.name == $n) | "\(.server.version) isLatest=\(._meta["io.modelcontextprotocol.registry/official"].isLatest)"')"
+          # npm의 읽기 복제본은 발행 직후 잠깐 낡은 값을 준다 — 여기 숫자가 한 박자 늦어도
+          # 실패가 아니다. 판정은 위 발행 스텝의 성공 여부로 한다.
+          echo "npm       : $(npm view "$PACKAGE_NAME" version) (발행 직후엔 늦을 수 있음)"
+          echo "레지스트리: $(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&limit=100" \
+            | jq -r --arg n "$SERVER_NAME" --arg v "$V" '.servers[] | select(.server.name == $n and .server.version == $v) | "\(.server.version) isLatest=\(._meta["io.modelcontextprotocol.registry/official"].isLatest)"')"
           echo "발행 대상 : $V"
