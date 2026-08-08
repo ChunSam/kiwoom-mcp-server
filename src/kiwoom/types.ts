@@ -1811,6 +1811,47 @@ export type BrokerStockRankItem = z.infer<
   typeof brokerStockRankResponseSchema
 >["stk_sec_rank"][number];
 
+// ── ka10053: 당일상위이탈원 ──
+
+/**
+ * 당일 상위 거래원에서 **이탈한** 거래원과 그 시각·수량 (REAL 실측 2026-08-08, 10종목 62행).
+ * 종목당 4~8행, cont-yn=N인 단일 페이지, 전 행 공백 필드 없음.
+ *
+ * **매도/매수 두 컬럼은 짝이 아니다.** 각자 독립적으로 시각 내림차순 정렬된 별개 목록이
+ * 나란히 놓인 것이라, 같은 행의 매도시각 > 매수시각인 경우가 27/49건이었고 한쪽만 채워진
+ * 행도 8건 나왔다. 포맷터가 두 값을 한 사건처럼 읽히게 하면 안 된다.
+ *
+ * `sel_upper_scesn_ori`·`buy_upper_scesn_ori`에는 이름 앞에 `+`/`-`가 붙어 온다. 이건
+ * **외국계 표시**이고 부호는 컬럼의 중복이다 — 62행 교차표에서 매도 쪽 외국계는 전부 `-`,
+ * 매수 쪽 외국계는 전부 `+`였고 국내에는 하나도 안 붙었다(예외 0건). 정보가 없으므로
+ * 포맷터가 접두사를 떼고, 외국계 판정은 ka10102로 한다 — 떼지 않으면 이름이 코드표와
+ * 안 맞아 외국계 표시가 통째로 실패한다.
+ *
+ * `qry_dt`/`qry_tm`은 이름과 달리 **날짜·시각이 아니라 ka10102 거래원 코드**다
+ * (이름이 있는 행에서 100% 일치: qry_dt=매도 30/30, qry_tm=매수 36/36).
+ */
+export const brokerDropoutResponseSchema = z.looseObject({
+  ...envelope,
+  tdy_upper_scesn_ori: z
+    .array(
+      z.looseObject({
+        sel_scesn_tm: str(), // 매도 상위에서 이탈한 시각 HHMMSS
+        sell_qty: str(),
+        sel_upper_scesn_ori: str(), // 거래원명 (+/- 접두사 주의)
+        buy_scesn_tm: str(),
+        buy_qty: str(),
+        buy_upper_scesn_ori: str(),
+        qry_dt: str(), // 매도이탈 거래원 코드 (이름이 비면 같이 빈다)
+        qry_tm: str(), // 매수이탈 거래원 코드
+      }),
+    )
+    .default([]),
+});
+
+export type BrokerDropoutItem = z.infer<
+  typeof brokerDropoutResponseSchema
+>["tdy_upper_scesn_ori"][number];
+
 // ── ka10033: 신용비율상위 ──
 
 /**
