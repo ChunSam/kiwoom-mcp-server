@@ -107,11 +107,12 @@ Electronics, measured intraday on 2026-08-03, was KRX 19.2M / NXT 15.5M /
 **combined 34.7M**. If a number disagrees with an HTS or portal screen that shows
 KRX only, this is usually why.
 
-Two exceptions: **the per-stock broker breakdown of `get_broker_activity`
-(ka10002) stays on KRX** — Kiwoom does not serve that TR combined; the same
-tool's market-wide foreign-desk ranking (ka10037) *is* on the combined basis.
-And **`get_after_hours`** cannot be queried combined at all; NXT-enabled symbols
-are absent from that TR to begin with. The
+One exception remains: **`get_after_hours`** cannot be queried combined at all;
+NXT-enabled symbols are absent from that TR to begin with. **Broker activity
+(`get_broker_activity`) moved to the combined basis in v0.47.0** — before that it
+returned KRX-only figures, so the top-5 ranking itself differed from reality
+(Samsung Electronics' top buyer was KB Securities on KRX but Mirae Asset
+combined). The
 order book moved to the combined basis in v0.37.0: it now uses ka10007 instead of
 ka10004. Samsung Electronics, measured intraday on 2026-08-04, had best-bid size
 of KRX 18,421 / NXT 17,081 / **combined 36,319**.

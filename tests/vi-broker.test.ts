@@ -117,9 +117,10 @@ describe("formatBrokerActivity", () => {
     expect(text).toContain("삼성전자 (005930) 거래원 상위 — 현재가 296,000원 (+6.47%)");
     expect(text).toContain("| 1 | KB증권 | 1,323,258 | 삼  성 | 1,725,746 |");
     expect(text).toContain("| 5 | 한국투자증권 | 919,016 | JP모간서울 | 915,820 |");
-    // ka10002는 `_AL` 접미사를 무시하고 KRX만 준다 — 통합으로 조회되는 다른 tool과
-    // 기준이 다르다는 각주가 붙어야 한다.
-    expect(text).toContain("KRX 기준");
+    // v0.47.0에서 통합으로 넘어왔다 — ka10002도 `_AL`을 받고, 거래원별로 KRX + NXT = _AL이
+    // 정확히 맞는다(실측 2026-08-08). 그전엔 KRX 값을 내보내 상위 5의 순위 자체가 틀렸다.
+    expect(text).toContain("통합 기준");
+    expect(text).not.toContain("KRX 기준");
   });
 
   it("reports missing broker data when every name is blank", () => {
@@ -127,6 +128,6 @@ describe("formatBrokerActivity", () => {
     const out = formatBrokerActivity(empty, "999999", MODE);
     expect(out).toContain("거래원 정보가 없습니다");
     // 빈 결과에는 기준 각주를 달지 않는다 (붙일 수치가 없다).
-    expect(out).not.toContain("KRX 기준");
+    expect(out).not.toContain("통합 기준");
   });
 });

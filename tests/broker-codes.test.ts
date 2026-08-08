@@ -114,7 +114,7 @@ describe("formatBrokerActivity — 외국계 표시", () => {
 
     expect(text).toContain("| 3 | JP모간서울 | 1,139,224 | BNK증권 | 1,219,839 |");
     expect(text).not.toContain("🌐");
-    expect(text).toContain("KRX 기준");
+    expect(text).toContain("통합 기준");
   });
 
   it("거래원이 없으면 코드표가 있어도 안내만 낸다", () => {
