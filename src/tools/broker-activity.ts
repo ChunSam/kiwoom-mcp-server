@@ -282,8 +282,13 @@ export function formatBrokerDropout(
     return value === null ? "-" : formatNumber(value, 0);
   };
 
+  // 행 수는 건수가 아니다 — 좌우가 독립 목록이라 한 행이 이탈 2건일 수도, 1건일 수도 있다
+  // (실측 62행 중 8행이 한쪽만 채워져 있었다). 행 수를 "N건"으로 내면 그만큼 틀린다.
+  const sellCount = rows.filter((r) => stripDeskMark(r.sel_upper_scesn_ori)).length;
+  const buyCount = rows.filter((r) => stripDeskMark(r.buy_upper_scesn_ori)).length;
+
   const lines = [
-    `[${modeLabel}] ${stockCode} 당일 상위 거래원 이탈 (${rows.length}건)`,
+    `[${modeLabel}] ${stockCode} 당일 상위 거래원 이탈 — 매도 ${sellCount}건 · 매수 ${buyCount}건`,
     "",
     "| 매도 이탈 | 시각 | 수량(주) | 매수 이탈 | 시각 | 수량(주) |",
     "|---|---|---:|---|---|---:|",
@@ -370,7 +375,10 @@ export function registerBrokerActivityTool(server: McpServer): void {
           .min(1)
           .max(MAX_TOP)
           .optional()
-          .describe(`시장 전체 순위에서 표시할 종목 수 (기본 ${DEFAULT_TOP}, 최대 ${MAX_TOP})`),
+          .describe(
+            `표시할 개수 — 시장 전체 순위는 종목 수(기본 ${DEFAULT_TOP}), ` +
+              `view=broker_rank는 거래원 수(기본 ${MAX_TOP} = 50개사 전부). 최대 ${MAX_TOP}`,
+          ),
       },
     },
     async ({ stock_code, view, market, days, direction, sort, top }) =>

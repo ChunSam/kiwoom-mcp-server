@@ -60,8 +60,12 @@ const { list: brokerCodes } = brokerCodeListResponseSchema.parse({
 describe("formatBrokerDropout (ka10053)", () => {
   const out = formatBrokerDropout(rows, "005930", MODE, brokerCodes);
 
-  it("헤더에 종목과 건수를 낸다", () => {
-    expect(out).toContain("[실전투자] 005930 당일 상위 거래원 이탈 (4건)");
+  /**
+   * **행 수 ≠ 건수.** 좌우가 독립 목록이라 4행에 매도 3건 + 매수 4건이 들어 있다
+   * (마지막 행은 매수만 있다). 행 수를 "4건"으로 내면 매수 이탈 하나가 사라진 것처럼 읽힌다.
+   */
+  it("헤더에 매도·매수 이탈 건수를 따로 낸다 (행 수가 아니라)", () => {
+    expect(out).toContain("[실전투자] 005930 당일 상위 거래원 이탈 — 매도 3건 · 매수 4건");
   });
 
   /**

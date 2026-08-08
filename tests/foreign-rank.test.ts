@@ -224,6 +224,32 @@ const { for_cont_nettrde_upper: streakRows } = foreignStreakTradeResponseSchema.
   ],
 });
 
+/**
+ * ka10035 순매도 실측 (REAL 2026-08-09 12:2x KST, mrkt_tp=000 / trde_tp=1 / base_dt_tp=1 /
+ * 100행 중 앞 2행). 스크립트: `plans/tools/probe_ka10035_order.py`.
+ *
+ * 이 fixture의 요점은 **정렬이 부호가 아니라 절대값 기준**이라는 것이다 — 순매도 100행은
+ * 전부 음수이고 −5,926,663 → … → −146,097로 간다(부호로는 오름차순). 그래서 각주에
+ * "합계 내림차순"이라고 쓰면 이 방향에서 틀린 말이 된다. `pred_pre_1`~`pred_pre_3`은
+ * 응답에 빈 문자열로 오지만 스키마에 선언하지 않으므로 fixture에도 넣지 않는다.
+ */
+const { for_cont_nettrde_upper: streakSellRows } = foreignStreakTradeResponseSchema.parse({
+  return_code: 0,
+  return_msg: "정상적으로 처리되었습니다",
+  for_cont_nettrde_upper: [
+    {
+      stk_cd: "010170_AL", stk_nm: "대한광통신", cur_prc: "+11460", pred_pre_sig: "2",
+      pred_pre: "+390", dm1: "-1638582", dm2: "-887036", dm3: "-3401045",
+      tot: "-5926663", limit_exh_rt: "+2.39",
+    },
+    {
+      stk_cd: "0193T0_AL", stk_nm: "KODEX SK하이닉스단일종목레버리지", cur_prc: "-7395",
+      pred_pre_sig: "5", pred_pre: "-830", dm1: "-1358604", dm2: "-979753", dm3: "-453232",
+      tot: "-2791589", limit_exh_rt: "+1.95",
+    },
+  ],
+});
+
 describe("formatForeignStreakTrade (ka10035)", () => {
   const out = formatForeignStreakTrade(streakRows, "kospi", "net_buy", 20, "실전투자");
 
@@ -260,5 +286,45 @@ describe("formatForeignStreakTrade (ka10035)", () => {
     const empty = formatForeignStreakTrade([], "kosdaq", "net_sell", 20, "실전투자");
     expect(empty).toContain("코스닥 외국인 3일 연속 순매도 종목이 없습니다");
     expect(empty).toContain("휴장일");
+  });
+
+  /**
+   * 정렬은 **절대값** 내림차순이다(실측 2026-08-09). "합계 내림차순"이라고 쓰면 순매도에서
+   * 틀린다 — 그 방향은 부호로 보면 오름차순(−5,926,663 → −146,097)이기 때문이다.
+   */
+  describe("순매도 방향", () => {
+    const sell = formatForeignStreakTrade(streakSellRows, "all", "net_sell", 20, "실전투자");
+
+    it("정렬 기준을 절대값으로 밝히고 방향에 맞는 부호를 설명한다", () => {
+      expect(sell).toContain("**크기(절대값)** 내림차순");
+      expect(sell).toContain("순매도는 합계가 음수라 −가 큰 종목이 위입니다");
+      expect(sell).not.toContain("3일 합계 내림차순");
+    });
+
+    it("순매수 방향에는 양수 설명이 나간다", () => {
+      expect(out).toContain("순매수는 합계가 양수라 +가 큰 종목이 위입니다");
+    });
+
+    it("세 날과 합계를 음수 그대로 낸다", () => {
+      expect(sell).toContain("| 1 | 대한광통신 | 010170 | 11,460원 | -3,401,045 | -887,036 | -1,638,582 | -5,926,663 | 2.39% |");
+    });
+  });
+
+  /**
+   * ka10035는 3일 고정이라 days를 받지 않는다. 조용히 버리면 사용자는 20일 누적을 본 줄
+   * 안다 — limit_surge의 기간 대체 경고와 같은 처방으로 ⚠️를 낸다.
+   */
+  describe("적용되지 않는 days", () => {
+    it("days를 줬으면 적용되지 않았다고 알린다", () => {
+      const coerced = formatForeignStreakTrade(streakRows, "kospi", "net_buy", 20, "실전투자", "20");
+      expect(coerced).toContain("요청한 20일은 이 순위에 적용되지 않습니다");
+      expect(coerced).toContain("rank=period_net");
+    });
+
+    it("days가 없거나 3일이면 경고를 붙이지 않는다", () => {
+      expect(out).not.toContain("적용되지 않습니다");
+      const same = formatForeignStreakTrade(streakRows, "kospi", "net_buy", 20, "실전투자", "3");
+      expect(same).not.toContain("적용되지 않습니다");
+    });
   });
 });
