@@ -1260,7 +1260,17 @@ export async function fetchViStocks(
   return parseArray(res.json, "motn_stk", viStockItemSchema);
 }
 
-/** ka10002 주식거래원 — 상위 5 매도/매수 거래원 (flat 37 fields, mock-probed 2026-07-10). */
+/**
+ * ka10002 주식거래원 — 상위 5 매도/매수 거래원 (flat 37 fields, mock-probed 2026-07-10).
+ *
+ * **`_AL` 접미사를 받는다** (REAL 실측 2026-08-08). v0.31.0부터 이 TR을 "통합 미제공"
+ * 예외로 분류해 KRX 값을 내보내고 있었는데 **틀린 판정이었다** — 접미사를 붙이면 통합이
+ * 오고, 거래원별로 `KRX + NXT = _AL`이 3/3 정확히 맞는다(KB증권 2,613,237 + 999,085 =
+ * 3,612,322). `stex_tp`는 이 TR이 무시하므로 접미사만이 유일한 경로다.
+ *
+ * 그동안 **상위 5의 순위 자체가 틀렸다** — 005930 매수 1위가 KRX 기준 KB증권인데 통합에서는
+ * 미래에셋이고, 키움증권·삼성은 통합 상위 5에 있는데 KRX 상위 5에는 아예 없었다.
+ */
 export async function fetchBrokerActivity(
   client: KiwoomClient,
   stockCode: string,
@@ -1268,7 +1278,7 @@ export async function fetchBrokerActivity(
   const res = await client.call({
     path: STOCK_INFO_PATH,
     apiId: "ka10002",
-    body: { stk_cd: stockCode },
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
   return brokerActivityResponseSchema.parse(res.json);
 }
@@ -2320,7 +2330,9 @@ export async function fetchBrokerStockRank(
   const res = await client.call({
     path: RANK_PATH,
     apiId: "ka10038",
-    body: { stk_cd: stockCode, qry_tp: BROKER_RANK_SIDE_CODES[side] },
+    // `stex_tp`는 무시되고 `_AL` 접미사만 듣는다 — 거래원별로 KRX + NXT = _AL이
+    // 32/32 정확히 맞는다(REAL 실측 2026-08-08).
+    body: { stk_cd: toUnifiedCode(stockCode), qry_tp: BROKER_RANK_SIDE_CODES[side] },
   });
   return brokerStockRankResponseSchema.parse(res.json).stk_sec_rank;
 }
@@ -2329,6 +2341,8 @@ export async function fetchBrokerStockRank(
  * ka10053 당일상위이탈원 — 당일 상위 거래원에서 빠진 거래원과 그 시각·수량.
  *
  * 파라미터는 `stk_cd` 하나이고 cont-yn=N인 단일 페이지다(종목당 4~8행 실측).
+ * `stex_tp`는 무시되고 **`_AL` 접미사만 듣는다** — 붙이면 행 수와 순위가 통째로 바뀐다
+ * (005930 8행 → 12행, REAL 실측 2026-08-08).
  * 응답의 부호 접두사·컬럼 독립성 같은 함정은 types.ts의 스키마 주석에 있다.
  */
 export async function fetchBrokerDropout(
@@ -2338,7 +2352,7 @@ export async function fetchBrokerDropout(
   const res = await client.call({
     path: RANK_PATH,
     apiId: "ka10053",
-    body: { stk_cd: stockCode },
+    body: { stk_cd: toUnifiedCode(stockCode) },
   });
   return brokerDropoutResponseSchema.parse(res.json).tdy_upper_scesn_ori;
 }

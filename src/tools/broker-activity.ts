@@ -22,7 +22,7 @@ import type {
 } from "../kiwoom/types.js";
 import { formatKRW, formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
-import { KRX_ONLY_NOTE, runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
+import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
 const MAX_TOP = 100;
@@ -159,7 +159,7 @@ export function formatBrokerActivity(
         `(그 용도는 get_investor_trend / get_foreign_intraday).`,
     );
   }
-  lines.push(KRX_ONLY_NOTE);
+  lines.push(UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -232,7 +232,7 @@ export function formatBrokerStockRank(
         `(그 용도는 get_investor_trend / get_foreign_intraday).`,
     );
   }
-  lines.push(KRX_ONLY_NOTE);
+  lines.push(UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
@@ -314,7 +314,7 @@ export function formatBrokerDropout(
         "stock_code만 주고 view를 생략해 보세요(ka10002).",
     );
   }
-  lines.push(KRX_ONLY_NOTE);
+  lines.push(UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
 
