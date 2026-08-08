@@ -53,6 +53,19 @@ jobs:
           npm run build
           npm audit --omit=dev --audit-level=high
 
-      # 실제 발행은 하지 않는다 — tarball 조립과 prepublishOnly까지만 태운다.
-      - name: npm publish --dry-run
-        run: npm publish --dry-run
+      # 실제 발행은 하지 않는다. dry-run도 레지스트리에 묻기 때문에 **현재 버전이 이미
+      # 발행돼 있으면 "cannot publish over"로 exit 1**이 난다 — 그건 인증·레지스트리 경로가
+      # 살아 있다는 증거이므로 그 메시지일 때만 통과시키고, 다른 실패는 그대로 빨갛게 둔다.
+      - name: npm publish --dry-run (이미 발행된 버전 에러만 허용)
+        run: |
+          set +e
+          OUT=$(npm publish --dry-run 2>&1); RC=$?
+          echo "$OUT"
+          set -e
+          if [ $RC -eq 0 ]; then
+            echo "dry-run 통과 (미발행 버전)"
+          elif echo "$OUT" | grep -q "cannot publish over the previously published versions"; then
+            echo "이미 발행된 버전이라 여기서 멈췄다 — 레지스트리까지 도달했다는 뜻이다."
+          else
+            echo "::error::dry-run이 예상 밖 이유로 실패했다"; exit 1
+          fi
