@@ -44,6 +44,21 @@ const status = accountTodayStatusSchema.parse({
   return_msg: "조회가 완료되었습니다..",
 });
 
+/**
+ * 순매수 우위 · 순출금 하루를 가정한 변형 — 부호가 붙는 두 줄의 **음수 방향**을 고정한다.
+ *
+ * 실측 fixture는 매도만 있고 입금만 있는 하루라 `매도−매수`·`순입금`이 둘 다 `+`로만
+ * 렌더됐다. 이 두 줄은 `parseKiwoomNumber`로 읽은 값의 뺄셈이라 매수·출금이 크면 음수가
+ * 나와야 하는데, `parseKiwoomPrice`(절대값)로 바꿔도 양수 fixture만으로는 전부 초록이다
+ * — v0.47.2 리뷰에서 각주가 순매도 방향에서만 틀렸던 것과 같은 fixture 편향이다.
+ */
+const netBuyDay = accountTodayStatusSchema.parse({
+  ...status,
+  buy_amt: "000001200000",
+  ina_amt: "000000100000",
+  outa: "000000500000",
+});
+
 /** 신용융자·배당이 있는 계좌를 가정한 변형 — 조건부 블록이 살아나는지 본다. */
 const withCredit = accountTodayStatusSchema.parse({
   ...status,
@@ -88,6 +103,22 @@ describe("formatAccountToday", () => {
     expect(out).toContain("- 배당금액: 12,000원");
     expect(out).not.toContain("RP 평가금액");
     expect(out).not.toContain("전부 0이라 생략했습니다");
+  });
+
+  it("매수가 매도보다 크면 매도−매수가 음수로 나간다", () => {
+    const out = formatAccountToday(netBuyDay, MODE);
+
+    expect(out).toContain("매도금액: 520,515원 / 매수금액: 1,200,000원");
+    expect(out).toContain("매도−매수: -679,485원");
+    // 절대값 파서로 바꾸면 여기가 +679,485원이 된다.
+    expect(out).not.toContain("매도−매수: +");
+  });
+
+  it("출금이 입금보다 크면 순입금이 음수로 나간다", () => {
+    const out = formatAccountToday(netBuyDay, MODE);
+
+    expect(out).toContain("입금: 100,000원 / 출금: 500,000원 (순입금 -400,000원)");
+    expect(out).not.toContain("순입금 +");
   });
 
   it("순입금과 인접 tool 안내를 붙인다", () => {
