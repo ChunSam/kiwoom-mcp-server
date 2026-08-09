@@ -1183,6 +1183,60 @@ export const stockProgramIntradayItemSchema = z.looseObject({
 
 export type StockProgramIntradayItem = z.infer<typeof stockProgramIntradayItemSchema>;
 
+// ── ka40003: ETF일별추이 — /api/dostk/etf (live-probed 2026-08-09) ──
+// get_etf_info가 쓰는 ka40009는 NAV **최신 1점**만 주는데 이쪽은 30일 시계열이고
+// 괴리율을 **지수 대비**(navidex_dispty_rt)와 **ETF 대비**(navetfdispty_rt) 둘로 나눠 준다.
+// cntr_dt 내림차순 완전(29/29) — 최신이 위. 30 rows/page, cont-yn Y.
+// **비ETF 코드에도 rc=0으로 답한다** — 005930은 30행이 오되 nav·괴리율·추적 필드가
+// 전부 0이다. 에러가 아니라 껍데기라 ka40002 판별자 가드가 필요하다.
+// `nav`는 가격 계열이라 "-98738.44"의 부호가 전일대비 방향이다 → parseKiwoomPrice.
+export const etfDailyTrendItemSchema = z.looseObject({
+  cntr_dt: str(), // 일자 yyyyMMdd
+  cur_prc: str(), // 종가 (부호 방향)
+  pre_rt: str(), // 등락률(%)
+  trde_qty: str(), // 거래량 (주)
+  nav: str(), // NAV (부호 방향)
+  navidex_dispty_rt: str(), // NAV-지수 괴리율(%)
+  navetfdispty_rt: str(), // NAV-ETF 괴리율(%)
+  trace_eor_rt: str(), // 추적오차율
+});
+
+export type EtfDailyTrendItem = z.infer<typeof etfDailyTrendItemSchema>;
+
+// ── ka40008: ETF일자별순매수 — /api/dostk/etf (live-probed 2026-08-09) ──
+// ka40001(get_etf_returns)도 같은 두 필드를 쓰지만 그쪽은 **기간 단위**(1주/1개월/6개월/1년)다.
+// 이쪽은 **일자별** 20행. dt 내림차순 완전(19/19). cont-yn Y.
+// 순매수는 이중부호로 온다("--78762") — 부호가 곧 값의 부호라 parseKiwoomNumber.
+// ka40010이 같은 값을 100행·외국인만으로 준다(행은 상위집합, 컬럼은 부분집합)이라 쓰지 않는다.
+export const etfInvestorFlowItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  cur_prc_n: str(), // 종가 (부호 방향)
+  acc_trde_qty: str(), // 누적거래량 (주)
+  for_netprps_qty: str(), // 외국인 순매수량 (주, 부호)
+  orgn_netprps_qty: str(), // 기관 순매수량 (주, 부호)
+});
+
+export type EtfInvestorFlowItem = z.infer<typeof etfInvestorFlowItemSchema>;
+
+// ── ka90012: 대차거래잔고상위 — /api/dostk/slb (live-probed 2026-08-09) ──
+// ka10068/ka20068(get_stock_lending)이 **한 종목/시장의 시계열**을 주는 것과 달리
+// 이쪽은 **하루의 종목 횡단면**이다. `rmnd`(잔고 수량) **내림차순 완전(49/49)** —
+// 서버가 정렬해 주는 진짜 순위다(같은 라운드의 ka90004는 전 컬럼 무순서라 뺐다).
+// 단위 실측: rmnd 주 / remn_amt 백만원 (005930 remn_amt÷rmnd = 0.2310 → 231,000원/주,
+// 같은 날 종가와 정합). `mrkt_tp`는 **필수인데 효과가 없다** — 빼면 rc=2인데 0·1·P00101이
+// 모두 같은 결과라, 형식만 채우고 노출하지 않는다. `dt`는 듣는다(날짜마다 값이 다르다).
+// 50 rows/page, cont-yn Y.
+export const lendingBalanceRankItemSchema = z.looseObject({
+  stk_cd: code(),
+  stk_nm: str(),
+  dbrt_trde_cntrcnt: str(), // 대차 체결 주수
+  dbrt_trde_rpy: str(), // 대차 상환 주수
+  rmnd: str(), // 대차잔고 (주) — 정렬 기준
+  remn_amt: str(), // 대차잔고 금액 (백만원)
+});
+
+export type LendingBalanceRankItem = z.infer<typeof lendingBalanceRankItemSchema>;
+
 // ── ka10170: 당일매매일지 — /api/dostk/acnt (live-verified 2026-07-07) ──
 // NOTE: an empty trading day returns ONE all-blank row (not an empty array) — callers
 // must filter blank rows (empty stk_cd/stk_nm). A base_dt beyond ~2 months returns
