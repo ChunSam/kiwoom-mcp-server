@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { todayInKst } from "../utils/date.js";
 import { sleep } from "../utils/sleep.js";
 import { toUnifiedCode } from "../utils/stock-code.js";
 import type { KiwoomClient } from "./client.js";
@@ -59,6 +60,7 @@ import {
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
   priceJumpItemSchema,
+  programArbitrageBalanceItemSchema,
   programTradeItemSchema,
   programTrendItemSchema,
   quoteTableResponseSchema,
@@ -70,6 +72,7 @@ import {
   shortSellingResponseSchema,
   stockInfoResponseSchema,
   stockListResponseSchema,
+  stockProgramIntradayItemSchema,
   stockProgramTrendItemSchema,
   themeGroupsResponseSchema,
   tradingJournalResponseSchema,
@@ -137,6 +140,7 @@ import {
   type PendingOrderItem,
   type PriceChangeRankItem,
   type PriceJumpItem,
+  type ProgramArbitrageBalanceItem,
   type ProgramTradeItem,
   type ProgramTrendItem,
   type QuoteTableResponse,
@@ -148,6 +152,7 @@ import {
   type ShortSellingItem,
   type StockInfoResponse,
   type StockListItem,
+  type StockProgramIntradayItem,
   type StockProgramTrendItem,
   type ThemeGroupItem,
   type ThemeStocksResponse,
@@ -1407,10 +1412,49 @@ export async function fetchStockProgramTrend(
   const res = await client.call({
     path: MRKCOND_PATH,
     apiId: "ka90013",
-    body: { amt_qty_tp: "1", stk_cd: stockCode, date: baseDate },
+    body: { amt_qty_tp: "1", stk_cd: toUnifiedCode(stockCode), date: baseDate },
   });
   return {
     items: parseArray(res.json, "stk_daly_prm_trde_trnsn", stockProgramTrendItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/** ka90006 프로그램매매차익잔고추이 */
+export async function fetchProgramArbitrageBalance(
+  client: KiwoomClient,
+  baseDate: string,
+): Promise<{ items: ProgramArbitrageBalanceItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka90006",
+    // 필수 파라미터 이름이 `date`다 — 이 저장소의 통상 표기 `dt`/`base_dt`가 아니다
+    // (rc=2 전문에서 확인, 2026-08-09). mrkt_tp는 효과가 없어 보내지 않는다.
+    body: { date: baseDate, stex_tp: STEX_UNIFIED },
+  });
+  return {
+    items: parseArray(res.json, "prm_trde_dfrt_remn_trnsn", programArbitrageBalanceItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/**
+ * ka90008 종목시간별프로그램매매추이.
+ *
+ * `date`는 필수지만(빈 값이면 rc=2) **효과가 없다** — 어떤 날짜를 넣어도 최근 거래일
+ * 응답이 온다(2026-08-09 실측). 형식만 채우면 되므로 호출자에게 받지 않고 오늘로 고정한다.
+ */
+export async function fetchStockProgramIntraday(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<{ items: StockProgramIntradayItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: MRKCOND_PATH,
+    apiId: "ka90008",
+    body: { amt_qty_tp: "1", stk_cd: toUnifiedCode(stockCode), date: todayInKst() },
+  });
+  return {
+    items: parseArray(res.json, "stk_tm_prm_trde_trnsn", stockProgramIntradayItemSchema),
     truncated: res.hasNext,
   };
 }
