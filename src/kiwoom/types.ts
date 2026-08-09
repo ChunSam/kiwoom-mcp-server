@@ -1122,6 +1122,9 @@ export type ProgramTrendItem = z.infer<typeof programTrendItemSchema>;
 // (금액÷수량 ≈ 주가 교차검증, 005930). Double-signed values ("--199471").
 // base_pric_tm/dbrt_trde_rpy_sum/remn_rcvord_sum arrive blank on mock — unconsumed
 // (대차 데이터는 get_stock_lending이 담당). 20 rows/page, cont-yn Y.
+// **`_AL`이 듣는다** — v0.48.0 전까지 접미사 없이 불러 KRX 단독 값을 내보내고 있었다.
+// 거래량만 다른 게 아니라 부호가 갈린다: 005930 20260806 순매수가 KRX +37,591 /
+// 통합 −59,796이었다(2026-08-09 실측, 응답의 stex_tp도 "KRX"/"통합"으로 갈린다).
 export const stockProgramTrendItemSchema = z.looseObject({
   dt: str(), // 일자 yyyyMMdd
   cur_prc: str(), // 종가/현재가 (부호 방향)
@@ -1133,6 +1136,52 @@ export const stockProgramTrendItemSchema = z.looseObject({
 });
 
 export type StockProgramTrendItem = z.infer<typeof stockProgramTrendItemSchema>;
+
+// ── ka90006: 프로그램매매차익잔고추이 — /api/dostk/mrkcond (live-probed 2026-08-09) ──
+// TR명은 배열 키(prm_trde_dfrt_remn_trnsn)에서 유추했다 — 키움 문서가 로컬에 없다.
+// 이 서버의 다른 프로그램 TR이 전부 매매(flow)만 주는 것과 달리 여기만 **잔고(stock)**다.
+// 행 순서: dt 내림차순 완전(99/99 실측) — 최신이 위.
+// 단위 실측: *_qty 천주 / *_amt 백만원 (buy amt÷qty = 178.7 → 178,700원/주, KOSPI200
+// 바스켓 평균단가로 정합). 한 행 안에서 단위가 갈리는 ka10062 부류다.
+// *_irds_amt는 전일 대비 증감(백만원) — r0.amt − r1.amt = −107,958 = irds로 검산 일치.
+// mrkt_tp는 **효과가 없다**(P00101과 P10102가 전 필드 동일) → 부르지 않는다.
+// 100 rows/page, cont-yn Y.
+export const programArbitrageBalanceItemSchema = z.looseObject({
+  dt: str(), // 일자 yyyyMMdd
+  buy_dfrt_trde_qty: str(), // 매수 차익거래 잔고 (천주)
+  buy_dfrt_trde_amt: str(), // 매수 차익거래 잔고 (백만원)
+  buy_dfrt_trde_irds_amt: str(), // 매수 잔고 전일대비 증감 (백만원, 부호)
+  sel_dfrt_trde_qty: str(), // 매도 차익거래 잔고 (천주)
+  sel_dfrt_trde_amt: str(), // 매도 차익거래 잔고 (백만원)
+  sel_dfrt_trde_irds_amt: str(), // 매도 잔고 전일대비 증감 (백만원, 부호)
+});
+
+export type ProgramArbitrageBalanceItem = z.infer<typeof programArbitrageBalanceItemSchema>;
+
+// ── ka90008: 종목시간별프로그램매매추이 — /api/dostk/mrkcond (live-probed 2026-08-09) ──
+// ka90013(종목일별)의 시간대별 형제. 같은 필드 이름을 쓰되 축이 tm(HHmmss)이다.
+// 값은 **당일 누적**이다 — trde_qty·prm_buy_amt가 전 행 단조 증가(199/199)로 확인했고,
+// prm_netprps_amt_irds는 직전 행 대비 증감이다(153019 −178,087 → 153020 −227,884,
+// 차이 −49,797 = irds). 단위: *_amt 백만원 / *_qty 주 (금액÷수량 0.2334 → 233,400원,
+// 같은 행 cur_prc 231,000과 정합).
+// amt_qty_tp는 **효과가 없다**(1과 2가 전 필드 동일) — ka90013·ka10131과 같은 부류라 "1" 고정.
+// `date`도 **필수인데 효과가 없다** — 빈 값이면 rc=2지만 20260701을 넣어도 최근 거래일
+// 응답이 전 행 완전 동일하게 온다(20260805·20260806·20260807 대조, 2026-08-09). 즉 이 TR은
+// 날짜를 못 고르고 **최근 거래일**만 준다 → tool 입력으로 노출하지 않는다(ka10045 부류).
+// `_AL`은 듣는다(005930 누적거래량 KRX 20,422,929 vs 통합 34,134,724).
+// 200 rows/page, cont-yn Y — 최신 구간만 덮는다(통합은 시간외까지 와서 1페이지가 23분).
+export const stockProgramIntradayItemSchema = z.looseObject({
+  tm: str(), // 시각 HHmmss
+  cur_prc: str(), // 현재가 (부호 방향)
+  flu_rt: str(), // 등락률(%)
+  prm_sell_amt: str(), // 프로그램 매도금액 누적 (백만원)
+  prm_buy_amt: str(), // 프로그램 매수금액 누적 (백만원)
+  prm_netprps_amt: str(), // 프로그램 순매수금액 누적 (백만원, 부호)
+  prm_netprps_amt_irds: str(), // 순매수금액 증감 (백만원, 부호)
+  prm_netprps_qty: str(), // 프로그램 순매수량 누적 (주, 부호)
+});
+
+export type StockProgramIntradayItem = z.infer<typeof stockProgramIntradayItemSchema>;
 
 // ── ka10170: 당일매매일지 — /api/dostk/acnt (live-verified 2026-07-07) ──
 // NOTE: an empty trading day returns ONE all-blank row (not an empty array) — callers

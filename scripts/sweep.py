@@ -213,6 +213,8 @@ def main() -> int:
         ("get_program_trading", {"view": "market_daily", "top": 5}),  # ka90010
         ("get_program_trading", {"view": "market_intraday", "top": 5}),  # ka90005 — pre-market empty ok
         ("get_program_trading", {"view": "stock_daily", "stock_code": "005930", "top": 5}),  # ka90013
+        ("get_program_trading", {"view": "stock_intraday", "stock_code": "005930", "top": 5}),  # ka90008
+        ("get_program_trading", {"view": "arbitrage_balance", "top": 5}),  # ka90006
         ("get_execution_strength", {"stock_code": "005930", "count": 3}),  # ka10047 일별
         # ka50012/ka50010 금현물 — stk_cd에 M 접두어가 붙는 두 종목뿐이라 enum으로 받는다
         ("get_gold_price", {}),  # daily 기본 (금 1Kg)
