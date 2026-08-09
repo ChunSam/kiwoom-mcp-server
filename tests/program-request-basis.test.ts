@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { fetchProgramArbitrageBalance, fetchStockProgramIntraday, fetchStockProgramTrend } from "../src/kiwoom/api.js";
+import {
+  fetchEtfDailyTrend,
+  fetchEtfInvestorFlow,
+  fetchLendingBalanceRank,
+  fetchProgramArbitrageBalance,
+  fetchStockProgramIntraday,
+  fetchStockProgramTrend,
+} from "../src/kiwoom/api.js";
 import type { KiwoomClient } from "../src/kiwoom/client.js";
 import { todayInKst } from "../src/utils/date.js";
 
@@ -80,5 +87,42 @@ describe("효과 없는 필수 파라미터", () => {
     // 통상 표기 `dt`/`base_dt`로 보내면 rc=2가 난다 (실측)
     expect(calls[0]?.body).not.toHaveProperty("dt");
     expect(calls[0]?.body).not.toHaveProperty("base_dt");
+  });
+
+  /**
+   * ka90012의 `mrkt_tp`는 ka90006과 정반대다 — **빼면 rc=2**이고(필수), 값을 바꿔도
+   * 결과가 같다(0·1·P00101 동일). "효과가 없으니 빼자"고 지웠다가 응답이 통째로
+   * 사라진 자리라, 보낸다는 사실 자체를 고정한다. 이름이 같아도 TR마다 다르다.
+   */
+  it("ka90012는 효과 없는 mrkt_tp를 그래도 보낸다 — 빼면 rc=2다", async () => {
+    const { client, calls } = captureClient({ dbrt_trde_prps: [] });
+    await fetchLendingBalanceRank(client, "20260807");
+
+    expect(calls[0]?.apiId).toBe("ka90012");
+    expect(calls[0]?.body).toEqual({ dt: "20260807", mrkt_tp: "0" });
+  });
+});
+
+describe("ETF 계열은 _AL을 붙이지 않는다", () => {
+  /**
+   * 2026-08-09 감사 결과다 — ka40002·ka40009는 접미사를 붙여도 전 필드가 같고,
+   * **ka40001은 접미사를 주면 1행이 0행이 된다**(ka10087 부류). ka40003·ka40008도
+   * 같은 경로라 붙이지 않는다. 프로그램·거래원 계열이 `_AL`을 요구한다고 해서
+   * 여기까지 확대 적용하면 응답이 비어 버린다.
+   */
+  it("ka40003은 종목코드를 그대로 보낸다", async () => {
+    const { client, calls } = captureClient({ etfdaly_trnsn: [] });
+    await fetchEtfDailyTrend(client, "069500");
+
+    expect(calls[0]?.apiId).toBe("ka40003");
+    expect(calls[0]?.body).toEqual({ stk_cd: "069500" });
+  });
+
+  it("ka40008도 종목코드를 그대로 보낸다", async () => {
+    const { client, calls } = captureClient({ etfnetprps_qty_array: [] });
+    await fetchEtfInvestorFlow(client, "069500");
+
+    expect(calls[0]?.apiId).toBe("ka40008");
+    expect(calls[0]?.body).toEqual({ stk_cd: "069500" });
   });
 });

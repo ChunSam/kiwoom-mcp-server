@@ -30,7 +30,9 @@ import {
   dailySessionResponseSchema,
   depositResponseSchema,
   equalNetTradeRankResponseSchema,
+  etfDailyTrendItemSchema,
   etfAllPriceResponseSchema,
+  etfInvestorFlowItemSchema,
   etfInfoResponseSchema,
   etfNavItemSchema,
   etfReturnItemSchema,
@@ -52,6 +54,7 @@ import {
   investorRankDailyItemSchema,
   investorStreakItemSchema,
   investorTotalItemSchema,
+  lendingBalanceRankItemSchema,
   lendingTrendResponseSchema,
   limitStockItemSchema,
   minuteChartItemSchema,
@@ -110,7 +113,9 @@ import {
   type DailySessionItem,
   type DepositResponse,
   type EqualNetTradeRankItem,
+  type EtfDailyTrendItem,
   type EtfAllPriceItem,
+  type EtfInvestorFlowItem,
   type EtfInfoResponse,
   type EtfNavItem,
   type EtfReturnItem,
@@ -132,6 +137,7 @@ import {
   type InvestorRankDailyItem,
   type InvestorStreakItem,
   type InvestorTotalItem,
+  type LendingBalanceRankItem,
   type LendingTrendItem,
   type LimitStockItem,
   type MinuteChartItem,
@@ -1416,6 +1422,61 @@ export async function fetchStockProgramTrend(
   });
   return {
     items: parseArray(res.json, "stk_daly_prm_trde_trnsn", stockProgramTrendItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/**
+ * ka40003 ETF일별추이.
+ *
+ * `_AL`은 붙이지 않는다 — ETF 계열은 2026-08-09 감사에서 접미사가 값을 바꾸지 않거나
+ * (ka40002·ka40009 전 필드 동일) 응답을 비워 버린다(ka40001 1행 → 0행).
+ */
+export async function fetchEtfDailyTrend(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<{ items: EtfDailyTrendItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: ETF_PATH,
+    apiId: "ka40003",
+    body: { stk_cd: stockCode },
+  });
+  return {
+    items: parseArray(res.json, "etfdaly_trnsn", etfDailyTrendItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/** ka40008 ETF일자별순매수 */
+export async function fetchEtfInvestorFlow(
+  client: KiwoomClient,
+  stockCode: string,
+): Promise<{ items: EtfInvestorFlowItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: ETF_PATH,
+    apiId: "ka40008",
+    body: { stk_cd: stockCode },
+  });
+  return {
+    items: parseArray(res.json, "etfnetprps_qty_array", etfInvestorFlowItemSchema),
+    truncated: res.hasNext,
+  };
+}
+
+/** ka90012 대차거래잔고상위 */
+export async function fetchLendingBalanceRank(
+  client: KiwoomClient,
+  baseDate: string,
+): Promise<{ items: LendingBalanceRankItem[]; truncated: boolean }> {
+  const res = await client.call({
+    path: SLB_PATH,
+    apiId: "ka90012",
+    // mrkt_tp는 **필수인데 효과가 없다** — 빼면 rc=2이고, 0·1·P00101이 모두 같은 결과를 준다
+    // (2026-08-09 실측). 형식만 채우고 tool 입력으로는 노출하지 않는다.
+    body: { dt: baseDate, mrkt_tp: "0" },
+  });
+  return {
+    items: parseArray(res.json, "dbrt_trde_prps", lendingBalanceRankItemSchema),
     truncated: res.hasNext,
   };
 }

@@ -198,6 +198,8 @@ def main() -> int:
         ("get_etf_info", {"stock_code": "069500"}),
         ("get_etf_info", {"stock_code": "005930"}),  # non-ETF guard path (shared ka40002 discriminator)
         ("get_etf_returns", {"stock_code": "069500"}),
+        ("get_etf_returns", {"stock_code": "069500", "view": "daily", "days": 5}),  # ka40003
+        ("get_etf_returns", {"stock_code": "069500", "view": "investor", "days": 5}),  # ka40008
         ("get_etf_returns", {"stock_code": "005930"}),  # non-ETF guard path (ka40002 gate)
         ("get_etf_rank", {"top": 3}),  # ka40004 — 전체 1,155종목 12페이지 경로 (~13s)
         ("get_etf_rank", {"sort": "premium", "tax_type": "overseas", "min_volume": 1000, "top": 3}),
@@ -206,6 +208,7 @@ def main() -> int:
         ("get_short_selling", {"stock_code": "005930"}),
         ("get_stock_lending", {}),  # ka10068 market-wide
         ("get_stock_lending", {"stock_code": "005930"}),  # ka20068 per-stock
+        ("get_stock_lending", {"view": "balance_rank", "top": 5}),  # ka90012
         ("get_credit_trend", {"stock_code": "005930", "count": 3}),  # ka10013 융자
         ("get_credit_trend", {"stock_code": "005930", "credit_type": "short", "count": 3}),  # 대주
         ("get_foreign_holding", {"stock_code": "005930", "limit": 5}),

@@ -52,10 +52,10 @@ allowance.
 | `get_foreign_intraday` | Intraday top net-buy/sell stocks by investor type — foreigners, institutions, insurance, trusts, pensions, other corporates (live provisional) | ka10063, ka10065 |
 | `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), the full 50-broker cumulative ranking (`view=broker_rank`), desks that dropped out of today's top ranks (`view=dropout`), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037, ka10038, ka10053 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
-| `get_etf_returns` | ETF period returns (1w/1m/6m/1y) vs a benchmark index | ka40001 |
+| `get_etf_returns` | ETF period returns vs a benchmark index + daily NAV/disparity/tracking-error trend and daily foreign/institutional flow | ka40001, ka40003, ka40008 |
 | `get_etf_rank` | Market-wide ETF screener — sort by disparity (premium/discount), change, volume or tracking error; filter by tax type, manager brand or tracked index | ka40004 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
-| `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide | ka10068, ka20068 |
+| `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide + top stocks by lending balance | ka10068, ka20068, ka90012 |
 | `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
 | `get_foreign_holding` | Foreign holding/limit activity — per-stock trend, or market-wide rankings (limit-usage surge / period net trading / three-day net-trading streak) | ka10008, ka10036, ka10034, ka10035 |
 | `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) + per-stock intraday and arbitrage balance | ka90003, ka90010, ka90005, ka90013, ka90008, ka90006 |
