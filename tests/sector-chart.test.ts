@@ -26,6 +26,21 @@ const minuteItems = [
   { cur_prc: "+676183", trde_qty: "186", cntr_tm: "20260721152000", open_pric: "+676183", high_pric: "+676183", low_pric: "+676183", acc_trde_qty: "379362" },
 ].map((i) => minuteChartItemSchema.parse(i));
 
+/**
+ * ka20005 실측 (mockapi 2026-08-09 프로브, inds_cd=001 5분봉 / 2026-08-07 세션분).
+ *
+ * **하락봉이다.** 위 fixture는 전부 `+` 접두라 `parseKiwoomPrice`(절대값)를
+ * `parseKiwoomNumber`로 바꿔도 초록으로 통과했는데, 실제 900행 중 **579행이 `-`**였다
+ * — 표본이 통째로 한쪽에 쏠려 있었다. 접두사는 값의 부호가 아니라 전일대비 방향이므로
+ * 지수는 양수로 렌더돼야 한다.
+ *
+ * 한 행 안에서 종가만 `-`이고 시가·고가·저가는 `+`인 것도 원문 그대로다.
+ */
+const downMinuteItems = [
+  { cur_prc: "-625877", trde_qty: "9757", cntr_tm: "20260807153000", open_pric: "+625914", high_pric: "+626173", low_pric: "+625857", acc_trde_qty: "299377" },
+  { cur_prc: "-625914", trde_qty: "213", cntr_tm: "20260807152000", open_pric: "+625914", high_pric: "+625914", low_pric: "+625914", acc_trde_qty: "289620" },
+].map((i) => minuteChartItemSchema.parse(i));
+
 describe("formatSectorDailyChart", () => {
   it("divides the ×100 index values by 100 for display", () => {
     const text = formatSectorDailyChart(dayItems, "001", "day", 30, MODE);
@@ -72,6 +87,14 @@ describe("formatSectorMinuteChart", () => {
     const text = formatSectorMinuteChart(minuteItems, "001", "5분", 30, MODE);
     expect(text).toContain("[모의투자] 코스피 종합 (001) 5분봉 차트 (최근 2개)");
     expect(text).toContain("| 2026-07-21 15:30 | 6,761.83 | 6,762.17 | 6,747.73 | 6,747.95 | 11,730 |");
+  });
+
+  it("하락봉의 `-` 접두를 방향으로 읽어 지수를 양수로 낸다", () => {
+    const text = formatSectorMinuteChart(downMinuteItems, "001", "5분", 30, MODE);
+    expect(text).toContain("| 2026-08-07 15:30 | 6,259.14 | 6,261.73 | 6,258.57 | 6,258.77 | 9,757 |");
+    // parseKiwoomNumber로 회귀하면 종가만 -6,258.77로 찍힌다 (같은 행의 시·고·저는 `+`라 멀쩡하다).
+    expect(text).not.toContain("-6,258.77");
+    expect(text).not.toContain("-6,259.14");
   });
 
   it("reports missing data for the tick label", () => {
