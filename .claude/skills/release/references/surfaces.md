@@ -16,6 +16,15 @@ gh release list --limit 5
 `_meta["io.modelcontextprotocol.registry/official"].isLatest`를 본다. **둘 다 낡았다고
 미발행으로 판정하지 않는다** — 1차 근거는 발행 스텝의 성공 여부다.
 
+**레지스트리 응답은 `{_meta, server}` 두 겹이라 버전이 `.server.version`에 있다.**
+`.servers[].version`으로 읽으면 조용히 `null`이 나온다(v0.50.0에서 헛짚었다) — 검색어에
+남의 서버도 걸리므로 이름까지 같이 찍는다:
+
+```sh
+curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=kiwoom&version=latest" \
+  | jq -r '.servers[]? | "\(.server.name) \(.server.version) isLatest=\(._meta["io.modelcontextprotocol.registry/official"].isLatest)"'
+```
+
 `jq .dist-tags`는 `-`를 뺄셈으로 파싱해 컴파일 에러가 난다. `jq '.["dist-tags"]'`로 부른다.
 
 ## 남이 크롤하는 곳 (조치하지 않는다)
