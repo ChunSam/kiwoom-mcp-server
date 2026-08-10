@@ -58,7 +58,7 @@ allowance.
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide + top stocks by lending balance | ka10068, ka20068, ka90012 |
 | `get_credit_trend` | Margin-loan / stock-loan balance trend (new / repaid / balance / ratios) | ka10013 |
 | `get_foreign_holding` | Foreign holding/limit activity — per-stock trend, or market-wide rankings (limit-usage surge / period net trading / three-day net-trading streak) | ka10008, ka10036, ka10034, ka10035 |
-| `get_program_trading` | Top program-trading stocks + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) + per-stock intraday and arbitrage balance | ka90003, ka90010, ka90005, ka90013, ka90008, ka90006 |
+| `get_program_trading` | Top program-trading stocks (today or a given date) + market/per-stock trend (daily/intraday, KOSPI/KOSDAQ) + per-stock intraday and arbitrage balance | ka90003, ka90004, ka90010, ka90005, ka90013, ka90008, ka90006 |
 | `get_after_hours` | After-hours single-price session (16:00–18:00 KST) — per-stock 5-level book or movers ranking | ka10087, ka10098 |
 | `get_execution_strength` | Execution-strength trend (buy÷sell executed volume ×100; 100 = balanced) — 60 sessions daily or 60 minutes intraday | ka10046, ka10047 |
 | `get_gold_price` | KRX gold spot quotes (1Kg / mini 100g) — daily trend with institution & retail net buying, or intraday ticks | ka50012, ka50010 |

@@ -64,6 +64,7 @@ import {
   priceChangeRankItemSchema,
   priceJumpItemSchema,
   programArbitrageBalanceItemSchema,
+  programStockRankItemSchema,
   programTradeItemSchema,
   programTrendItemSchema,
   quoteTableResponseSchema,
@@ -147,6 +148,7 @@ import {
   type PriceChangeRankItem,
   type PriceJumpItem,
   type ProgramArbitrageBalanceItem,
+  type ProgramStockRankItem,
   type ProgramTradeItem,
   type ProgramTrendItem,
   type QuoteTableResponse,
@@ -1529,6 +1531,54 @@ export async function fetchStockProgramIntraday(
     items: parseArray(res.json, "stk_tm_prm_trde_trnsn", stockProgramIntradayItemSchema),
     truncated: res.hasNext,
   };
+}
+
+/**
+ * ka90004 종목별프로그램매매현황 — 특정 날짜의 프로그램 매매를 종목 횡단면으로.
+ *
+ * **서버가 정렬해 주지 않는 전량 스냅샷이라 순위는 이쪽이 만든다**(types.ts 참고).
+ * 그래서 페이지를 얼마나 받느냐가 곧 순위의 모수다. 2026-08-10 실측으로 예산을 정했다:
+ *
+ * - 프로그램 매매대금 커버리지 — 코스피 1,000행에서 **99.65%**, 코스닥 600행에서 약 94%.
+ *   1,000행 밖에서 잘리는 것 중 가장 큰 종목이 11,062백만원인데, 같은 날 선두인
+ *   삼성전자가 3,170,438백만원이다(약 287배 차이).
+ * - 상위 N이 실제로 어디까지 흩어지는가 — 코스피 순매도 상위 20이 최대 272행,
+ *   코스닥은 242행이었다. `MAX_PAGES`(20)면 코스피 1,000행 / 코스닥 600행이라
+ *   각각 3.7배 · 2.5배 여유다. **상위 50까지 열면 코스닥이 798행(27페이지)까지 가서
+ *   여유가 사라지므로 tool 쪽에서 이 view의 top을 20으로 막는다.**
+ *
+ * 페이지 크기가 시장마다 다르다 — 코스피 50행 / 코스닥 30행(같은 20페이지가 다른 모수다).
+ */
+export async function fetchProgramStockRank(
+  client: KiwoomClient,
+  market: ProgramMarket,
+  baseDate: string,
+): Promise<{ items: ProgramStockRankItem[]; truncated: boolean }> {
+  const body = {
+    dt: baseDate,
+    // mrkt_tp는 "0"·"000"이 무효값이다 — rc=0에 빈 행 1개를 주므로 전체 조회가 없다.
+    mrkt_tp: PROGRAM_MARKET_CODES[market],
+    stex_tp: STEX_UNIFIED,
+  };
+
+  let res = await client.call({ path: STOCK_INFO_PATH, apiId: "ka90004", body });
+  const items = parseArray(res.json, "stk_prm_trde_prst", programStockRankItemSchema);
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({
+      path: STOCK_INFO_PATH,
+      apiId: "ka90004",
+      body,
+      contYn: "Y",
+      nextKey: res.nextKey,
+    });
+    items.push(...parseArray(res.json, "stk_prm_trde_prst", programStockRankItemSchema));
+    pages += 1;
+  }
+
+  return { items, truncated: res.hasNext };
 }
 
 /**
