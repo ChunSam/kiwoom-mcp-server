@@ -1241,6 +1241,17 @@ const VI_TYPE_CODES: Record<ViType, string> = { all: "0", static: "1", dynamic: 
  * ka10054 변동성완화장치(VI) 발동종목 — mock-probed 2026-07-10. 필터 12종 중
  * 거래량/거래대금 필터는 미사용("0"), skip_stk "000000000" = 전종목 포함.
  * stockCode 지정 시 해당 종목의 당일 발동 내역만 (미발동이면 빈 배열).
+ *
+ * **종목 지정은 `stex_tp`가 아니라 코드 접미사가 결정한다** (REAL 실측 2026-08-10, 정규장 중).
+ * `stex_tp="3"` + 접미사 없는 코드는 rc=0에 **0행**이라, v0.49.0까지 종목 지정 조회가
+ * 발동 이력이 있어도 항상 "발동 내역 없음"이었다. `_AL`을 붙이면 KRX·NXT 발동이 모두 오고
+ * (영풍 000670: KRX 1행 + NXT 2행 = 통합 3행) `acc_trde_qty`도 14,209 + 5,467 = 19,676으로
+ * 정확히 합산된다. `stex_tp`는 접미사와 어긋날 때 0행으로 막는 역할만 한다 —
+ * `stex_tp="1"` + `_AL`도 통합 3행을 준다.
+ *
+ * `mrkt_tp`도 같은 함정이라 **종목을 지정하면 "000"(전체)으로 고정**한다. 종목의 시장과
+ * 어긋나면 역시 조용히 0행이다(코스닥 327260 + mrkt_tp="001" → 0행). 종목을 이미 지목한
+ * 조회에서 시장 필터는 의미가 없으므로 호출자의 market은 무시한다.
  */
 export async function fetchViStocks(
   client: KiwoomClient,
@@ -1253,9 +1264,9 @@ export async function fetchViStocks(
     path: STOCK_INFO_PATH,
     apiId: "ka10054",
     body: {
-      mrkt_tp: RANKING_MARKET_CODES[market],
+      mrkt_tp: stockCode ? RANKING_MARKET_CODES.all : RANKING_MARKET_CODES[market],
       bf_mkrt_tp: "0",
-      stk_cd: stockCode ?? "",
+      stk_cd: stockCode ? toUnifiedCode(stockCode) : "",
       motn_tp: VI_TYPE_CODES[viType],
       skip_stk: "000000000",
       trde_qty_tp: "0",

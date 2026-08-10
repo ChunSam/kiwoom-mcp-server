@@ -4,6 +4,7 @@ import {
   fetchBrokerActivity,
   fetchBrokerDropout,
   fetchBrokerStockRank,
+  fetchViStocks,
 } from "../src/kiwoom/api.js";
 import type { KiwoomClient } from "../src/kiwoom/client.js";
 
@@ -74,5 +75,47 @@ describe("거래원 계열 TR의 거래소 기준", () => {
     await fetchBrokerActivity(client, "0156T0");
 
     expect(calls[0]?.body).toEqual({ stk_cd: "0156T0_AL" });
+  });
+});
+
+/**
+ * ka10054는 같은 부류의 버그가 **반대 방향**으로 났던 자리다 — `stex_tp="3"`은 보내면서
+ * `stk_cd`에 접미사를 안 붙였고, 그 조합이 rc=0에 0행이라 종목 지정 조회가 v0.49.0까지
+ * 항상 "발동 내역 없음"이었다(REAL 실측 2026-08-10, 정규장 중). 응답이 비어 있을 뿐
+ * 에러가 아니라서 포맷터 테스트로는 원리상 안 잡힌다 — 그래서 body를 고정한다.
+ */
+describe("ka10054(VI 발동종목)의 거래소 기준", () => {
+  it("시장 전체 조회는 stex_tp=3 + 빈 stk_cd로 부르고 market 필터를 그대로 싣는다", async () => {
+    const { client, calls } = captureClient({ motn_stk: [] });
+    await fetchViStocks(client, "kosdaq", "all", "all");
+
+    expect(calls[0]?.apiId).toBe("ka10054");
+    expect(calls[0]?.body).toMatchObject({ stk_cd: "", stex_tp: "3", mrkt_tp: "101" });
+  });
+
+  it("종목 지정은 _AL을 붙인다 — 접미사가 없으면 rc=0에 0행이다", async () => {
+    const { client, calls } = captureClient({ motn_stk: [] });
+    await fetchViStocks(client, "all", "all", "all", "000670");
+
+    expect(calls[0]?.body).toMatchObject({ stk_cd: "000670_AL", stex_tp: "3" });
+  });
+
+  /**
+   * `mrkt_tp`도 종목의 시장과 어긋나면 조용히 0행이다(코스닥 327260 + "001" → 0행).
+   * 종목을 이미 지목한 조회에서 시장 필터는 의미가 없으므로 호출자의 market을 무시한다.
+   */
+  it("종목 지정 시 mrkt_tp를 전체('000')로 고정해 시장 불일치로 비는 걸 막는다", async () => {
+    const { client, calls } = captureClient({ motn_stk: [] });
+    await fetchViStocks(client, "kospi", "all", "all", "327260");
+
+    expect(calls[0]?.body).toMatchObject({ stk_cd: "327260_AL", mrkt_tp: "000" });
+  });
+
+  // 방향·유형 필터는 종목 지정과 함께 정상 동작한다 (530106에서 2행 → 1/1 분할 확인).
+  it("방향·유형 필터는 종목 지정과 함께 그대로 넘긴다", async () => {
+    const { client, calls } = captureClient({ motn_stk: [] });
+    await fetchViStocks(client, "all", "down", "dynamic", "000670");
+
+    expect(calls[0]?.body).toMatchObject({ motn_drc: "2", motn_tp: "2" });
   });
 });
