@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getKiwoomContext } from "../context.js";
 import {
   fetchProgramArbitrageBalance,
+  fetchProgramStockRank,
   fetchProgramTrades,
   fetchProgramTrend,
   fetchStockProgramIntraday,
@@ -14,22 +15,39 @@ import {
 } from "../kiwoom/api.js";
 import type {
   ProgramArbitrageBalanceItem,
+  ProgramStockRankItem,
   ProgramTradeItem,
   ProgramTrendItem,
   StockProgramIntradayItem,
   StockProgramTrendItem,
 } from "../kiwoom/types.js";
 import { formatDateDashed, todayInKst } from "../utils/date.js";
-import { formatNumber, formatPercent, formatSigned, parseKiwoomNumber, parseKiwoomPrice } from "../utils/num.js";
+import {
+  formatNumber,
+  formatPercent,
+  formatRatioPercent,
+  formatSigned,
+  parseKiwoomNumber,
+  parseKiwoomPrice,
+} from "../utils/num.js";
 import { STOCK_CODE_PATTERN } from "../utils/stock-code.js";
 import { runTool, textResult, UNIFIED_EXCHANGE_NOTE } from "./helpers.js";
 
 const DEFAULT_TOP = 20;
 const MAX_TOP = 50;
 
+/**
+ * view=date_rank만 상위 20으로 막는다. 서버가 정렬해 주지 않는 전량 스냅샷이라
+ * 순위의 모수가 곧 받아 온 페이지 수인데, 상위 50까지 열면 코스닥에서 798행(27페이지)까지
+ * 흩어져 `MAX_PAGES`(20 → 코스닥 600행) 예산을 넘긴다 (2026-08-10 실측). 상위 20은
+ * 코스피 272행 · 코스닥 242행이라 여유가 3.7배 · 2.5배다.
+ */
+const MAX_TOP_DATE_RANK = 20;
+
 export type ProgramDirection = "net_buy" | "net_sell";
 export type ProgramView =
   | "top"
+  | "date_rank"
   | "market_daily"
   | "market_intraday"
   | "stock_daily"
@@ -300,33 +318,123 @@ export function formatProgramArbitrageBalance(
   return [...lines, "", ...notes].join("\n");
 }
 
+/**
+ * ka90004는 이름과 달리 순위가 아니라 전량 스냅샷이라(코스피 2,472행) **정렬을 여기서 한다.**
+ * 그래서 잘림 문구도 "뒤가 잘렸다"가 아니라 **"일부 종목이 빠졌다"**로 쓴다 — 정렬 모수에서
+ * 종목이 빠지는 것이지 표의 꼬리가 잘리는 게 아니다(ka10024·ka10028과 같은 처방).
+ */
+export function formatProgramStockRank(
+  items: ProgramStockRankItem[],
+  direction: ProgramDirection,
+  market: ProgramMarket,
+  baseDate: string,
+  top: number,
+  truncated: boolean,
+  modeLabel: string,
+): string {
+  const n = parseKiwoomNumber;
+  const scope = `${MARKET_LABELS[market]} ${DIRECTION_LABELS[direction]}`;
+  const dateLabel = formatDateDashed(baseDate);
+
+  // 프로그램 매매가 아예 없는 종목이 모수의 3분의 2다(코스피 2,472행 중 1,685행) —
+  // 순매수 0인 행이 순위에 섞이면 표가 0으로 채워지므로 먼저 걷어낸다.
+  const traded = items.filter((item) => n(item.netprps_prica) !== 0);
+  // 방향으로도 갈라야 한다 — ka90003(view=top)은 서버가 한 방향만 주지만 이쪽은 양방향이
+  // 한 응답에 섞여 오므로, 걸러내지 않으면 "순매도 상위"에 순매수 종목이 딸려 온다.
+  const sign = direction === "net_sell" ? -1 : 1;
+  const sided = traded.filter((item) => Math.sign(n(item.netprps_prica) ?? 0) === sign);
+  const sorted = [...sided].sort(
+    (a, b) => ((n(b.netprps_prica) ?? 0) - (n(a.netprps_prica) ?? 0)) * sign,
+  );
+  const shown = sorted.slice(0, top);
+
+  if (shown.length === 0) {
+    return (
+      `[${modeLabel}] ${dateLabel} ${scope} 종목이 없습니다. ` +
+      `휴장일이거나 아직 집계 전일 수 있습니다 (프로그램 매매가 있는 종목 ${traded.length}개).`
+    );
+  }
+
+  const lines = [
+    `[${modeLabel}] ${dateLabel} ${scope} (${shown.length}종목)`,
+    "",
+    "| 종목명 | 코드 | 현재가 | 순매수 | 매수 | 매도 | 매수량 | 매도량 | 거래비중 |",
+    "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+  ];
+
+  for (const item of shown) {
+    const cells = [
+      item.stk_nm,
+      item.stk_cd,
+      formatNumber(parseKiwoomPrice(item.cur_prc)),
+      formatSigned(n(item.netprps_prica), 0),
+      formatNumber(n(item.buy_cntr_amt)),
+      formatNumber(n(item.sel_cntr_amt)),
+      formatNumber(n(item.buy_cntr_qty)),
+      formatNumber(n(item.sel_cntr_qty)),
+      formatRatioPercent(parseKiwoomPrice(item.all_trde_rt)),
+    ];
+    lines.push(`| ${cells.join(" | ")} |`);
+  }
+
+  const notes = [
+    "※ 금액(순매수·매수·매도)은 **백만원**, 수량(매수량·매도량)은 **천주** 단위입니다 — 한 행 안에서 단위가 갈립니다.",
+    "※ 거래비중 = 그 종목의 전체 거래에서 프로그램 매매가 차지한 비율입니다. 방향이 아니라 크기이므로 부호가 없습니다.",
+    `※ 조회일(${dateLabel}) 기준이며, view=top과 달리 과거 날짜를 지정할 수 있습니다. 당일 순위는 view=top이 서버 집계라 더 정확합니다.`,
+  ];
+  if (truncated) {
+    notes.push(
+      "※ 이 TR은 순위가 아니라 시장 전량을 종목별로 주므로 이 표의 순위는 서버가 아니라 조회한 범위 안에서 매긴 것입니다 — " +
+        "범위 밖의 **일부 종목이 빠졌을 수 있습니다**(실측 기준 프로그램 매매대금의 99% 이상이 범위 안에 들어옵니다).",
+    );
+  }
+  return [...lines, "", ...notes, "", UNIFIED_EXCHANGE_NOTE].join("\n");
+}
+
 export function registerProgramTradingTool(server: McpServer): void {
   server.registerTool(
     "get_program_trading",
     {
       title: "프로그램 매매 조회",
       description:
-        "프로그램 매매 상위 종목과 추이를 조회합니다 (키움 ka90003/ka90010/ka90005/ka90013/ka90008/ka90006). " +
-        "view: top(당일 순매수/순매도 상위 종목, 기본) / market_daily(시장 전체 일자별 추이) / " +
+        "프로그램 매매 상위 종목과 추이를 조회합니다 (키움 ka90003/ka90004/ka90010/ka90005/ka90013/ka90008/ka90006). " +
+        "view: top(당일 순매수/순매도 상위 종목, 기본) / " +
+        "date_rank(지정한 날짜의 순매수/순매도 상위 종목 — top과 달리 과거 날짜를 볼 수 있고 매수·매도 금액과 " +
+        "'거래비중'(그 종목 거래에서 프로그램이 차지한 비율)까지 나옵니다. 당일 순위는 top이 서버 집계라 더 정확합니다) / " +
+        "market_daily(시장 전체 일자별 추이) / " +
         "market_intraday(당일 시간대별 누적 추이) / stock_daily(특정 종목의 일자별 추이 — stock_code 필수) / " +
         "stock_intraday(특정 종목의 시간대별 누적 추이 — stock_code 필수, 초 단위이며 순매수 '수량'까지 나옵니다. " +
         "최근 거래일만 제공되어 base_date가 적용되지 않습니다) / " +
         "arbitrage_balance(차익거래 잔고 추이 — 매매가 아니라 미청산 보유 물량이라 다른 view로는 알 수 없습니다). " +
         "한 종목의 프로그램 수급이 장중 언제 뒤집혔는지를 보려면 stock_intraday, 날짜별 흐름은 stock_daily입니다. " +
-        "direction/unit은 view=top에만, market은 top·market_daily·market_intraday에만 적용됩니다 " +
+        "direction은 top·date_rank에, unit은 view=top에만, market은 top·date_rank·market_daily·market_intraday에만 적용됩니다 " +
         "(종목 단위 view와 arbitrage_balance에는 적용되지 않습니다). " +
         "market: kospi(기본)/kosdaq — 전체(all) 옵션이 없습니다. 추이 금액 단위는 백만원입니다.",
       inputSchema: {
         view: z
-          .enum(["top", "market_daily", "market_intraday", "stock_daily", "stock_intraday", "arbitrage_balance"])
+          .enum([
+            "top",
+            "date_rank",
+            "market_daily",
+            "market_intraday",
+            "stock_daily",
+            "stock_intraday",
+            "arbitrage_balance",
+          ])
           .optional()
           .describe("조회 종류 (기본값: top)"),
-        direction: z.enum(["net_buy", "net_sell"]).optional().describe("view=top의 순매수/순매도 (기본값: net_buy)"),
+        direction: z
+          .enum(["net_buy", "net_sell"])
+          .optional()
+          .describe("view=top / date_rank의 순매수/순매도 (기본값: net_buy)"),
         unit: z.enum(["amount", "quantity"]).optional().describe("view=top의 금액/수량 기준 (기본값: amount)"),
         market: z
           .enum(["kospi", "kosdaq"])
           .optional()
-          .describe("시장 구분 (기본값: kospi) — 종목 단위 view와 arbitrage_balance에는 적용되지 않습니다"),
+          .describe(
+            "시장 구분 (기본값: kospi) — 종목 단위 view와 arbitrage_balance에는 적용되지 않습니다. " +
+              "date_rank는 전체(all) 조회를 제공하지 않는 TR이라 시장을 하나 골라야 합니다",
+          ),
         stock_code: z
           .string()
           .regex(STOCK_CODE_PATTERN, "6자리 종목코드여야 합니다")
@@ -345,7 +453,10 @@ export function registerProgramTradingTool(server: McpServer): void {
           .min(1)
           .max(MAX_TOP)
           .optional()
-          .describe(`표시할 종목/행 수 (기본값 ${DEFAULT_TOP}, 최대 ${MAX_TOP})`),
+          .describe(
+            `표시할 종목/행 수 (기본값 ${DEFAULT_TOP}, 최대 ${MAX_TOP}) — ` +
+              `view=date_rank는 순위를 조회 범위 안에서 매기므로 ${MAX_TOP_DATE_RANK}로 제한됩니다`,
+          ),
       },
     },
     async ({ view, direction, unit, market, stock_code, base_date, top }) =>
@@ -374,6 +485,23 @@ export function registerProgramTradingTool(server: McpServer): void {
           }
           const { items, truncated } = await fetchStockProgramTrend(client, code, dateParam ?? "");
           return textResult(formatStockProgramTrend(items, code, dateParam, cap, truncated, config.modeLabel));
+        }
+
+        if (v === "date_rank") {
+          const d: ProgramDirection = direction ?? "net_buy";
+          const baseDate = dateParam ?? todayInKst();
+          const { items, truncated } = await fetchProgramStockRank(client, m, baseDate);
+          return textResult(
+            formatProgramStockRank(
+              items,
+              d,
+              m,
+              baseDate,
+              Math.min(cap, MAX_TOP_DATE_RANK),
+              truncated,
+              config.modeLabel,
+            ),
+          );
         }
 
         if (v === "arbitrage_balance") {

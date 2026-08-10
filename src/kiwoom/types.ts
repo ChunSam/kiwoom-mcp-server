@@ -1188,6 +1188,39 @@ export const stockProgramIntradayItemSchema = z.looseObject({
 
 export type StockProgramIntradayItem = z.infer<typeof stockProgramIntradayItemSchema>;
 
+// ── ka90004: 종목별프로그램매매현황 — /api/dostk/stkinfo (live-probed 2026-08-10 마감 후) ──
+//
+// **이름과 달리 순위가 아니라 시장 전량 스냅샷이다.** dt=20260810 통합 기준으로 코스피
+// 2,472행(50페이지 × 50) · 코스닥 1,820행(61페이지 × 30)이 오고 중복은 0건이다.
+// 후보 9개 컬럼 전부 전 행 무순서다(내림차순 쌍이 절반 언저리: netprps_prica 776/1249).
+// 행 순서는 대형주가 앞이고 소형 우선주·ETN이 뒤인데(선두 삼성전자·SK하이닉스,
+// 말미 진흥기업2우B·RISE 국채선물5년추종) 정확한 기준은 확정하지 않았다 — **프로그램
+// 매매 기준 정렬이 아니라는 것만 확실하다.** 그래서 순위는 서버가 아니라 이쪽이 만든다.
+//
+// 단위: 수량 **천주** / 금액 **백만원**. `buy_cntr_qty × cur_prc ÷ 1000 ≈ buy_cntr_amt`가
+// 상위 6종목에서 비율 0.999~1.026으로 맞는다(오차는 종가와 체결 평균가의 차이).
+// `netprps_prica = buy_cntr_amt − sel_cntr_amt`가 4,292행 전부에서 정확히 성립한다.
+//
+// 부호 규약이 컬럼마다 갈린다: `cur_prc`는 전일대비 방향 접두사라 **parseKiwoomPrice**
+// (코스피 1,786행 "+" / 562행 "−"가 flu_sig 2/5와 일치), `pred_pre`·`netprps_prica`는
+// 값의 부호라 **parseKiwoomNumber**. `all_trde_rt`는 4,292행 전부 양수인 **비율**이라
+// `+` 접두사에 의미가 없다 → formatRatioPercent.
+export const programStockRankItemSchema = z.looseObject({
+  stk_cd: code(), // `005930_AL`로 온다 — code()가 접미사를 뗀다
+  stk_nm: str(),
+  cur_prc: str(), // 현재가 (전일대비 방향 접두사)
+  flu_sig: str(), // 등락 기호 (2=상승, 3=보합, 5=하락)
+  pred_pre: str(), // 전일대비 (값의 부호)
+  buy_cntr_qty: str(), // 프로그램 매수체결량 (천주)
+  buy_cntr_amt: str(), // 프로그램 매수체결금액 (백만원)
+  sel_cntr_qty: str(), // 프로그램 매도체결량 (천주)
+  sel_cntr_amt: str(), // 프로그램 매도체결금액 (백만원)
+  netprps_prica: str(), // 프로그램 순매수금액 (백만원, 값의 부호)
+  all_trde_rt: str(), // 전체거래대비율(%) — 그 종목 거래에서 프로그램이 차지한 비중
+});
+
+export type ProgramStockRankItem = z.infer<typeof programStockRankItemSchema>;
+
 // ── ka40003: ETF일별추이 — /api/dostk/etf (live-probed 2026-08-09) ──
 // get_etf_info가 쓰는 ka40009는 NAV **최신 1점**만 주는데 이쪽은 30일 시계열이고
 // 괴리율을 **지수 대비**(navidex_dispty_rt)와 **ETF 대비**(navetfdispty_rt) 둘로 나눠 준다.
