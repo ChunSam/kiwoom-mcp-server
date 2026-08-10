@@ -60,18 +60,91 @@ describe("formatViStocks", () => {
     vimotn_cnt: "1",
   });
 
+  // 통합 조회에서 한 종목이 거래소별로 여러 행 오는 실제 모양 — REAL 실측 2026-08-10 10:5x,
+  // 000670 영풍을 `stk_cd=000670_AL`로 조회한 3행 전문. KRX 1건 + NXT 2건이고 NXT 쪽
+  // 080923은 프리마켓 발동이다. acc_trde_qty는 세 행 모두 통합값(KRX 14,209 + NXT 5,467).
+  const unifiedRows = [
+    {
+      stk_cd: "000670_AL",
+      stk_nm: "영풍",
+      acc_trde_qty: "19676",
+      motn_pric: "36550",
+      dynm_dispty_rt: "-3.56",
+      trde_cntr_proc_time: "090909",
+      virelis_time: "091126",
+      viaplc_tp: "동적",
+      dynm_stdpc: "37900",
+      static_stdpc: "0",
+      static_dispty_rt: "0.00",
+      open_pric_pre_flu_rt: "-4.94",
+      vimotn_cnt: "3",
+      stex_tp: "KRX",
+    },
+    {
+      stk_cd: "000670_AL",
+      stk_nm: "영풍",
+      acc_trde_qty: "19676",
+      motn_pric: "37500",
+      dynm_dispty_rt: "-3.23",
+      trde_cntr_proc_time: "090909",
+      virelis_time: "091109",
+      viaplc_tp: "동적",
+      dynm_stdpc: "38750",
+      static_stdpc: "0",
+      static_dispty_rt: "0.00",
+      open_pric_pre_flu_rt: "-2.47",
+      vimotn_cnt: "2",
+      stex_tp: "NXT",
+    },
+    {
+      stk_cd: "000670_AL",
+      stk_nm: "영풍",
+      acc_trde_qty: "19676",
+      motn_pric: "38600",
+      dynm_dispty_rt: "-3.14",
+      trde_cntr_proc_time: "080923",
+      virelis_time: "081123",
+      viaplc_tp: "동적",
+      dynm_stdpc: "39850",
+      static_stdpc: "0",
+      static_dispty_rt: "0.00",
+      open_pric_pre_flu_rt: "+0.39",
+      vimotn_cnt: "1",
+      stex_tp: "NXT",
+    },
+  ].map((r) => viStockItemSchema.parse(r));
+
   it("renders 정적 rows with the static 괴리율 and '-' for an unreleased VI", () => {
     const text = formatViStocks(rows, "all", "all", "all", undefined, 20, MODE);
     expect(text).toContain("전체 VI 발동 종목 (2건)");
-    expect(text).toContain("| 한국전자홀딩스 | 006200 | 정적 | 2,525 | +10.02% | +10.02% | 13:33:01 | - | 1 |");
-    expect(text).toContain("| 전방 | 000950 | 정적 | 28,300 | +10.12% | +10.12% | 13:28:10 | 13:30:28 | 2 |");
+    expect(text).toContain("| 한국전자홀딩스 | 006200 | KRX | 정적 | 2,525 | +10.02% | +10.02% | 13:33:01 | - | 1 |");
+    expect(text).toContain("| 전방 | 000950 | KRX | 정적 | 28,300 | +10.12% | +10.12% | 13:28:10 | 13:30:28 | 2 |");
     expect(text).toContain("변동성완화장치");
   });
 
   it("picks the dynamic 괴리율 for a 동적 row and shows filter qualifiers in the title", () => {
     const text = formatViStocks([dynamicRow], "kospi", "up", "dynamic", undefined, 20, MODE);
     expect(text).toContain("코스피 상승 동적 VI 발동 종목 (1건)");
-    expect(text).toContain("| 샘플종목 | 900100 | 동적 | 10,000 | -3.21% | -2.90% | 10:15:00 | 10:17:02 | 1 |");
+    // stex_tp가 없는 응답(모의투자 픽스처)에서는 거래소 칸이 "-"로 비어야 한다.
+    expect(text).toContain("| 샘플종목 | 900100 | - | 동적 | 10,000 | -3.21% | -2.90% | 10:15:00 | 10:17:02 | 1 |");
+  });
+
+  /**
+   * 거래소 컬럼이 없던 시절에는 이 3행이 "같은 종목·같은 발동시각이 두 번"으로 보였다
+   * (KRX 090909 / NXT 090909). 통합 조회의 정상 모양이므로 구분이 표에 있어야 한다.
+   */
+  it("distinguishes KRX and NXT triggers of the same stock in a unified query", () => {
+    const text = formatViStocks(unifiedRows, "all", "all", "all", "000670", 20, MODE);
+    expect(text).toContain("종목 000670 VI 발동 종목 (3건)");
+    expect(text).toContain("| 영풍 | 000670 | KRX | 동적 | 36,550 | -3.56% | -4.94% | 09:09:09 | 09:11:26 | 3 |");
+    expect(text).toContain("| 영풍 | 000670 | NXT | 동적 | 37,500 | -3.23% | -2.47% | 09:09:09 | 09:11:09 | 2 |");
+    expect(text).toContain("| 영풍 | 000670 | NXT | 동적 | 38,600 | -3.14% | +0.39% | 08:09:23 | 08:11:23 | 1 |");
+    expect(text).toContain("중복이 아닙니다");
+  });
+
+  it("strips the exchange suffix from the code column", () => {
+    const text = formatViStocks(unifiedRows, "all", "all", "all", "000670", 1, MODE);
+    expect(text).not.toContain("000670_AL");
   });
 
   it("reports an empty result with the stock scope", () => {

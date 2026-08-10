@@ -992,6 +992,10 @@ export const lendingTrendResponseSchema = z.looseObject({
 
 // ── ka10054: 변동성완화장치(VI) 발동종목 — /api/dostk/stkinfo ──
 // 정적 VI 행은 dynm_* 필드가 "0"/"0.00"으로 온다; virelis_time "000000" = 미해제.
+//
+// `stex_tp`는 코드가 아니라 "KRX"/"NXT" 라벨이다 — 통합 조회에서 같은 종목이 거래소별로
+// 여러 행 오므로(영풍 000670이 KRX 1행 + NXT 2행) 이 필드가 없으면 중복 행으로 보인다.
+// 전량 페이지네이션으로 통합 304행 = KRX 275 + NXT 29를 확인했다 (REAL 실측 2026-08-10).
 
 export const viStockItemSchema = z.looseObject({
   stk_cd: code(),
@@ -1006,7 +1010,8 @@ export const viStockItemSchema = z.looseObject({
   static_stdpc: str(), // 정적기준가격 (원)
   static_dispty_rt: str(), // 정적괴리율(%)
   open_pric_pre_flu_rt: str(), // 시가대비등락률(%)
-  vimotn_cnt: str(), // VI발동횟수
+  vimotn_cnt: str(), // VI발동횟수 (통합 조회에서는 거래소를 합친 당일 횟수)
+  stex_tp: str(), // 발동 거래소 "KRX"/"NXT"
 });
 
 export type ViStockItem = z.infer<typeof viStockItemSchema>;

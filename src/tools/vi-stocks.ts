@@ -56,8 +56,8 @@ export function formatViStocks(
   const lines = [
     `[${modeLabel}] ${scope} VI 발동 종목 (${shown.length}건)`,
     "",
-    "| 종목명 | 코드 | 구분 | 발동가 | 괴리율 | 시가대비 | 발동시각 | 해제시각 | 횟수 |",
-    "|---|---|---|---:|---:|---:|---|---|---:|",
+    "| 종목명 | 코드 | 거래소 | 구분 | 발동가 | 괴리율 | 시가대비 | 발동시각 | 해제시각 | 횟수 |",
+    "|---|---|---|---|---:|---:|---:|---|---|---:|",
   ];
 
   for (const item of shown) {
@@ -66,6 +66,7 @@ export function formatViStocks(
     const cells = [
       item.stk_nm,
       item.stk_cd,
+      item.stex_tp || "-",
       item.viaplc_tp || "-",
       formatNumber(parseKiwoomPrice(item.motn_pric)),
       formatPercent(n(dispty)),
@@ -78,6 +79,7 @@ export function formatViStocks(
   }
 
   lines.push("", "※ VI(변동성완화장치) = 급등락 시 단일가 매매로 전환되는 안전장치. 해제시각 '-'는 아직 해제되지 않았거나 기록이 없는 경우입니다.");
+  lines.push("※ 같은 종목이 거래소별로 따로 발동하므로 KRX·NXT 행이 나란히 옵니다 — 중복이 아닙니다. 횟수는 두 거래소를 합친 당일 발동 횟수입니다.");
   lines.push("", UNIFIED_EXCHANGE_NOTE);
   return lines.join("\n");
 }
@@ -91,9 +93,12 @@ export function registerViStocksTool(server: McpServer): void {
         "당일 변동성완화장치(VI)가 발동된 종목을 조회합니다 — 발동가격·괴리율·시가대비등락률·발동/해제 " +
         "시각·발동횟수 (키움 ka10054). market: all(기본)/kospi/kosdaq, direction: all(기본)/up(상승)/" +
         "down(하락), vi_type: all(기본)/static(정적)/dynamic(동적). stock_code를 지정하면 해당 종목의 " +
-        "당일 발동 내역만 조회합니다.",
+        "당일 발동 내역만 조회하며, 이때 market은 무시됩니다(종목의 시장과 어긋나면 결과가 비므로 전체 기준으로 봅니다).",
       inputSchema: {
-        market: z.enum(["all", "kospi", "kosdaq"]).optional().describe("시장 구분 (기본값: all)"),
+        market: z
+          .enum(["all", "kospi", "kosdaq"])
+          .optional()
+          .describe("시장 구분 (기본값: all). stock_code 지정 시에는 무시됩니다"),
         direction: z.enum(["all", "up", "down"]).optional().describe("발동 방향 (기본값: all)"),
         vi_type: z.enum(["all", "static", "dynamic"]).optional().describe("VI 유형 (기본값: all)"),
         stock_code: z
