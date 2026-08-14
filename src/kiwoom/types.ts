@@ -91,6 +91,45 @@ export const depositResponseSchema = z.looseObject({
 
 export type DepositResponse = z.infer<typeof depositResponseSchema>;
 
+// ── kt00008: 계좌별익일결제예정내역 ──
+//
+// 실측 2026-08-14 (VIRTUAL): kt00005·kt00015와 달리 **모의투자에서도 동작한다**(RC9000 아님).
+// 조회 시점 기준 "다음 결제일"에 결제될 체결만 온다 — 체결 당일에 찍으면 0행이다
+// (8/13 체결분이 8/13에는 0행, 8/14에 2행). `dmst_stex_tp`는 선택이고 효과 없음.
+//
+// 금액은 전부 zero-pad 문자열(원 단위). `sell_tp`·`crd_tp`는 코드가 아니라 한글 문자열이다.
+// `loan_dt`는 전 행 공백이라 선언하지 않았다.
+
+export const nextDaySettlementItemSchema = z.looseObject({
+  seq: str(),
+  stk_cd: code(), // "A005930"처럼 A 접두가 붙어 온다 — 렌더는 normalizeStockCode
+  stk_nm: str(),
+  qty: str(), // 수량
+  unp: str(), // 단가
+  engg_amt: str(), // 약정금액
+  cmsn: str(), // 수수료
+  incm_tax: str(), // 소득세
+  rstx: str(), // 농어촌특별세
+  trde_tax: str(), // 거래세
+  resi_tax: str(), // 주민세
+  exct_amt: str(), // 정산금액 — 매도는 수취액, 매수는 지불액 (둘 다 양수)
+  sell_tp: str(), // "매수" / "매도"
+  crd_tp: str(), // "보통매매" 등
+});
+
+export type NextDaySettlementItem = z.infer<typeof nextDaySettlementItemSchema>;
+
+export const nextDaySettlementResponseSchema = z.looseObject({
+  ...envelope,
+  trde_dt: str(), // 체결일 yyyyMMdd
+  setl_dt: str(), // 결제일 yyyyMMdd — 대체공휴일까지 반영된 값이라 자체 계산하지 말 것
+  sell_amt_sum: str(), // 매도 정산 합계
+  buy_amt_sum: str(), // 매수 정산 합계
+  acnt_nxdy_setl_frcs_prps_array: z.array(nextDaySettlementItemSchema).default([]),
+});
+
+export type NextDaySettlementResponse = z.infer<typeof nextDaySettlementResponseSchema>;
+
 // ── kt00018: 계좌평가잔고내역 ──
 
 export const holdingItemSchema = z.looseObject({

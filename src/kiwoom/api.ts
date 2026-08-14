@@ -59,6 +59,7 @@ import {
   limitStockItemSchema,
   minuteChartItemSchema,
   newHighLowItemSchema,
+  nextDaySettlementResponseSchema,
   openPriceChangeResponseSchema,
   pendingOrdersResponseSchema,
   priceChangeRankItemSchema,
@@ -143,6 +144,7 @@ import {
   type LimitStockItem,
   type MinuteChartItem,
   type NewHighLowItem,
+  type NextDaySettlementResponse,
   type OpenPriceChangeItem,
   type PendingOrderItem,
   type PriceChangeRankItem,
@@ -263,6 +265,34 @@ export async function fetchDeposit(client: KiwoomClient, qryTp: "2" | "3" = "3")
     body: { qry_tp: qryTp },
   });
   return depositResponseSchema.parse(res.json);
+}
+
+/**
+ * kt00008 계좌별익일결제예정내역요청 — 다음 결제일에 결제될 체결의 건별 명세.
+ *
+ * 체결 당일에는 0행이고 **다음 영업일에 조회해야** 잡힌다(실측 2026-08-14).
+ * `dmst_stex_tp`는 선택이며 KRX 지정과 생략이 동일해 보내지 않는다.
+ * 페이지 크기가 미문서라 kt00018과 같은 cont-yn 루프를 태운다.
+ */
+export async function fetchNextDaySettlement(
+  client: KiwoomClient,
+): Promise<NextDaySettlementResponse & { truncated: boolean }> {
+  const body = {};
+
+  let res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00008", body });
+  const first = nextDaySettlementResponseSchema.parse(res.json);
+  const rows = [...first.acnt_nxdy_setl_frcs_prps_array];
+
+  let pages = 1;
+  while (res.hasNext && pages < MAX_PAGES) {
+    await sleep(PAGE_INTERVAL_MS);
+    res = await client.call({ path: ACCOUNT_PATH, apiId: "kt00008", body, contYn: "Y", nextKey: res.nextKey });
+    const page = nextDaySettlementResponseSchema.parse(res.json);
+    rows.push(...page.acnt_nxdy_setl_frcs_prps_array);
+    pages += 1;
+  }
+
+  return { ...first, acnt_nxdy_setl_frcs_prps_array: rows, truncated: res.hasNext };
 }
 
 /**
