@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { todayInKst } from "../utils/date.js";
+import { kstDaysAgo, todayInKst } from "../utils/date.js";
 import { sleep } from "../utils/sleep.js";
 import { toUnifiedCode } from "../utils/stock-code.js";
 import type { KiwoomClient } from "./client.js";
@@ -1510,18 +1510,34 @@ export async function fetchEtfInvestorFlow(
 export async function fetchLendingBalanceRank(
   client: KiwoomClient,
   baseDate: string,
-): Promise<{ items: LendingBalanceRankItem[]; truncated: boolean }> {
-  const res = await client.call({
-    path: SLB_PATH,
-    apiId: "ka90012",
-    // mrkt_tp는 **필수인데 효과가 없다** — 빼면 rc=2이고, 0·1·P00101이 모두 같은 결과를 준다
-    // (2026-08-09 실측). 형식만 채우고 tool 입력으로는 노출하지 않는다.
-    body: { dt: baseDate, mrkt_tp: "0" },
-  });
-  return {
-    items: parseArray(res.json, "dbrt_trde_prps", lendingBalanceRankItemSchema),
-    truncated: res.hasNext,
+  /**
+   * 날짜를 사용자가 고르지 않았을 때만 true — 당일이 비면 전날로 한 번 물러선다.
+   * 그때 baseDate는 곧 오늘이므로 `kstDaysAgo(1)`이 정확히 그 전날이다.
+   */
+  allowPreviousDay = false,
+): Promise<{ items: LendingBalanceRankItem[]; truncated: boolean; baseDate: string }> {
+  const once = async (dt: string) => {
+    const res = await client.call({
+      path: SLB_PATH,
+      apiId: "ka90012",
+      // mrkt_tp는 **필수인데 효과가 없다** — 빼면 rc=2이고, 0·1·P00101이 모두 같은 결과를 준다
+      // (2026-08-09 실측). 형식만 채우고 tool 입력으로는 노출하지 않는다.
+      body: { dt, mrkt_tp: "0" },
+    });
+    return {
+      items: parseArray(res.json, "dbrt_trde_prps", lendingBalanceRankItemSchema),
+      truncated: res.hasNext,
+      baseDate: dt,
+    };
   };
+
+  const first = await once(baseDate);
+  // 이 TR은 **당일 집계를 장중에 주지 않는다** — 2026-08-14(거래일) 실측으로 8/14는 rc=0에 0행,
+  // 8/13은 50행이었다. 기본 기준일이 오늘이라, 물러서지 않으면 날짜를 지정하지 않은 호출이
+  // 장중 내내 빈손이 된다. 휴장일(월요일의 전날은 일요일)은 여전히 0행이고 그건 문구가 받는다.
+  if (first.items.length > 0 || !allowPreviousDay) return first;
+  await sleep(PAGE_INTERVAL_MS);
+  return once(kstDaysAgo(1).replaceAll("-", ""));
 }
 
 /** ka90006 프로그램매매차익잔고추이 */

@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+// 전날로 물러설 때 레이트리밋 간격(1.1초)을 실제로 태우지 않는다
+vi.mock("../src/utils/sleep.js", () => ({ sleep: vi.fn(() => Promise.resolve()) }));
+
+import { fetchLendingBalanceRank } from "../src/kiwoom/api.js";
+import type { KiwoomClient } from "../src/kiwoom/client.js";
 import { etfDailyTrendItemSchema, etfInvestorFlowItemSchema, lendingBalanceRankItemSchema } from "../src/kiwoom/types.js";
 import { formatEtfDailyTrend, formatEtfInvestorFlow } from "../src/tools/etf-returns.js";
 import { formatLendingBalanceRank } from "../src/tools/stock-lending.js";
@@ -181,14 +186,111 @@ describe("formatLendingBalanceRank", () => {
     expect(text).toContain("차익거래·헤지");
   });
 
-  it("상한을 알린다", () => {
+  it("상한을 알리되 '조회되지 않는다'고 하지 않는다", () => {
+    // ka90012는 cont-yn=Y다 — 51위 아래는 못 받는 게 아니라 안 받는 것이라,
+    // "제공되지 않는다"고 적으면 API 사실과 어긋난다.
     const text = formatLendingBalanceRank(rows, "20260807", 2, true, MODE);
-    expect(text).toContain("상위 50종목까지만");
+    expect(text).toContain("첫 50종목만 받아 옵니다");
+    expect(text).not.toContain("조회되지 않습니다");
     expect(text).toContain("상위 2종목");
+  });
+
+  it("사용자가 top으로 줄인 것만으로는 상한 각주를 띄우지 않는다", () => {
+    // 기본 호출이 top 20 · 50행 응답이라, 조건에 rows.length > shown.length가 있으면
+    // 잘린 게 없는데도 매 호출마다 각주가 떴다.
+    const text = formatLendingBalanceRank(rows, "20260807", 2, false, MODE);
+    expect(text).toContain("상위 2종목");
+    // 새 문구만 막으면 옛 문구("상위 50종목까지만 제공됩니다")가 뜨는 상태를 통과시킨다 —
+    // 문구가 아니라 "상한 각주가 아예 없을 것"을 검사한다.
+    expect(text).not.toContain("50종목");
+  });
+
+  it("무시되는 stock_code·from_date를 조용히 버리지 않는다", () => {
+    const text = formatLendingBalanceRank(rows, "20260807", 20, false, MODE, {
+      stockCode: "005930",
+      fromDate: "20260701",
+    });
+    expect(text).toContain("요청하신 종목코드(005930)는 적용되지 않았습니다");
+    expect(text).toContain("view=trend");
+    expect(text).toContain("요청하신 조회 시작일(2026-07-01)은 적용되지 않았습니다");
+  });
+
+  it("빈 결과에서도 종목코드가 무시됐음을 알린다", () => {
+    // 종목을 지정해 부른 사용자가 "휴장일일 수 있다"만 보면 무시된 걸 끝내 모른다
+    const text = formatLendingBalanceRank([], "20260101", 20, false, MODE, { stockCode: "005930" });
+    expect(text).toContain("데이터가 없습니다");
+    expect(text).toContain("요청하신 종목코드(005930)는 적용되지 않았습니다");
   });
 
   it("빈 결과는 에러가 아니라 안내다", () => {
     const text = formatLendingBalanceRank([], "20260101", 20, false, MODE);
     expect(text).toContain("데이터가 없습니다");
+  });
+
+  /**
+   * 원인을 휴장일부터 대면 안 된다 — 훨씬 흔한 원인은 당일 미집계다.
+   * 2026-08-14(금, 거래일)에 8/14는 rc=0에 0행, 8/13은 50행이었다.
+   */
+  it("빈 결과의 원인을 당일 미집계부터 댄다", () => {
+    const text = formatLendingBalanceRank([], "20260814", 20, false, MODE);
+    expect(text).toContain("당일 집계를 장중에 주지 않아");
+    expect(text).toContain("to_date");
+    expect(text).not.toMatch(/데이터가 없습니다 \(기준일이 휴장일/);
+  });
+
+  it("기준일이 전 거래일로 물러섰으면 밝힌다", () => {
+    const text = formatLendingBalanceRank(rows, "20260813", 20, false, MODE, { fellBackFrom: "20260814" });
+    expect(text).toContain("요청일(2026-08-14)은 아직 집계 전이라");
+    expect(text).toContain("전 거래일(2026-08-13) 기준");
+  });
+});
+
+/**
+ * ka90012는 **당일 집계를 장중에 주지 않는다**(2026-08-14 거래일 실측: 8/14 0행 · 8/13 50행).
+ * 기본 기준일이 오늘이라, 물러서지 않으면 날짜를 지정하지 않은 호출이 장중 내내 빈손이었다.
+ */
+describe("fetchLendingBalanceRank 기준일 후퇴", () => {
+  function clientReturning(rowsByDate: Record<string, unknown[]>) {
+    const calls: Array<Record<string, unknown>> = [];
+    const client = {
+      call: vi.fn(async (req: { body: Record<string, unknown> }) => {
+        calls.push(req.body);
+        return {
+          json: { return_code: 0, dbrt_trde_prps: rowsByDate[String(req.body.dt)] ?? [] },
+          hasNext: false,
+        };
+      }),
+    } as unknown as KiwoomClient;
+    return { client, calls };
+  }
+
+  const row = { stk_nm: "삼성전자", stk_cd: "005930", dbrt_trde_cntrcnt: "1", dbrt_trde_rpy: "1", rmnd: "86340378", remn_amt: "1" };
+
+  it("당일이 비면 전날로 한 번 물러서고 그 날짜를 돌려준다", async () => {
+    const { client, calls } = clientReturning({ "20260813": [row] });
+    const res = await fetchLendingBalanceRank(client, "20260814", true);
+    expect(calls).toHaveLength(2);
+    expect(res.items).toHaveLength(1);
+    expect(res.baseDate).not.toBe("20260814");
+    // 요청 body는 포맷터 테스트가 원리상 못 잡는다 — 두 호출 다 직접 단언한다.
+    // mrkt_tp는 효과가 없어도 필수라, 빠지면 rc=2가 된다.
+    expect(calls[0]).toEqual({ dt: "20260814", mrkt_tp: "0" });
+    expect(calls[1]).toEqual({ dt: res.baseDate, mrkt_tp: "0" });
+    expect(res.baseDate).toMatch(/^\d{8}$/);
+  });
+
+  it("사용자가 날짜를 지정했으면 물러서지 않는다", async () => {
+    const { client, calls } = clientReturning({ "20260813": [row] });
+    const res = await fetchLendingBalanceRank(client, "20260814", false);
+    expect(calls).toHaveLength(1);
+    expect(res.items).toHaveLength(0);
+    expect(res.baseDate).toBe("20260814");
+  });
+
+  it("당일에 행이 있으면 추가 호출을 하지 않는다", async () => {
+    const { client, calls } = clientReturning({ "20260814": [row] });
+    const res = await fetchLendingBalanceRank(client, "20260814", true);
+    expect(calls).toHaveLength(1);
+    expect(res.baseDate).toBe("20260814");
   });
 });

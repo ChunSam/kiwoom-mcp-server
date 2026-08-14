@@ -174,6 +174,9 @@ def main() -> int:
         ("get_market_movers", {"signal": "volume_renew", "top": 3}),  # ka10024 기본 20일
         ("get_market_movers", {"signal": "volume_renew", "cycle": "120", "market": "kosdaq", "top": 3}),
         ("get_vi_stocks", {"top": 5}),  # ka10054
+        # 종목 지정 경로는 v0.49.1이 고친 자리다 — 실패 모드가 rc=0 + 0행이라
+        # 라이브 스윕이 아니면 조용히 빈 결과로 지나간다.
+        ("get_vi_stocks", {"stock_code": "005930", "top": 5}),  # ka10054 종목 지정(_AL)
         ("get_expected_execution", {"top": 3}),  # ka10029 — 동시호가 밖이면 빈 결과 경로
         ("get_orderbook_rank", {"top": 3}),  # ka10020 — 장 시작 전이면 전 행 0 경로
         ("get_orderbook_rank", {"view": "surge", "minutes": 30, "top": 3}),  # ka10021
@@ -218,6 +221,10 @@ def main() -> int:
         ("get_program_trading", {"view": "stock_daily", "stock_code": "005930", "top": 5}),  # ka90013
         ("get_program_trading", {"view": "stock_intraday", "stock_code": "005930", "top": 5}),  # ka90008
         ("get_program_trading", {"view": "arbitrage_balance", "top": 5}),  # ka90006
+        # ka90004 — 신규 TR + 20페이지 루프 + tool이 직접 매기는 순위. 이 구간에서
+        # 라이브로 확인할 값이 가장 큰 경로다(느리다: 페이지 간격 때문에 20초 이상).
+        ("get_program_trading", {"view": "date_rank", "top": 5}),  # ka90004 코스피 순매수
+        ("get_program_trading", {"view": "date_rank", "market": "kosdaq", "direction": "net_sell", "top": 5}),
         ("get_execution_strength", {"stock_code": "005930", "count": 3}),  # ka10047 일별
         # ka50012/ka50010 금현물 — stk_cd에 M 접두어가 붙는 두 종목뿐이라 enum으로 받는다
         ("get_gold_price", {}),  # daily 기본 (금 1Kg)

@@ -232,7 +232,12 @@ export function formatStockProgramIntraday(
   const title = `종목 시간대별 프로그램 매매 추이 — ${stockCode} (최근 거래일)`;
   const shown = items.slice(0, top);
   if (shown.length === 0) {
-    return `[${modeLabel}] ${title}: 데이터가 없습니다 (종목코드 또는 기준일을 확인해 주세요).`;
+    // 기준일을 확인하라고 하면 안 된다 — 이 TR은 date를 받고도 무시하므로(2026-08-09 실측)
+    // 날짜를 바꿔 재시도해도 결과가 달라질 수 없다.
+    return (
+      `[${modeLabel}] ${title}: 데이터가 없습니다 (종목코드를 확인해 주세요). ` +
+      "이 조회는 기준일을 고를 수 없어 최근 거래일만 봅니다 — 날짜별 추이는 view=stock_daily를 쓰세요."
+    );
   }
 
   const n = parseKiwoomNumber;
@@ -346,7 +351,9 @@ export function formatProgramStockRank(
   const sorted = [...sided].sort(
     (a, b) => ((n(b.netprps_prica) ?? 0) - (n(a.netprps_prica) ?? 0)) * sign,
   );
-  const shown = sorted.slice(0, top);
+  // 상한 적용은 핸들러가 아니라 여기서 한다 — 잘랐다는 사실을 각주로 알리려면
+  // 포맷터가 "요청받은 수"와 "보여 준 수"를 둘 다 알아야 한다.
+  const shown = sorted.slice(0, Math.min(top, MAX_TOP_DATE_RANK));
 
   if (shown.length === 0) {
     return (
@@ -382,6 +389,12 @@ export function formatProgramStockRank(
     "※ 거래비중 = 그 종목의 전체 거래에서 프로그램 매매가 차지한 비율입니다. 방향이 아니라 크기이므로 부호가 없습니다.",
     `※ 조회일(${dateLabel}) 기준이며, view=top과 달리 과거 날짜를 지정할 수 있습니다. 당일 순위는 view=top이 서버 집계라 더 정확합니다.`,
   ];
+  if (top > MAX_TOP_DATE_RANK) {
+    notes.push(
+      `※ 요청하신 ${top}종목 대신 상위 ${MAX_TOP_DATE_RANK}종목만 보여 드립니다 — ` +
+        "이 view는 순위를 조회 범위 안에서 직접 매기므로, 범위 밖 종목이 끼어들 수 있는 깊이까지는 내려가지 않습니다.",
+    );
+  }
   if (truncated) {
     notes.push(
       "※ 이 TR은 순위가 아니라 시장 전량을 종목별로 주므로 이 표의 순위는 서버가 아니라 조회한 범위 안에서 매긴 것입니다 — " +
@@ -497,7 +510,7 @@ export function registerProgramTradingTool(server: McpServer): void {
               d,
               m,
               baseDate,
-              Math.min(cap, MAX_TOP_DATE_RANK),
+              cap,
               truncated,
               config.modeLabel,
             ),
