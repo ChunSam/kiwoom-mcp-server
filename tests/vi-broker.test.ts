@@ -142,6 +142,18 @@ describe("formatViStocks", () => {
     expect(text).toContain("중복이 아닙니다");
   });
 
+  /**
+   * 같은 fixture가 각주를 반증한다 — 08:09:23→1, 09:09:09 NXT→2, 09:09:09 KRX→3이므로
+   * `vimotn_cnt`는 "당일 총 발동 횟수"가 아니라 그 시점까지의 누적 순번이다. 총 횟수로
+   * 읽으면 08:09 행만 본 사용자가 "오늘 1번 발동"으로 결론짓는다(실제 3번).
+   */
+  it("각주가 발동횟수를 누적 순번으로 설명한다", () => {
+    const text = formatViStocks(unifiedRows, "all", "all", "all", "000670", 20, MODE);
+    expect(text).toContain("몇 번째 발동인지");
+    expect(text).toContain("당일 총 횟수가 아니므로");
+    expect(text).not.toContain("당일 발동 횟수입니다");
+  });
+
   it("strips the exchange suffix from the code column", () => {
     const text = formatViStocks(unifiedRows, "all", "all", "all", "000670", 1, MODE);
     expect(text).not.toContain("000670_AL");

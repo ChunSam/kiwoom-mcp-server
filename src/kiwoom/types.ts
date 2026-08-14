@@ -1049,7 +1049,9 @@ export const viStockItemSchema = z.looseObject({
   static_stdpc: str(), // 정적기준가격 (원)
   static_dispty_rt: str(), // 정적괴리율(%)
   open_pric_pre_flu_rt: str(), // 시가대비등락률(%)
-  vimotn_cnt: str(), // VI발동횟수 (통합 조회에서는 거래소를 합친 당일 횟수)
+  // VI발동횟수 — 당일 총 횟수가 아니라 **그 시점까지의 누적 순번**이다. 거래소를 합쳐서 센다
+  // (000670 실측 2026-08-10: 08:09:23 NXT=1 → 09:09:09 NXT=2 → 09:09:09 KRX=3).
+  vimotn_cnt: str(),
   stex_tp: str(), // 발동 거래소 "KRX"/"NXT"
 });
 

@@ -138,6 +138,18 @@ describe("formatProgramStockRank", () => {
     expect(text).toContain("휴장일이거나");
   });
 
+  /**
+   * 스키마는 top 50까지 받는데 이 view는 20으로 깎는다(페이지 예산이 곧 순위의 모수라서).
+   * 깎는 것 자체는 맞지만 출력에 아무 말이 없으면 사용자는 50을 요청하고 20을 받은 줄 모른다 —
+   * 이유가 입력 스키마의 describe에만 있고 그건 사용자에게 안 보인다.
+   */
+  it("top을 상한으로 깎았으면 그 사실을 출력에 밝힌다", () => {
+    const text = formatProgramStockRank(rows, "net_buy", "kospi", "20260810", 50, false, MODE);
+    expect(text).toContain("요청하신 50종목 대신 상위 20종목만");
+    const within = formatProgramStockRank(rows, "net_buy", "kospi", "20260810", 20, false, MODE);
+    expect(within).not.toContain("요청하신");
+  });
+
   it("단위가 갈리는 것을 각주로 밝힌다", () => {
     const text = formatProgramStockRank(rows, "net_buy", "kospi", "20260810", 20, false, MODE);
     expect(text).toContain("**백만원**");

@@ -163,6 +163,17 @@ describe("formatStockProgramIntraday", () => {
     const text = formatStockProgramIntraday([], "999999", undefined, 20, false, MODE);
     expect(text).toContain("데이터가 없습니다");
   });
+
+  /**
+   * 이 view는 date를 아예 보내지 않으므로(fetch가 todayInKst를 고정) 기준일을 바꿔 재시도해도
+   * 결과가 달라질 수 없다. "기준일을 확인해 주세요"는 사용자를 성과 없는 재시도로 보낸다.
+   */
+  it("빈 결과 힌트가 무시되는 기준일을 가리키지 않는다", () => {
+    const text = formatStockProgramIntraday([], "999999", "20260805", 20, false, MODE);
+    expect(text).not.toContain("종목코드 또는 기준일을 확인");
+    expect(text).toContain("기준일을 고를 수 없어");
+    expect(text).toContain("view=stock_daily");
+  });
 });
 
 // ── ka90006 프로그램매매차익잔고추이 — REAL 실측 그대로 (2026-08-09, date=20260807) ──
