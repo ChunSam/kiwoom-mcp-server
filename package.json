@@ -1,6 +1,6 @@
 {
   "name": "kiwoom-mcp-server",
-  "version": "0.51.1",
+  "version": "0.52.0",
   "mcpName": "io.github.ChunSam/kiwoom-mcp-server",
   "description": "Read-only MCP server exposing the Kiwoom Securities REST API (market data, account inquiry, ISA tax-allowance calculator) to Claude Desktop / Claude Code.",
   "private": false,
@@ -27,7 +27,7 @@
     "read-only"
   ],
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22"
   },
   "bin": {
     "kiwoom-mcp-server": "dist/index.js"

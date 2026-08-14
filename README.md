@@ -119,7 +119,8 @@ KRX 18,421 / NXT 17,081 / **통합 36,319**이었습니다.
 
 ## 요구 사항
 
-- **Node.js 20.12 이상** (`process.loadEnvFile` 사용)
+- **Node.js 22 이상** — Node 20이 2026-04-30에 EOL이 되면서 바닥을 올렸습니다
+  (`process.loadEnvFile`은 20.12부터 있으므로 코드가 요구하는 최소치는 그보다 낮습니다)
 - 키움증권 REST API 앱키 — [키움 Open API 포털](https://openapi.kiwoom.com)에서
   앱 등록 후 발급
   - 모의투자(VIRTUAL)와 실전투자(REAL)는 **각각 별도로 발급받은 앱키**를 사용하며,
@@ -307,7 +308,7 @@ npm test            # vitest
 npm run build       # tsc → dist/
 ```
 
-네 가지 모두 CI(`.github/workflows/ci.yml`, Node 20·22)에서 돌고, 거기에
+네 가지 모두 CI(`.github/workflows/ci.yml`, Node 22·24)에서 돌고, 거기에
 `npm audit --omit=dev --audit-level=high`가 한 단계 더 붙습니다. 타입체크가
 `tsconfig.test.json`을 쓰는 이유는 빌드용 `tsconfig.json`의 `rootDir`가 `src`라
 테스트를 거기 넣으면 `dist/` 레이아웃이 바뀌기 때문입니다 — 빌드는 그대로

@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # trusted publishing은 Node >=22.14를 요구한다. 게이트(CI)가 보는 20·22와 달리
+          # trusted publishing은 Node >=22.14를 요구한다. 게이트(CI)가 보는 22·24와 달리
           # 여기는 발행 전용이라 최신 LTS를 써도 호환성 판정에 영향이 없다.
           node-version: 24
           registry-url: https://registry.npmjs.org

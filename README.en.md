@@ -131,7 +131,8 @@ of KRX 18,421 / NXT 17,081 / **combined 36,319**.
 
 ## Requirements
 
-- **Node.js 20.12 or later** (uses `process.loadEnvFile`)
+- **Node.js 22 or later** — the floor was raised when Node 20 reached EOL on
+  2026-04-30 (the code itself only needs 20.12, for `process.loadEnvFile`)
 - A Kiwoom Securities REST API app key — register an app at the
   [Kiwoom Open API portal](https://openapi.kiwoom.com) to obtain one.
   - VIRTUAL (paper trading) and REAL use **separately issued app keys**; the key
@@ -326,7 +327,7 @@ npm test            # vitest
 npm run build       # tsc → dist/
 ```
 
-All four run in CI (`.github/workflows/ci.yml`, Node 20 and 22), plus one extra
+All four run in CI (`.github/workflows/ci.yml`, Node 22 and 24), plus one extra
 step: `npm audit --omit=dev --audit-level=high`. Type-checking uses
 `tsconfig.test.json` because the build config sets `rootDir` to `src` — putting
 `tests` in that same config would change the `dist/` layout. The build still
