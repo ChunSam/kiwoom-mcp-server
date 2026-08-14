@@ -175,8 +175,14 @@ def main() -> int:
         ("get_market_movers", {"signal": "volume_renew", "cycle": "120", "market": "kosdaq", "top": 3}),
         ("get_vi_stocks", {"top": 5}),  # ka10054
         # 종목 지정 경로는 v0.49.1이 고친 자리다 — 실패 모드가 rc=0 + 0행이라
-        # 라이브 스윕이 아니면 조용히 빈 결과로 지나간다.
-        ("get_vi_stocks", {"stock_code": "005930", "top": 5}),  # ka10054 종목 지정(_AL)
+        # 라이브 스윕이 아니면 조용히 빈 결과로 지나간다. 그런데 **고정 코드로는
+        # 그 감시가 성립하지 않는다**: 그 종목에 VI가 없는 날이면 버그가 되살아나도
+        # 화면이 "발동 내역이 없습니다"로 같다(2026-08-14에 005930이 그랬다 —
+        # 목록에 실제로 뜬 코드로 손수 되짚어야 살아 있는 걸 확인했다).
+        # 그래서 바로 위 전체 목록의 첫 코드를 물려받아 **행이 오는 것까지** 본다.
+        ("get_vi_stocks", None),  # ka10054 종목 지정(_AL) — 코드는 앞 응답에서
+        # 빈 결과 렌더 경로는 따로 유지한다(발동이 없을 종목을 일부러 고른다).
+        ("get_vi_stocks", {"stock_code": "005930", "top": 5}),
         ("get_expected_execution", {"top": 3}),  # ka10029 — 동시호가 밖이면 빈 결과 경로
         ("get_orderbook_rank", {"top": 3}),  # ka10020 — 장 시작 전이면 전 행 0 경로
         ("get_orderbook_rank", {"view": "surge", "minutes": 30, "top": 3}),  # ka10021
@@ -272,6 +278,7 @@ def main() -> int:
             return 1
 
     for name, args in plan:
+        chained_vi = False
         if name == "get_watchlist" and args is None:
             group = ctx.get("group")
             if not group:
@@ -280,11 +287,25 @@ def main() -> int:
             args = {"group": group}
         if name == "get_theme_stocks" and args is None:
             args = {"theme_code": ctx.get("theme", "100")}
+        if name == "get_vi_stocks" and args is None:
+            vi_code = ctx.get("vi_code")
+            if not vi_code:
+                # 장 시작 전·휴장일이면 발동 종목이 없다. 고정 코드로 대체하면
+                # 감시가 다시 죽으므로 대체하지 않고 건너뛴 사실을 남긴다.
+                results.append((name, False, True, "SKIPPED: no VI stock to chain"))
+                continue
+            args = {"stock_code": vi_code, "top": 5}
+            chained_vi = True
         try:
             text, is_err = call(name, args)
         except Exception as exc:  # noqa: BLE001 — report and continue the sweep
             results.append((name, True, False, f"EXCEPTION {exc}"))
             continue
+        if chained_vi and not is_err and "없습니다" in text:
+            # 방금 전체 목록에 떠 있던 코드다 — 종목 지정이 0행이면 그건 데이터가
+            # 없는 게 아니라 v0.49.1 회귀다. rc=0이라 에러로는 안 잡히므로 여기서 세운다.
+            results[-1] = (name, True, False,
+                           f"REGRESSION: {args['stock_code']}는 목록에 있는데 종목 지정이 0행")
         if name == "get_watchlist_groups" and not is_err:
             m = re.search(r"\b(\d{1,4})\b", text.replace("[모의투자]", "").replace("[실전투자]", ""))
             if m:
@@ -293,6 +314,11 @@ def main() -> int:
             m = re.search(r"\b(\d{3})\b", text)
             if m:
                 ctx["theme"] = m.group(1)
+        if name == "get_vi_stocks" and not is_err and "vi_code" not in ctx:
+            # 표 첫 데이터 행의 코드 칸. 종목코드는 숫자 전용이 아니다(0156T0·33626K).
+            m = re.search(r"^\|\s*[^|]+\|\s*([0-9A-Z]{6})\s*\|", text, re.M)
+            if m:
+                ctx["vi_code"] = m.group(1)
 
     print(f"{'tool':26s} {'result':10s} first line")
     print("-" * 110)

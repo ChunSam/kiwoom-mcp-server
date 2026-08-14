@@ -16,9 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # Min supported (engines: node >=20.12) + current LTS.
+      # Min supported (engines: node >=22) + current LTS. Node 20 was dropped
+      # when it went EOL (2026-04-30) — a gate that guards a dead runtime buys
+      # nothing, and 24 was going untested while it is the Active LTS.
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v7
 
