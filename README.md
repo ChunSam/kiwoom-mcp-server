@@ -80,7 +80,7 @@ Claude Desktop / Claude Code에서 자연어로 국내 주식 시세·차트·�
 
 | Tool | 설명 | 키움 TR |
 |---|---|---|
-| `get_account_balance` | 예수금 + 총평가금액/총평가손익/추정예탁자산 + 당일/당월/누적 손익 | kt00001, kt00018, kt00004 |
+| `get_account_balance` | 예수금 + 총평가금액/총평가손익/추정예탁자산 + 당일/당월/누적 손익, `view=settlement`은 익일 결제 예정 건별 명세 | kt00001, kt00018, kt00004, kt00008 |
 | `get_account_holdings` | 보유 종목별 수량/평균단가/현재가/평가손익 | kt00018 |
 | `get_account_today` | 계좌 당일 현황 — 매매대금·수수료·세금·입출금 + D+2 추정 (실전 전용) | kt00017 |
 | `get_account_trend` | 일별 추정예탁자산 추이 + 기간 수익률/평가손익/입출금 요약 (기본 30일, 모의투자 미지원) | kt00002, kt00016 |

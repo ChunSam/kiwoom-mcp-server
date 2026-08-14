@@ -83,7 +83,7 @@ allowance.
 
 | Tool | Description | Kiwoom TR |
 |---|---|---|
-| `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets + day/month/cumulative P&L | kt00001, kt00018, kt00004 |
+| `get_account_balance` | Deposit + total valuation / total P&L / estimated deposit assets + day/month/cumulative P&L; `view=settlement` lists next settlement date's per-trade breakdown | kt00001, kt00018, kt00004, kt00008 |
 | `get_account_holdings` | Per-holding quantity / average cost / current price / valuation P&L | kt00018 |
 | `get_account_today` | Today's account activity — trade value, fees, taxes, cash in/out + D+2 estimates (REAL only) | kt00017 |
 | `get_account_trend` | Daily estimated-deposit-asset trend + period return / valuation P&L / cash-flow summary (default 30 days; not served on VIRTUAL) | kt00002, kt00016 |

@@ -245,6 +245,7 @@ def main() -> int:
         ("get_theme_groups", {"limit": 5}),
         ("get_theme_stocks", None),
         ("get_account_balance", {}),
+        ("get_account_balance", {"view": "settlement"}),
         ("get_account_holdings", {}),
         ("get_account_today", {}),  # kt00017 — mock-unsupported RC9000 → err(exp)
         ("get_account_trend", {"days": 7}),  # kt00002+kt00016 — mock-unsupported RC9000 → err(exp)
