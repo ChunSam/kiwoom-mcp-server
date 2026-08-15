@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { kstDaysAgo, todayInKst } from "../utils/date.js";
+import { previousDay, todayInKst } from "../utils/date.js";
 import { sleep } from "../utils/sleep.js";
 import { toUnifiedCode } from "../utils/stock-code.js";
 import type { KiwoomClient } from "./client.js";
@@ -1510,10 +1510,7 @@ export async function fetchEtfInvestorFlow(
 export async function fetchLendingBalanceRank(
   client: KiwoomClient,
   baseDate: string,
-  /**
-   * 날짜를 사용자가 고르지 않았을 때만 true — 당일이 비면 전날로 한 번 물러선다.
-   * 그때 baseDate는 곧 오늘이므로 `kstDaysAgo(1)`이 정확히 그 전날이다.
-   */
+  /** 날짜를 사용자가 고르지 않았을 때만 true — 당일이 비면 전날로 한 번 물러선다. */
   allowPreviousDay = false,
 ): Promise<{ items: LendingBalanceRankItem[]; truncated: boolean; baseDate: string }> {
   const once = async (dt: string) => {
@@ -1537,7 +1534,10 @@ export async function fetchLendingBalanceRank(
   // 장중 내내 빈손이 된다. 휴장일(월요일의 전날은 일요일)은 여전히 0행이고 그건 문구가 받는다.
   if (first.items.length > 0 || !allowPreviousDay) return first;
   await sleep(PAGE_INTERVAL_MS);
-  return once(kstDaysAgo(1).replaceAll("-", ""));
+  // 물러서는 기준은 **오늘이 아니라 요청한 날짜**다. 원래 `kstDaysAgo(1)`이었는데,
+  // "여기서 baseDate는 곧 오늘"이라는 전제가 호출자에게만 있어 테스트가 하루 뒤에
+  // 깨졌다(2026-08-15). 전제를 없애고 인자에서 직접 뺀다.
+  return once(previousDay(baseDate));
 }
 
 /** ka90006 프로그램매매차익잔고추이 */
