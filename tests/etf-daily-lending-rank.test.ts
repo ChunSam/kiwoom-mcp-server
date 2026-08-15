@@ -271,12 +271,13 @@ describe("fetchLendingBalanceRank 기준일 후퇴", () => {
     const res = await fetchLendingBalanceRank(client, "20260814", true);
     expect(calls).toHaveLength(2);
     expect(res.items).toHaveLength(1);
-    expect(res.baseDate).not.toBe("20260814");
+    // 물러선 날짜를 **글자로** 못 박는다. 예전엔 `not.toBe("20260814")` + `dt: res.baseDate`라
+    // 구현이 무슨 날짜를 부르든 통과했고, 실제로 오늘이 기준이라 2026-08-15에 깨졌다.
+    expect(res.baseDate).toBe("20260813");
     // 요청 body는 포맷터 테스트가 원리상 못 잡는다 — 두 호출 다 직접 단언한다.
     // mrkt_tp는 효과가 없어도 필수라, 빠지면 rc=2가 된다.
     expect(calls[0]).toEqual({ dt: "20260814", mrkt_tp: "0" });
-    expect(calls[1]).toEqual({ dt: res.baseDate, mrkt_tp: "0" });
-    expect(res.baseDate).toMatch(/^\d{8}$/);
+    expect(calls[1]).toEqual({ dt: "20260813", mrkt_tp: "0" });
   });
 
   it("사용자가 날짜를 지정했으면 물러서지 않는다", async () => {
