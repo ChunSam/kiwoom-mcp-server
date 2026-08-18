@@ -1,0 +1,58 @@
+# Dependabot — 정기 버전 업데이트.
+#
+# 보안 업데이트(advisory가 뜬 건의 자동 수정 PR)는 이 파일 없이 저장소 설정만으로
+# 돌지만(2026-08-18 켬), **정기 버전 업데이트는 여기 적힌 생태계만** 본다.
+#
+# 켠 이유는 nanoid 건(#98)이다. CI의 `npm audit`은 프로덕션 트리만 보므로 dev 전이
+# 의존성에 high가 떠도 게이트가 초록이었고, 손으로 감사를 돌려서야 나왔다. 의존성이
+# 낡은 채로 오래 굴러갈수록 그런 사각지대가 넓어진다.
+#
+# main은 브랜치 보호가 걸려 있다(필수 체크 `ci`, strict, 선형 히스토리). Dependabot도
+# 예외가 아니다 — PR은 CI green이어야 하고 머지는 사람이 누른다
+# (`gh pr merge <n> --auto --squash`).
+version: 2
+updates:
+  # ── npm ──────────────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    # 커밋 제목 규약: 의존성은 `chore(deps):`. dev는 구분해 둬야 릴리스 노트를 쓸 때
+    # 발행 tarball에 실리는 변경(`files: ["dist"]`)과 아닌 것을 제목만 보고 가른다.
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    groups:
+      # dev 툴체인(vitest·tsx·typescript·@types/node)은 하나로 묶는다 — 쪼개면 락파일만
+      # 바뀌는 PR이 매주 넷씩 쌓이고, 넷 다 게이트 4종으로 검증 방법이 똑같다.
+      # major는 계약이 바뀌므로(vitest 3→4처럼) 묶지 않고 따로 올라오게 둔다.
+      dev-toolchain:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    # 런타임 의존성(@modelcontextprotocol/sdk·zod)은 일부러 묶지 않는다. 둘뿐이고
+    # 실계좌를 앞에 두는 서버에 실제로 실리는 코드라 한 건씩 diff를 보고 판단한다.
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────
+  # 워크플로가 major 태그(`@v7`)를 물고 있어 patch·minor는 태그가 알아서 따라가지만
+  # major는 안 따라간다. release.yml은 토큰 없이 OIDC trusted publishing으로 발행하므로
+  # 액션이 낡으면 게이트보다 **발행 경로가 먼저** 깨진다 — 조용히 낡게 두지 않는다.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      actions:
+        patterns:
+          - "*"
