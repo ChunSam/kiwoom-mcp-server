@@ -243,6 +243,19 @@ describe("formatLendingBalanceRank", () => {
     expect(text).toContain("요청일(2026-08-14)은 아직 집계 전이라");
     expect(text).toContain("전 거래일(2026-08-13) 기준");
   });
+
+  /**
+   * 후퇴 예산을 다 쓰고도 빈손이면 "전 거래일 기준으로 보여 드립니다"는 **보여 준 게 없으므로
+   * 거짓**이고, 마지막 시도일 하루만 비어 있는 것처럼 읽힌다. 훑은 범위를 밝혀야 한다.
+   * (2026-08-18 스윕에서 8/17 대체공휴일 때문에 실제로 이 경로가 나갔다.)
+   */
+  it("후퇴하고도 빈손이면 '보여 드립니다'가 아니라 훑은 범위를 밝힌다", () => {
+    const text = formatLendingBalanceRank([], "20260815", 20, false, MODE, { fellBackFrom: "20260818" });
+    expect(text).toContain("요청일(2026-08-18)부터 2026-08-15까지");
+    expect(text).toContain("하루씩 물러서며 찾았지만 행이 없습니다");
+    // 두 문구의 공통 조각으로 막는다 — 새 문구만 부정하면 옛 문구가 되살아나도 초록이다.
+    expect(text).not.toContain("기준으로 보여 드립니다");
+  });
 });
 
 /**
@@ -293,5 +306,36 @@ describe("fetchLendingBalanceRank 기준일 후퇴", () => {
     const res = await fetchLendingBalanceRank(client, "20260814", true);
     expect(calls).toHaveLength(1);
     expect(res.baseDate).toBe("20260814");
+  });
+
+  /**
+   * 한 칸만 물러서던 시절엔 **월요일과 연휴 다음 날 장중이 항상 빈손**이었다.
+   * 2026-08-18(화)의 전날 8/17은 대체공휴일(8/15 광복절이 토요일) — 8/16 일·8/15 토를 지나
+   * 8/14 금에야 행이 있다. 스윕에서 실제로 0행이 나갔다.
+   */
+  it("연휴를 넘어 직전 거래일까지 물러선다", async () => {
+    const { client, calls } = clientReturning({ "20260814": [row] });
+    const res = await fetchLendingBalanceRank(client, "20260818", true);
+    expect(res.items).toHaveLength(1);
+    expect(res.baseDate).toBe("20260814");
+    // 부른 날짜를 **글자로** 못 박는다 — 개수만 세면 어떤 날짜를 불러도 통과한다.
+    expect(calls.map((b) => b.dt)).toEqual(["20260818", "20260817", "20260816", "20260815", "20260814"]);
+  });
+
+  it("예산(5칸)을 다 쓰고도 비면 마지막 시도일을 돌려준다", async () => {
+    const { client, calls } = clientReturning({});
+    const res = await fetchLendingBalanceRank(client, "20260818", true);
+    expect(res.items).toHaveLength(0);
+    // 요청일 + 5칸 = 6콜에서 멈춘다. 무한히 물러서면 레이트리밋을 밀어붙인다.
+    expect(calls.map((b) => b.dt)).toEqual([
+      "20260818",
+      "20260817",
+      "20260816",
+      "20260815",
+      "20260814",
+      "20260813",
+    ]);
+    // 포맷터가 "요청일부터 여기까지 훑었다"를 쓰려면 착지한 날짜가 필요하다.
+    expect(res.baseDate).toBe("20260813");
   });
 });

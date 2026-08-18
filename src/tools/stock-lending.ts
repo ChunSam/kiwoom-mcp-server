@@ -63,12 +63,6 @@ export function formatLendingBalanceRank(
   const title = `대차잔고 상위 종목 — ${formatDateDashed(baseDate)}`;
   const shown = rows.slice(0, top);
   const ignoredNotes: string[] = [];
-  if (ignored.fellBackFrom) {
-    ignoredNotes.push(
-      `※ 요청일(${formatDateDashed(ignored.fellBackFrom)})은 아직 집계 전이라 ` +
-        `전 거래일(${formatDateDashed(baseDate)}) 기준으로 보여 드립니다.`,
-    );
-  }
   if (ignored.stockCode) {
     ignoredNotes.push(
       `※ 요청하신 종목코드(${ignored.stockCode})는 적용되지 않았습니다 — 이 순위는 시장 전체 횡단면이라 ` +
@@ -84,10 +78,19 @@ export function formatLendingBalanceRank(
   if (shown.length === 0) {
     // 종목을 지정해 부른 사용자에게 "휴장일일 수 있다"만 주면 종목이 무시된 걸 끝내 모른다.
     // 원인도 휴장일부터 대지 않는다 — 당일 미집계가 훨씬 흔하다(2026-08-14 거래일 실측 0행).
+    // 후퇴하고도 빈손이면 "전 거래일 기준으로 보여 드립니다"가 **거짓**이 된다(보여 준 게 없다).
+    // 대신 어디까지 훑었는지를 밝힌다 — 안 그러면 마지막 시도일 하루만 비어 보인다.
+    const swept = ignored.fellBackFrom
+      ? [
+          `※ 요청일(${formatDateDashed(ignored.fellBackFrom)})부터 ${formatDateDashed(baseDate)}까지 ` +
+            "하루씩 물러서며 찾았지만 행이 없습니다 — 연휴가 더 길면 to_date로 직전 거래일을 직접 지정하세요.",
+        ]
+      : [];
     return [
       `[${modeLabel}] ${title}: 데이터가 없습니다. ` +
         "이 순위는 당일 집계를 장중에 주지 않아 전 거래일까지만 조회됩니다 — " +
         "to_date로 전 거래일을 지정해 보세요 (기준일이 휴장일이어도 비어 있습니다).",
+      ...swept,
       ...ignoredNotes,
     ].join("\n");
   }
@@ -125,7 +128,13 @@ export function formatLendingBalanceRank(
   if (truncated) {
     notes.push("※ 이 tool은 첫 50종목만 받아 옵니다 — 51위 아래는 조회하지 않습니다.");
   }
-  return [...lines, "", ...notes, ...ignoredNotes].join("\n");
+  const fellBack = ignored.fellBackFrom
+    ? [
+        `※ 요청일(${formatDateDashed(ignored.fellBackFrom)})은 아직 집계 전이라 ` +
+          `전 거래일(${formatDateDashed(baseDate)}) 기준으로 보여 드립니다.`,
+      ]
+    : [];
+  return [...lines, "", ...notes, ...fellBack, ...ignoredNotes].join("\n");
 }
 
 export function registerStockLendingTool(server: McpServer): void {
