@@ -11,6 +11,12 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    // @types/*의 자동 포함에 기대지 않고 명시한다. 베이스는 rootDir:"src"라서 TS7은
+    // rootDir 바깥의 node_modules/@types를 프로그램에 안 넣는다 — `npm run build`가
+    // src 전체에서 'process'·'Buffer'·'node:path'를 못 찾고 23개 에러로 깨졌다.
+    // typecheck(tsconfig.test.json)는 rootDir:"."이라 통과해서 게이트 절반만 빨갰다.
+    // TS 5.9.3에서도 결과가 같고(실측), dist 산출물은 두 버전에서 바이트까지 동일하다.
+    "types": ["node"],
     // No source maps: dist/*.js.map would reference src/ (which the npm tarball does not
     // ship, files:["dist"]), so they're useless to consumers and only leak source
     // structure. Dev debugging uses `npm run dev` (tsx), not built dist. Keep this false.
