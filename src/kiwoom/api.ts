@@ -1506,11 +1506,20 @@ export async function fetchEtfInvestorFlow(
   };
 }
 
+/**
+ * 기준일 후퇴 예산 — 캘린더 하루씩 최대 5칸이다. 연속 휴장 k일이면 **k+1칸**이 필요하므로
+ * 이 예산은 4일 연속 휴장까지 닿는다(월요일 k=2 → 3칸, 하루짜리 대체공휴일 k=3 → 4칸).
+ * 한 칸이던 시절엔 **월요일과 연휴 다음 날 장중에 항상 빈손**이었다 — 2026-08-18(화) 스윕에서
+ * 전날 8/17이 대체공휴일이라 0행이 그대로 나갔다(8/16 일·8/15 토를 지나 8/14 금에 행이 있다).
+ * 설·추석처럼 5일 이상 닫히면 이 예산으로도 못 넘고, 그건 문구가 받는다.
+ */
+const LENDING_FALLBACK_MAX_STEPS = 5;
+
 /** ka90012 대차거래잔고상위 */
 export async function fetchLendingBalanceRank(
   client: KiwoomClient,
   baseDate: string,
-  /** 날짜를 사용자가 고르지 않았을 때만 true — 당일이 비면 전날로 한 번 물러선다. */
+  /** 날짜를 사용자가 고르지 않았을 때만 true — 당일이 비면 거래일을 만날 때까지 하루씩 물러선다. */
   allowPreviousDay = false,
 ): Promise<{ items: LendingBalanceRankItem[]; truncated: boolean; baseDate: string }> {
   const once = async (dt: string) => {
@@ -1531,13 +1540,23 @@ export async function fetchLendingBalanceRank(
   const first = await once(baseDate);
   // 이 TR은 **당일 집계를 장중에 주지 않는다** — 2026-08-14(거래일) 실측으로 8/14는 rc=0에 0행,
   // 8/13은 50행이었다. 기본 기준일이 오늘이라, 물러서지 않으면 날짜를 지정하지 않은 호출이
-  // 장중 내내 빈손이 된다. 휴장일(월요일의 전날은 일요일)은 여전히 0행이고 그건 문구가 받는다.
+  // 장중 내내 빈손이 된다.
   if (first.items.length > 0 || !allowPreviousDay) return first;
-  await sleep(PAGE_INTERVAL_MS);
+
   // 물러서는 기준은 **오늘이 아니라 요청한 날짜**다. 원래 `kstDaysAgo(1)`이었는데,
   // "여기서 baseDate는 곧 오늘"이라는 전제가 호출자에게만 있어 테스트가 하루 뒤에
-  // 깨졌다(2026-08-15). 전제를 없애고 인자에서 직접 뺀다.
-  return once(previousDay(baseDate));
+  // 깨졌다(2026-08-15). 전제를 없애고 직전 시도한 날짜에서 직접 뺀다.
+  let landed = first;
+  let dt = baseDate;
+  for (let step = 0; step < LENDING_FALLBACK_MAX_STEPS; step += 1) {
+    await sleep(PAGE_INTERVAL_MS);
+    dt = previousDay(dt);
+    landed = await once(dt);
+    if (landed.items.length > 0) return landed;
+  }
+  // 예산을 다 쓰고도 빈손이면 **마지막으로 시도한 날짜**를 돌려준다 — 어디까지 훑었는지를
+  // 문구가 밝힐 수 있어야 "그 하루엔 없나 보다"로 오독되지 않는다.
+  return landed;
 }
 
 /** ka90006 프로그램매매차익잔고추이 */
