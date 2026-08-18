@@ -37,6 +37,13 @@ updates:
           - patch
     # 런타임 의존성(@modelcontextprotocol/sdk·zod)은 일부러 묶지 않는다. 둘뿐이고
     # 실계좌를 앞에 두는 서버에 실제로 실리는 코드라 한 건씩 diff를 보고 판단한다.
+    ignore:
+      # @types/node의 major는 engines(">=22")와 같이 움직여야 한다. 타입만 앞서면
+      # Node 22에 없는 API를 써도 tsc가 안 막고, 바닥 런타임에서만 터진다 —
+      # 게이트가 원리상 못 잡는 자리다. 바닥을 올릴 때 손으로 같이 올린다.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
 
   # ── GitHub Actions ───────────────────────────────────────────────────────
   # 워크플로가 major 태그(`@v7`)를 물고 있어 patch·minor는 태그가 알아서 따라가지만
