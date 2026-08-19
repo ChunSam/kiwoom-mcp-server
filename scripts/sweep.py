@@ -52,7 +52,9 @@ LENDING_OPEN_AFTER_H = 21  # 관측된 열림(20:07·20:52)보다 늦게 잡아 
 
 
 def check_lending_base_date(text, today, last_trading_day, hour):
-    """`get_stock_lending(view=balance_rank)` 기본 호출의 기준일이 각주·시각과 맞는가.
+    """`get_stock_lending(view=balance_rank)` **기본 호출**의 기준일이 각주·시각과 맞는가.
+
+    기본 호출(to_date 없음)만 해당한다 — 날짜를 박으면 후퇴가 꺼져 전제가 통째로 달라진다.
 
     어긋나면 사유 문자열, 맞으면 None. `last_trading_day`가 None이면(체이닝이 끊긴 --only
     실행) 시각 판정은 건너뛰고 시각과 무관한 정합성만 본다. 날짜는 둘 다 yyyyMMdd.
@@ -366,7 +368,15 @@ def main() -> int:
             days = re.findall(r"^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|", text, re.M)
             if days:
                 ctx["last_trading_day"] = "".join(max(days))
-        if name == "get_stock_lending" and args.get("view") == "balance_rank" and not is_err:
+        # to_date를 박은 호출은 이 검사의 전제 밖이다 — 후퇴가 꺼지므로(allowPreviousDay=False)
+        # 과거 기준일에 각주가 없는 게 정상이고 빈 결과도 휴장일이면 정상이다. 지금 계획에는
+        # 그런 항목이 없지만, 하나 추가하는 순간 이 검사가 **틀린 이유로** 빨개진다.
+        if (
+            name == "get_stock_lending"
+            and args.get("view") == "balance_rank"
+            and "to_date" not in args
+            and not is_err
+        ):
             now = datetime.now(KST)
             why = check_lending_base_date(
                 text, now.strftime("%Y%m%d"), ctx.get("last_trading_day"), now.hour,
