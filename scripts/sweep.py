@@ -13,6 +13,8 @@ Every call is read-only in both modes.
 Usage:
     npm run build && python3 scripts/sweep.py     # VIRTUAL only (default)
     python3 scripts/sweep.py --real               # explicitly allow REAL mode
+    python3 scripts/sweep.py --only get_gold_price --full          # 한 tool만, 출력 전문
+    python3 scripts/sweep.py --only get_stock_chart,get_stock_lending  # 체이닝을 살리는 조합
 
 Exit code: 0 when every call matches expectation (ok, or a known mock
 limitation like kt00015 on VIRTUAL), 1 on any unexpected error.
@@ -23,6 +25,7 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 PROJ = Path(__file__).resolve().parents[1]
@@ -32,6 +35,50 @@ CALL_INTERVAL_S = 1.2  # Kiwoom rate limit is ~1 req/s per TR; stay under it
 # Tools whose failure is EXPECTED on VIRTUAL (mockapi does not serve
 # kt00015 / kt00002·kt00016 / kt00017 — RC9000).
 EXPECTED_MOCK_ERRORS = {"get_transactions", "get_account_trend", "get_account_today"}
+
+KST = timezone(timedelta(hours=9))  # 키움 날짜 필드는 전부 KST — 실행 머신 타임존에 기대지 않는다
+
+# ka90012 대차잔고 순위의 **날짜 미지정 호출은 찍는 시각에 따라 렌더 경로가 통째로 갈린다** —
+# 당일 집계가 열리기 전이면 전 거래일로 물러선 결과이고(후퇴 각주 O), 열린 뒤면 당일 직행이다
+# (각주 X). 둘 다 rc=0 + 50행이라 화면이 사실상 같아서, **후퇴가 통째로 죽어도 저녁 스윕은
+# 초록이다** — VI 종목 지정 때와 같은 "회귀와 정상이 글자까지 같은 화면" 형태다. v0.52.2가
+# 고친 후퇴 각주가 라이브에서 한 번도 안 보인 것도 이 때문이다(검증 스윕이 21:15였다).
+# to_date를 주면 후퇴 자체가 꺼지므로(allowPreviousDay=false) 날짜를 박아 강제할 수도 없다.
+#
+# 열림 시각은 2026-08-19 9표본으로 **19:07~20:07 사이**까지만 좁혀졌다(8/18 20:52 열림과 일관).
+# 관측 밖의 구간은 단정하지 않고 넘긴다 — 스윕이 틀린 이유로 빨개지면 아무도 안 본다.
+LENDING_CLOSED_BEFORE_H = 19  # 19:07 실측 0행 — 이 시각 전이면 아직 안 열려 있어야 한다
+LENDING_OPEN_AFTER_H = 21  # 관측된 열림(20:07·20:52)보다 늦게 잡아 여유를 둔다
+
+
+def check_lending_base_date(text, today, last_trading_day, hour):
+    """`get_stock_lending(view=balance_rank)` 기본 호출의 기준일이 각주·시각과 맞는가.
+
+    어긋나면 사유 문자열, 맞으면 None. `last_trading_day`가 None이면(체이닝이 끊긴 --only
+    실행) 시각 판정은 건너뛰고 시각과 무관한 정합성만 본다. 날짜는 둘 다 yyyyMMdd.
+    """
+    if "데이터가 없습니다" in text:
+        # 후퇴 예산 5칸을 다 쓰고도 빈손이라는 뜻이다. 설·추석처럼 5일 이상 닫힌 연휴가
+        # 아니면 회귀다 — 장중 내내 빈손이던 v0.51.1 버그가 정확히 이 화면이었다.
+        return "빈 결과 — 후퇴 예산(5칸)을 다 쓰고도 행이 없다. 5일 이상 연휴가 아니면 회귀"
+    m = re.search(r"대차잔고 상위 종목 — (\d{4})-(\d{2})-(\d{2})", text)
+    if not m:
+        return "제목에서 기준일을 못 찾았다 — 렌더가 바뀌었으면 이 검사도 같이 고쳐야 한다"
+    base = "".join(m.groups())
+    fell_back = "아직 집계 전이라" in text
+    # ① 시각과 무관한 정합성 — 오늘이 아닌 날을 각주 없이 보여 주면 사용자는 그걸 오늘로 읽는다.
+    if base != today and not fell_back:
+        return f"기준일이 {base}(오늘이 아니다)인데 후퇴 각주가 없다 — 조용한 후퇴"
+    if base == today and fell_back:
+        return "기준일이 오늘인데 후퇴 각주가 붙었다"
+    # ② 시각 판정 — 오늘이 거래일일 때만 성립한다. 휴장일은 저녁에도 당일치가 안 열린다.
+    if last_trading_day is None or last_trading_day != today:
+        return None
+    if hour < LENDING_CLOSED_BEFORE_H and not fell_back:
+        return f"{hour}시인데 당일({today}) 집계가 잡혔다 — 19:07까지 0행이 실측이다"
+    if hour >= LENDING_OPEN_AFTER_H and fell_back:
+        return f"{hour}시면 당일 집계가 열려 있어야 하는데 {base}로 물러섰다"
+    return None
 
 
 def read_mode() -> str:
@@ -66,13 +113,17 @@ def main() -> int:
         print("KIWOOM_MODE=REAL — refusing to sweep a live account without --real.")
         print("(All calls are read-only, but be deliberate: rerun with --real.)")
         return 1
-    # --only <tool>: 그 tool의 호출만 돌린다. --full: 첫 줄이 아니라 전체 출력을 찍는다.
+    # --only <tool>[,<tool>…]: 그 tool들의 호출만 돌린다. --full: 첫 줄이 아니라 전체 출력을 찍는다.
     # 새 tool을 붙인 직후 표·각주·가드 문구를 눈으로 확인하는 용도 — 전 tool을 얕게 훑는
     # 기본 스윕과 목적이 다르다(라운드마다 같은 확인 스크립트를 새로 쓰던 걸 대체한다).
     #
     # 한계: 앞선 응답에서 인자를 받아 오는 tool(get_watchlist·get_theme_stocks)을 --only로
     # 단독 실행하면 체이닝이 끊긴다 — 전자는 "SKIPPED", 후자는 기본 테마코드로 돈다.
+    # get_stock_lending도 마찬가지다 — 일봉에서 물려받는 직전 거래일이 없으면 대차잔고
+    # 기준일 검사가 시각 판정을 건너뛰고 정합성만 본다(휴장일을 분간할 수단이 없다).
+    # 그 판정까지 보려면 물려주는 쪽을 같이 부른다: --only get_stock_chart,get_stock_lending
     only = arg_value("--only")
+    only_names = [n for n in (only or "").split(",") if n]
     full = "--full" in sys.argv
     print(f"mode: {mode}" + (f" | only={only}" if only else "") + (" | full" if full else ""))
 
@@ -269,8 +320,8 @@ def main() -> int:
         ("get_trading_journal", {}),
     ]
 
-    if only:
-        plan = [(n, a) for n, a in plan if n == only]
+    if only_names:
+        plan = [(n, a) for n, a in plan if n in only_names]
         if not plan:
             print(f"--only {only}: 스윕 계획에 없는 tool입니다.")
             proc.stdin.close()
@@ -306,6 +357,23 @@ def main() -> int:
             # 없는 게 아니라 v0.49.1 회귀다. rc=0이라 에러로는 안 잡히므로 여기서 세운다.
             results[-1] = (name, True, False,
                            f"REGRESSION: {args['stock_code']}는 목록에 있는데 종목 지정이 0행")
+        if name == "get_stock_chart" and args.get("period") == "day" and not is_err:
+            # 일봉은 오래된→최신 순으로 렌더되므로 **마지막 행이 곧 직전 거래일**이다
+            # (장중이면 오늘의 미완성 봉이 이미 들어 있다). ka90012 기준일 판정이
+            # "오늘이 거래일인가"를 알아야 해서 여기서 물려받는다 — 휴장일 저녁에는
+            # 당일 집계가 영영 안 열리므로 그날은 후퇴가 정상이고, 이걸 모르면
+            # 토요일 스윕이 매번 가짜로 빨개진다.
+            days = re.findall(r"^\|\s*(\d{4})-(\d{2})-(\d{2})\s*\|", text, re.M)
+            if days:
+                ctx["last_trading_day"] = "".join(max(days))
+        if name == "get_stock_lending" and args.get("view") == "balance_rank" and not is_err:
+            now = datetime.now(KST)
+            why = check_lending_base_date(
+                text, now.strftime("%Y%m%d"), ctx.get("last_trading_day"), now.hour,
+            )
+            if why:
+                # rc=0 + 50행이라 에러로는 안 잡힌다 — VI 때와 같이 여기서 세운다.
+                results[-1] = (name, True, False, f"REGRESSION: {why}")
         if name == "get_watchlist_groups" and not is_err:
             m = re.search(r"\b(\d{1,4})\b", text.replace("[모의투자]", "").replace("[실전투자]", ""))
             if m:
