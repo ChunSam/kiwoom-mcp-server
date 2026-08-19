@@ -88,8 +88,9 @@ export function formatLendingBalanceRank(
       : [];
     return [
       `[${modeLabel}] ${title}: 데이터가 없습니다. ` +
-        "이 순위는 당일 집계를 장중에 주지 않아 전 거래일까지만 조회됩니다 — " +
-        "to_date로 전 거래일을 지정해 보세요 (기준일이 휴장일이어도 비어 있습니다).",
+        "이 순위는 당일 집계가 장 마감 후 저녁 늦게(20시 무렵) 열립니다 — " +
+        "그때까지는 전 거래일까지만 조회되니 저녁에 다시 부르거나 to_date로 전 거래일을 지정하세요 " +
+        "(기준일이 휴장일이어도 비어 있습니다).",
       ...swept,
       ...ignoredNotes,
     ].join("\n");
@@ -131,7 +132,8 @@ export function formatLendingBalanceRank(
   const fellBack = ignored.fellBackFrom
     ? [
         `※ 요청일(${formatDateDashed(ignored.fellBackFrom)})은 아직 집계 전이라 ` +
-          `전 거래일(${formatDateDashed(baseDate)}) 기준으로 보여 드립니다.`,
+          `전 거래일(${formatDateDashed(baseDate)}) 기준으로 보여 드립니다 — ` +
+          "당일 집계는 장 마감 후 저녁 늦게(20시 무렵) 열립니다.",
       ]
     : [];
   return [...lines, "", ...notes, ...fellBack, ...ignoredNotes].join("\n");

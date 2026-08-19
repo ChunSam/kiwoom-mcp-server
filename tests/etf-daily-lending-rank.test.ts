@@ -230,18 +230,26 @@ describe("formatLendingBalanceRank", () => {
   /**
    * 원인을 휴장일부터 대면 안 된다 — 훨씬 흔한 원인은 당일 미집계다.
    * 2026-08-14(금, 거래일)에 8/14는 rc=0에 0행, 8/13은 50행이었다.
+   *
+   * **언제 열리는지까지 적는다.** 안 주는 시간대만 알면 힌트가 to_date밖에 못 권하고,
+   * 사용자는 **기다리면 된다는 사실을 아무 데서도 못 듣는다**. 2026-08-19 9표본으로
+   * 19:07 0행 → 20:07 50행을 확인했다(열림 19:07~20:07, 전날 20:52와 일관).
    */
-  it("빈 결과의 원인을 당일 미집계부터 댄다", () => {
+  it("빈 결과의 원인을 당일 미집계부터 대고 언제 열리는지도 알린다", () => {
     const text = formatLendingBalanceRank([], "20260814", 20, false, MODE);
-    expect(text).toContain("당일 집계를 장중에 주지 않아");
+    expect(text).toContain("저녁 늦게(20시 무렵) 열립니다");
+    expect(text).toContain("저녁에 다시 부르거나");
     expect(text).toContain("to_date");
     expect(text).not.toMatch(/데이터가 없습니다 \(기준일이 휴장일/);
   });
 
-  it("기준일이 전 거래일로 물러섰으면 밝힌다", () => {
+  it("기준일이 전 거래일로 물러섰으면 밝히고, 당일이 언제 열리는지도 알린다", () => {
     const text = formatLendingBalanceRank(rows, "20260813", 20, false, MODE, { fellBackFrom: "20260814" });
     expect(text).toContain("요청일(2026-08-14)은 아직 집계 전이라");
     expect(text).toContain("전 거래일(2026-08-13) 기준");
+    // 장중 호출이 **행을 받는** 경로라 빈 결과 힌트보다 이쪽을 훨씬 자주 본다 —
+    // 여기서 빠지면 정작 다수의 사용자가 저녁에 당일치가 열린다는 걸 모른다.
+    expect(text).toContain("저녁 늦게(20시 무렵) 열립니다");
   });
 
   /**
@@ -261,6 +269,7 @@ describe("formatLendingBalanceRank", () => {
 /**
  * ka90012는 **당일 집계를 장중에 주지 않는다**(2026-08-14 거래일 실측: 8/14 0행 · 8/13 50행).
  * 기본 기준일이 오늘이라, 물러서지 않으면 날짜를 지정하지 않은 호출이 장중 내내 빈손이었다.
+ * 열리는 시각은 **19:07~20:07 사이**이고 열린 값은 확정치다(2026-08-19 9표본).
  */
 describe("fetchLendingBalanceRank 기준일 후퇴", () => {
   function clientReturning(rowsByDate: Record<string, unknown[]>) {
