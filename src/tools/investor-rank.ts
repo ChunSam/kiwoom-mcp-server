@@ -155,7 +155,10 @@ export function registerInvestorRankTool(server: McpServer): void {
         "외국인과 기관이 많이 사고판 종목을 조회합니다 (키움 ka90009/ka10131). " +
         "view: daily(일자별 순매수·순매도 상위, 기본) / streak(N일 연속 순매수 상위). " +
         "\"오늘 외국인이 뭘 샀나\", \"외국인이 며칠째 사는 종목\" 질문에 사용하세요. " +
-        "daily는 market all/kospi/kosdaq, streak는 kospi/kosdaq만 지원합니다.",
+        "daily는 market all/kospi/kosdaq, streak는 kospi/kosdaq만 지원합니다. " +
+        "여기서 말하는 순매수·연속은 **매매 기준**입니다 — 외국인 보유주식수·한도소진률 기준의 연속 " +
+        "순매매는 get_foreign_holding(rank=streak)이고 데이터 소스가 달라 같은 종목에서 부호가 반대일 " +
+        "수 있습니다. 연기금·투신처럼 12주체를 고르려면 get_net_buy_rank를 쓰세요.",
       inputSchema: {
         view: z.enum(["daily", "streak"]).optional().describe("daily=일자별 상위 (기본), streak=연속 순매수"),
         market: z.enum(["all", "kospi", "kosdaq"]).optional().describe("시장 구분 (기본값: daily=all, streak=kospi)"),

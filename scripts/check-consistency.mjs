@@ -261,6 +261,31 @@ if (strayCalls.length === 0) {
   for (const [rel, n] of strayCalls) errors.push(`✗ ${CALL_OWNER} 밖에서 .call( 사용: src/${rel} (${n}곳)`);
 }
 
+// ── 6. description·describe의 tool 상호참조가 실존하는지 ───────────────
+// 모델은 이 문구를 읽고 tool을 고른다 — "특정 종목 하나는 get_stock_price를 쓰세요" 같은
+// 안내가 오타나 이름 변경으로 없는 tool을 가리키면, 모델은 그 이름을 부르려다 실패하거나
+// 엉뚱한 tool로 흘러간다. typecheck는 문자열 안을 안 보고 포맷터 테스트는 description을
+// 렌더하지 않으므로 둘 다 이걸 못 잡는다. 2026-08-19 라우팅 감사에서 상호참조 자체가
+// 라우팅의 주 근거임이 확인돼(모델 3종 52문항) 검사로 승격했다.
+const referenced = new Map(); // ref → [곳]
+for (const file of readdirSync(join(ROOT, "src/tools"))) {
+  if (!file.endsWith(".ts")) continue;
+  const text = read(join("src/tools", file));
+  for (const m of text.matchAll(/\b(get_[a-z_]+|search_stock|calc_isa_tax_status|ping)\b/g)) {
+    if (!referenced.has(m[1])) referenced.set(m[1], new Set());
+    referenced.get(m[1]).add(file);
+  }
+}
+const danglingRefs = [...referenced].filter(([ref]) => !toolNames.has(ref));
+
+if (danglingRefs.length === 0) {
+  console.log(`✓ tool 상호참조 — ${referenced.size}개 이름 전부 실존`);
+} else {
+  for (const [ref, files] of danglingRefs) {
+    errors.push(`✗ 존재하지 않는 tool을 가리킵니다: ${ref} (src/tools/${[...files].join(", ")})`);
+  }
+}
+
 // ── 결과 ───────────────────────────────────────────────────────────────
 for (const w of warnings) console.warn(`⚠️  ${w}`);
 for (const e of errors) console.error(e);

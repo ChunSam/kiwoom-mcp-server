@@ -119,7 +119,8 @@ export function registerValuationRankTool(server: McpServer): void {
     {
       title: "PER·PBR·ROE 순위 조회 (시장 전체)",
       description:
-        "시장 전체를 PER·PBR·ROE로 줄 세운 상위 100종목을 조회합니다 (키움 ka10026). " +
+        "시장 전체를 PER·PBR·ROE 중 **한 가지 기준**으로 줄 세운 상위 100종목을 조회합니다 (키움 ka10026). " +
+        "지표를 조합해 거르지는 못하므로 '저PER 저PBR'은 metric을 바꿔 두 번 부릅니다. " +
         "저PER·저PBR은 가치주 스크리닝, 고ROE는 자본효율이 높은 기업 찾기, 고PBR·저ROE는 " +
         "과열·부실 점검에 씁니다. 거래량·등락률 기준 순위는 get_ranking, 특정 종목 하나의 " +
         "PER·PBR은 get_stock_price를 쓰세요 — 밸류에이션으로 시장을 훑는 것은 이 tool뿐입니다.",

@@ -81,7 +81,9 @@ export function registerInvestorTrendTool(server: McpServer): void {
       description:
         "종목의 개인/외국인/기관 순매수 동향을 조회합니다 (키움 ka10059+ka10061). 기간 합계와 " +
         "최근 거래일별 내역을 함께 보여줍니다. unit: amount(금액, 백만원, 기본)/quantity(수량, 주). " +
-        "종목코드를 모르면 search_stock으로 먼저 찾으세요.",
+        "같은 일자에 종가·거래량·프로그램·신용비율까지 한 행으로 묶어 보려면 get_daily_trading(view=flow), " +
+        "기관·외국인이 담은 추정평균단가는 get_institution_trend, 주체를 정해 종목을 찾을 때는 " +
+        "get_net_buy_rank를 쓰세요. 종목코드를 모르면 search_stock으로 먼저 찾으세요.",
       inputSchema: {
         stock_code: z
           .string()
