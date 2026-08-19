@@ -120,8 +120,10 @@ export function registerOrderExecutionsTool(server: McpServer): void {
       description:
         "계좌의 체결(실제로 체결된 주문) 내역을 조회합니다 — 주문번호, 종목, 매수/매도 구분, " +
         "주문상태, 주문/체결 수량, 주문/체결 가격, 당일 수수료·세금, 주문시각 (키움 ka10076). " +
-        "stock_code·side·order_no로 좁힐 수 있습니다. 아직 체결되지 않은 주문은 get_pending_orders, " +
-        "당일 종목별 집계는 get_trading_journal, 기간 거래내역은 get_transactions를 쓰세요. " +
+        "stock_code·side·order_no로 좁힐 수 있습니다. **기간 파라미터가 없어 조회 범위는 키움이 정하며 " +
+        "지난 날짜의 체결은 나오지 않습니다** (모의 실측 2026-08-19: 6일 전 체결이 0행). '어제 체결가'처럼 " +
+        "과거 일자를 물으면 get_transactions(결제일 D+2 기준)를 쓰세요. 아직 체결되지 않은 주문은 " +
+        "get_pending_orders, 당일 종목별 집계는 get_trading_journal입니다. " +
         "조회 전용이며 주문 실행 기능은 제공하지 않습니다.",
       inputSchema: {
         stock_code: z

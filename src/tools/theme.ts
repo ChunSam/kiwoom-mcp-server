@@ -114,7 +114,9 @@ export function registerThemeGroupsTool(server: McpServer): void {
       description:
         "키움 테마 그룹 목록을 조회합니다 — 테마명, 종목수, 등락률, 상승/하락 종목수, 기간수익률(10일), " +
         "주요종목 (키움 ka90001). 기본은 등락률 상위 테마를 보여주며, stock_code를 주면 해당 종목이 " +
-        "편입된 테마를 검색합니다. 특정 테마의 구성종목은 get_theme_stocks로 조회하세요.",
+        "편입된 테마를 검색합니다. **테마명으로 찾는 파라미터는 없어** 이름을 알고 있어도 목록에서 " +
+        "골라야 하고, '반도체'처럼 업종을 뜻한 것이라면 get_sector_stocks가 맞습니다. " +
+        "특정 테마의 구성종목은 get_theme_stocks로 조회하세요.",
       inputSchema: {
         stock_code: z
           .string()

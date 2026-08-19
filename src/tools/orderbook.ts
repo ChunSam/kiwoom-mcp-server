@@ -92,8 +92,9 @@ export function registerOrderbookTool(server: McpServer): void {
       description:
         "종목의 10단계 매도/매수 호가와 잔량을 KRX+넥스트레이드(NXT) 통합 기준으로 조회합니다 (키움 ka10007). " +
         "지금 어느 가격에 대기 물량이 얼마나 쌓였는지, 매수·매도 어느 쪽이 두꺼운지 볼 때 씁니다. " +
-        "호가는 체결이 아니라 대기 주문이므로, 실제 체결 흐름은 get_stock_quotes(체결 내역)나 " +
-        "get_execution_strength(체결강도)를 보세요. 종목코드를 모르면 search_stock으로 먼저 찾으세요.",
+        "호가는 체결이 아니라 대기 주문이므로, 실제 체결 쪽 힘은 get_execution_strength(체결강도)를 " +
+        "보세요 — 계좌의 체결 내역은 get_order_executions이고, 여러 종목의 현재가를 한 번에 볼 때가 " +
+        "get_stock_quotes입니다. 종목코드를 모르면 search_stock으로 먼저 찾으세요.",
       inputSchema: {
         stock_code: z
           .string()

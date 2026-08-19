@@ -89,7 +89,8 @@ export function registerStockPriceTool(server: McpServer): void {
     {
       title: "종목 현재가 조회",
       description:
-        "6자리 종목코드로 국내 주식/ETF의 현재가, 등락률, 거래량, 기본 지표를 조회합니다 (키움 ka10001). " +
+        "6자리 종목코드로 국내 주식/ETF의 현재가, 등락률, 거래량과 기본 지표(PER·EPS·PBR·시가총액)를 " +
+        "조회합니다 (키움 ka10001). 배당수익률·배당금은 키움 REST API에 조회 TR이 없어 제공하지 않습니다. " +
         "업종·상장일과 거래정지/관리종목/투자경고 같은 투자유의 상태도 함께 표시됩니다. " +
         "종목명만 알고 있다면 search_stock으로 먼저 코드를 찾으세요.",
       inputSchema: {

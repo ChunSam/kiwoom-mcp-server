@@ -142,6 +142,7 @@ export function registerNetBuyRankTool(server: McpServer): void {
         "연기금등·사모펀드·기타금융·국가·기타법인까지 12주체를 고를 수 있습니다. " +
         "종목을 이미 정했다면 get_investor_trend(종목 1개의 주체별 시계열)가 낫고, " +
         "외국인·기관만 빠르게 보려면 get_investor_rank(상위 25종목)가 가볍습니다. " +
+        "market(kospi 또는 kosdaq)은 필수이고 전체 시장을 한 번에 보는 옵션은 없습니다. " +
         "수치는 직전 완료 거래일 기준이며, 장중 실시간은 get_foreign_intraday(외국인 한정)를 쓰세요.",
       inputSchema: {
         subject: z
