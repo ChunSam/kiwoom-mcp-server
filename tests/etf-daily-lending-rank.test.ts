@@ -235,12 +235,25 @@ describe("formatLendingBalanceRank", () => {
    * 사용자는 **기다리면 된다는 사실을 아무 데서도 못 듣는다**. 2026-08-19 9표본으로
    * 19:07 0행 → 20:07 50행을 확인했다(열림 19:07~20:07, 전날 20:52와 일관).
    */
-  it("빈 결과의 원인을 당일 미집계부터 대고 언제 열리는지도 알린다", () => {
-    const text = formatLendingBalanceRank([], "20260814", 20, false, MODE);
+  it("오늘을 박아 빈손이면 원인을 당일 미집계부터 대고 언제 열리는지도 알린다", () => {
+    const text = formatLendingBalanceRank([], "20260814", 20, false, MODE, { pinnedToday: true });
     expect(text).toContain("저녁 늦게(20시 무렵) 열립니다");
     expect(text).toContain("저녁에 다시 부르거나");
     expect(text).toContain("to_date");
     expect(text).not.toMatch(/데이터가 없습니다 \(기준일이 휴장일/);
+  });
+
+  /**
+   * **과거 날짜를 박은 호출에는 기다릴 것이 없다.** 그날의 집계는 저녁이 와도 열리지 않는다
+   * (휴장일이거나 애초에 없는 날이다). 세 경우에 같은 문구를 주던 시절엔 이 사용자에게
+   * "저녁에 다시 부르세요"가 나갔다 — 값은 맞고 안내만 틀리는, 이 저장소의 지배적 결함이다.
+   * 부정 단언은 옛 문구·새 문구에 공통인 "저녁"으로 막는다 — 새 문구만 부정하면 되살아나도 초록이다.
+   */
+  it("과거 날짜를 박아 빈손이면 기다리라고 하지 않는다", () => {
+    const text = formatLendingBalanceRank([], "20260817", 20, false, MODE);
+    expect(text).toContain("휴장일이거나");
+    expect(text).toContain("to_date로 직전 거래일을 지정");
+    expect(text).not.toContain("저녁");
   });
 
   it("기준일이 전 거래일로 물러섰으면 밝히고, 당일이 언제 열리는지도 알린다", () => {
@@ -263,6 +276,10 @@ describe("formatLendingBalanceRank", () => {
     expect(text).toContain("하루씩 물러서며 찾았지만 행이 없습니다");
     // 두 문구의 공통 조각으로 막는다 — 새 문구만 부정하면 옛 문구가 되살아나도 초록이다.
     expect(text).not.toContain("기준으로 보여 드립니다");
+    // 후퇴까지 하고도 빈손인 원인은 당일 미집계가 아니라 긴 연휴다 — "그때까지는 전 거래일까지만
+    // 조회된다"고 단정하면 방금 전 거래일들을 훑고도 빈손이었다는 사실과 어긋난다.
+    expect(text).toContain("오늘이 거래일이면");
+    expect(text).not.toContain("그때까지는 전 거래일까지만 조회되니");
   });
 });
 

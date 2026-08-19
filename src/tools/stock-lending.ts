@@ -57,8 +57,12 @@ export function formatLendingBalanceRank(
   top: number,
   truncated: boolean,
   modeLabel: string,
-  /** 받고도 쓰지 않은 입력과 기준일 후퇴 — 조용히 버리지 않고 각주로 밝힌다 */
-  ignored: { stockCode?: string; fromDate?: string; fellBackFrom?: string } = {},
+  /**
+   * 받고도 쓰지 않은 입력과 기준일 후퇴 — 조용히 버리지 않고 각주로 밝힌다.
+   * `pinnedToday`는 사용자가 to_date로 **오늘**을 직접 지정했는지다 — 그러면 후퇴가 꺼져 있어
+   * 빈 결과의 원인이 "아직 저녁이 아니다"로 좁혀진다(과거 날짜를 박은 경우와 안내가 갈린다).
+   */
+  ignored: { stockCode?: string; fromDate?: string; fellBackFrom?: string; pinnedToday?: boolean } = {},
 ): string {
   const title = `대차잔고 상위 종목 — ${formatDateDashed(baseDate)}`;
   const shown = rows.slice(0, top);
@@ -78,22 +82,29 @@ export function formatLendingBalanceRank(
   if (shown.length === 0) {
     // 종목을 지정해 부른 사용자에게 "휴장일일 수 있다"만 주면 종목이 무시된 걸 끝내 모른다.
     // 원인도 휴장일부터 대지 않는다 — 당일 미집계가 훨씬 흔하다(2026-08-14 거래일 실측 0행).
-    // 후퇴하고도 빈손이면 "전 거래일 기준으로 보여 드립니다"가 **거짓**이 된다(보여 준 게 없다).
-    // 대신 어디까지 훑었는지를 밝힌다 — 안 그러면 마지막 시도일 하루만 비어 보인다.
+    //
+    // **다만 그 원인은 부른 방식에 따라 셋으로 갈리고, 안내도 같이 갈려야 한다.**
+    //  ① 기본 호출인데 후퇴 예산(5칸)을 다 썼다 → 원인은 당일 미집계가 아니라 긴 연휴다.
+    //     이때 "전 거래일 기준으로 보여 드립니다"는 **거짓**이므로(보여 준 게 없다) 훑은 범위를 밝힌다 —
+    //     안 그러면 마지막 시도일 하루만 비어 보인다.
+    //  ② 사용자가 to_date로 **오늘**을 박았다 → 후퇴가 꺼져 있을 뿐이라, 저녁이면 열린다.
+    //  ③ 사용자가 **과거 날짜**를 박았다 → 저녁까지 기다려도 그날은 열리지 않는다(휴장일이거나 없는 날).
+    // 셋에 같은 문구를 주면 ③에게 "저녁에 다시 부르세요"라는 틀린 안내가 나간다 — 기다릴 것이 없다.
+    const lead = ignored.fellBackFrom
+      ? `데이터가 없습니다. 오늘이 거래일이면 당일 집계가 저녁 늦게(20시 무렵) 열리니 그때 다시 불러 보세요.`
+      : ignored.pinnedToday
+        ? "데이터가 없습니다. 이 순위는 당일 집계가 장 마감 후 저녁 늦게(20시 무렵) 열립니다 — " +
+          "그때까지는 전 거래일까지만 조회되니 저녁에 다시 부르거나 to_date로 전 거래일을 지정하세요 " +
+          "(기준일이 휴장일이어도 비어 있습니다)."
+        : "데이터가 없습니다. 요청하신 기준일에는 집계가 없습니다 — 휴장일이거나 아직 집계되지 않은 날입니다. " +
+          "to_date로 직전 거래일을 지정해 보세요.";
     const swept = ignored.fellBackFrom
       ? [
           `※ 요청일(${formatDateDashed(ignored.fellBackFrom)})부터 ${formatDateDashed(baseDate)}까지 ` +
             "하루씩 물러서며 찾았지만 행이 없습니다 — 연휴가 더 길면 to_date로 직전 거래일을 직접 지정하세요.",
         ]
       : [];
-    return [
-      `[${modeLabel}] ${title}: 데이터가 없습니다. ` +
-        "이 순위는 당일 집계가 장 마감 후 저녁 늦게(20시 무렵) 열립니다 — " +
-        "그때까지는 전 거래일까지만 조회되니 저녁에 다시 부르거나 to_date로 전 거래일을 지정하세요 " +
-        "(기준일이 휴장일이어도 비어 있습니다).",
-      ...swept,
-      ...ignoredNotes,
-    ].join("\n");
+    return [`[${modeLabel}] ${title}: ${lead}`, ...swept, ...ignoredNotes].join("\n");
   }
 
   const n = parseKiwoomNumber;
@@ -151,7 +162,8 @@ export function registerStockLendingTool(server: McpServer): void {
         "view=balance_rank는 특정 하루의 **대차잔고가 가장 많은 종목 순위**입니다 — " +
         "'어느 종목에 대차 물량이 쌓여 있나'를 물을 때 쓰고, 한 종목의 시간 흐름은 trend를 쓰세요. " +
         "balance_rank는 시장 전체 횡단면이라 stock_code·from_date를 받지 않으며(주면 무시하고 각주로 알립니다), " +
-        "기준일은 to_date로 지정합니다. " +
+        "기준일은 to_date로 지정하되 **생략하는 쪽이 안전합니다** — 당일 집계는 장 마감 후 저녁 늦게(20시 무렵) " +
+        "열려서, 오늘을 직접 지정하면 그전까지 빈 결과이고 생략하면 최신 집계일로 자동으로 물러섭니다. " +
         "공매도 흐름과 함께 보려면 get_short_selling을 참고하세요.",
       inputSchema: {
         view: z
@@ -179,7 +191,10 @@ export function registerStockLendingTool(server: McpServer): void {
           .string()
           .regex(/^\d{4}-?\d{2}-?\d{2}$/, "yyyy-MM-dd 또는 yyyyMMdd 형식이어야 합니다")
           .optional()
-          .describe("조회 종료일 (기본값: 오늘). view=balance_rank에서는 순위의 기준일입니다"),
+          .describe(
+            "조회 종료일 (기본값: 오늘). view=balance_rank에서는 순위의 기준일이며, " +
+              "오늘을 지정하면 저녁 집계 전까지 빈 결과입니다 — 생략하면 최신 집계일로 자동으로 물러섭니다",
+          ),
       },
     },
     async ({ view, top, stock_code, from_date, to_date }) =>
@@ -189,7 +204,8 @@ export function registerStockLendingTool(server: McpServer): void {
         if (view === "balance_rank") {
           // 이 TR은 하루의 횡단면이라 from_date는 의미가 없다 — to_date를 기준일로 쓴다.
           const requested = to_date?.replaceAll("-", "");
-          const asked = requested ?? todayInKst().replaceAll("-", "");
+          const today = todayInKst().replaceAll("-", "");
+          const asked = requested ?? today;
           // 날짜를 고르지 않은 호출만 전날로 물러선다 — 사용자가 지정한 날짜를 바꾸면 안 된다
           const { items, truncated, baseDate } = await fetchLendingBalanceRank(client, asked, !requested);
           return textResult(
@@ -197,6 +213,9 @@ export function registerStockLendingTool(server: McpServer): void {
               stockCode: stock_code?.toUpperCase(),
               fromDate: from_date?.replaceAll("-", ""),
               fellBackFrom: baseDate === asked ? undefined : asked,
+              // 오늘을 직접 박은 호출은 후퇴가 꺼진 채 장중 내내 빈손이다 — 빈 결과 안내가
+              // "저녁에 다시"로 갈리는 자리라, 과거 날짜를 박은 호출과 구분해서 넘긴다.
+              pinnedToday: requested === today,
             }),
           );
         }
