@@ -82,8 +82,9 @@ export function registerTransactionsTool(server: McpServer): void {
       description:
         "계좌의 거래내역(매수/매도 등)을 기간별로 조회합니다 (키움 kt00015). 기본 조회 기간은 " +
         "최근 30일이며 from_date/to_date로 변경, stock_code로 특정 종목만 필터링할 수 있습니다. " +
-        "일자는 결제일(D+2) 기준이라 방금 체결된 건은 아직 잡히지 않습니다 — 체결가·체결시각은 " +
-        "get_order_executions(과거 일자는 조회되지 않습니다), 당일 종목별 손익은 get_trading_journal을 쓰세요.",
+        "**일자는 결제일(D+2) 기준이라 최근 2거래일 체결분은 아직 잡히지 않습니다** — 당일 체결가·체결시각은 " +
+        "get_order_executions(과거 일자는 조회되지 않습니다), 당일 종목별 손익은 get_trading_journal을 쓰세요. " +
+        "그래서 '어제 체결가'처럼 **결제 전 구간은 어느 tool로도 조회되지 않고**, 결제가 끝나면 여기에 잡힙니다.",
       inputSchema: {
         from_date: z
           .string()

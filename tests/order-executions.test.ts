@@ -113,6 +113,10 @@ describe("formatOrderExecutions", () => {
     expect(out).toContain("[모의투자] 체결 내역이 없습니다.");
     expect(out).toContain("get_trading_journal");
     expect(out).toContain("get_transactions");
+    // v0.52.5: 각주가 "get_transactions로 가라"만 말하던 시절엔 그 tool도 결제일(D+2) 기준이라
+    // 어제 체결분이 없다는 사실을 안 알려 줬다 — 두 tool이 서로를 가리키기만 해서 사용자는
+    // 왕복만 했다(2026-08-20 라우팅 감사에서 모델 셋이 그 고리에서 갈렸다).
+    expect(out).toContain("결제일(D+2)");
   });
 
   it("renders a row with quantities, prices and the stripped stock code", () => {

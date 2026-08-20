@@ -190,9 +190,10 @@ export function registerSectorStocksTool(server: McpServer): void {
     {
       title: "업종별 종목 시세 조회",
       description:
-        "특정 업종에 속한 종목들의 시세를 조회합니다 (키움 ka20002). 종목코드순 정렬이며 " +
+        "특정 **업종**(KRX 표준 분류)에 속한 종목들의 시세를 조회합니다 (키움 ka20002). 종목코드순 정렬이며 " +
         "첫 페이지(최대 100종목)만 가져옵니다. sector_code는 get_market_index의 업종 코드이거나 " +
-        "업종명입니다.",
+        "업종명이며 **테마명은 받지 않습니다** — 사용자가 '테마'라고 물었으면 " +
+        "get_theme_groups로 코드를 찾아 get_theme_stocks를 쓰세요('반도체'처럼 이름이 겹칩니다).",
       inputSchema: {
         sector_code: sectorCodeSchema,
         limit: z
