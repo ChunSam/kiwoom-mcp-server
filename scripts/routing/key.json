@@ -203,11 +203,11 @@
     "tool": "get_pending_orders"
   },
   "48": {
-    "tool": "get_transactions",
+    "tool": "NONE",
     "also_ok": [
-      "get_order_executions"
+      "get_transactions"
     ],
-    "trap": "ka10076은 과거 일자 미제공(실측), kt00015는 결제일 D+2 기준 — 둘 다 '어제 체결가'를 못 준다. 두 description이 서로를 가리키는 고리라 문구를 정리하기 전까지 양쪽 다 정답"
+    "trap": "ka10076은 지난 일자 미제공(실측), kt00015는 결제일 D+2 기준 — 어제 체결분은 오늘 어느 쪽에도 없다. 정답은 '지금은 안 된다'이고, 결제 후 get_transactions에 잡힌다. ka10076을 부르면 당일 체결을 어제 것으로 오독시킬 수 있어 오답. v0.52.4가 정답을 옮겼고 v0.52.5가 두 description의 고리를 끊었다"
   },
   "49": {
     "tool": "get_account_balance",

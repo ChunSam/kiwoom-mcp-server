@@ -45,8 +45,9 @@ export function formatOrderExecutions(
   if (filtered.length === 0) {
     return (
       `[${modeLabel}] 체결 내역이 없습니다${scope ? ` (${scopeBits.join(", ")})` : ""}.\n` +
-      "※ 키움 ka10076에는 기간 파라미터가 없어 조회 범위는 키움이 정합니다 — " +
-      "당일 집계는 get_trading_journal, 기간 거래내역은 get_transactions를 쓰세요."
+      "※ 키움 ka10076에는 기간 파라미터가 없어 조회 범위는 키움이 정합니다(지난 날짜의 체결은 나오지 않습니다) — " +
+      "당일 집계는 get_trading_journal, 기간 거래내역은 get_transactions를 쓰세요. " +
+      "다만 get_transactions의 일자는 결제일(D+2) 기준이라 최근 2거래일 체결분은 그쪽에도 아직 없습니다."
     );
   }
 
@@ -118,11 +119,15 @@ export function registerOrderExecutionsTool(server: McpServer): void {
     {
       title: "체결 내역 조회",
       description:
-        "계좌의 체결(실제로 체결된 주문) 내역을 조회합니다 — 주문번호, 종목, 매수/매도 구분, " +
+        "계좌의 **최근** 체결(실제로 체결된 주문) 내역을 조회합니다 — **지난 일자의 체결은 나오지 않습니다**. " +
+        "주문번호, 종목, 매수/매도 구분, " +
         "주문상태, 주문/체결 수량, 주문/체결 가격, 당일 수수료·세금, 주문시각 (키움 ka10076). " +
-        "stock_code·side·order_no로 좁힐 수 있습니다. **기간 파라미터가 없어 조회 범위는 키움이 정하며 " +
-        "지난 날짜의 체결은 나오지 않습니다** (모의 실측 2026-08-19: 6일 전 체결이 0행). '어제 체결가'처럼 " +
-        "과거 일자를 물으면 get_transactions(결제일 D+2 기준)를 쓰세요. 아직 체결되지 않은 주문은 " +
+        "stock_code·side·order_no로 좁힐 수 있습니다. 기간 파라미터가 없어 **조회 범위는 키움이 정합니다** " +
+        "(모의 실측 2026-08-19: 6일 전 체결이 0행). 과거 일자의 " +
+        "체결 기록은 get_transactions에 남지만 **그쪽 일자는 결제일(D+2) 기준이라 최근 2거래일 체결분은 " +
+        "아직 없습니다** — 그래서 **'어제 체결가'처럼 지난 일자를 물으면 이 tool을 부르지 마세요**. " +
+        "결제가 끝난 뒤 get_transactions에서 보이므로 그전에는 조회되지 않는다고 답하면 됩니다. " +
+        "아직 체결되지 않은 주문은 " +
         "get_pending_orders, 당일 종목별 집계는 get_trading_journal입니다. " +
         "조회 전용이며 주문 실행 기능은 제공하지 않습니다.",
       inputSchema: {
