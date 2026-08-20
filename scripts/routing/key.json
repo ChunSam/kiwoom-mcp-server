@@ -1,0 +1,233 @@
+{
+  "1": {
+    "tool": "get_stock_price",
+    "pre_ok": true
+  },
+  "2": {
+    "tool": "search_stock"
+  },
+  "3": {
+    "tool": "get_stock_quotes"
+  },
+  "4": {
+    "tool": "get_stock_chart",
+    "param_check": {
+      "period": "minute"
+    }
+  },
+  "5": {
+    "tool": "get_orderbook",
+    "pre_ok": true
+  },
+  "6": {
+    "tool": "get_orderbook_rank"
+  },
+  "7": {
+    "tool": "get_execution_strength",
+    "pre_ok": true
+  },
+  "8": {
+    "tool": "get_expected_execution"
+  },
+  "9": {
+    "tool": "get_after_hours"
+  },
+  "10": {
+    "tool": "get_ranking",
+    "param_check": {
+      "type": "rise",
+      "market": "kosdaq"
+    }
+  },
+  "11": {
+    "tool": "get_ranking",
+    "param_check": {
+      "type": "open_fall",
+      "market": "kospi"
+    }
+  },
+  "12": {
+    "tool": "get_valuation_rank"
+  },
+  "13": {
+    "tool": "get_market_movers",
+    "param_check": {
+      "signal": "new_high",
+      "days": "60"
+    }
+  },
+  "14": {
+    "tool": "get_market_movers",
+    "param_check": {
+      "signal": "volume_renew"
+    }
+  },
+  "15": {
+    "tool": "get_vi_stocks"
+  },
+  "16": {
+    "tool": "get_supply_concentration"
+  },
+  "17": {
+    "tool": "get_ranking",
+    "param_check": {
+      "type": "credit_ratio"
+    },
+    "trap": "get_credit_trend(종목 시계열)로 새면 시장 스크리닝이 안 된다"
+  },
+  "18": {
+    "tool": "get_credit_trend",
+    "pre_ok": true
+  },
+  "19": {
+    "tool": "get_short_selling",
+    "pre_ok": true
+  },
+  "20": {
+    "tool": "get_stock_lending",
+    "param_check": {
+      "view": "balance_rank",
+      "to_date": "__ABSENT__"
+    },
+    "trap": "장중 14:30이라 to_date=오늘을 박으면 빈 결과. v0.52.3이 describe로 고치려던 자리"
+  },
+  "21": {
+    "tool": "get_stock_lending",
+    "pre_ok": true,
+    "note": "view=trend가 기본이라 생략이 정상"
+  },
+  "22": {
+    "tool": "get_investor_trend",
+    "also_ok": [
+      "get_daily_trading"
+    ],
+    "pre_ok": true
+  },
+  "23": {
+    "tool": "get_net_buy_rank"
+  },
+  "24": {
+    "tool": "get_foreign_intraday"
+  },
+  "25": {
+    "tool": "get_equal_net_trade"
+  },
+  "26": {
+    "tool": "get_institution_trend",
+    "pre_ok": true
+  },
+  "27": {
+    "tool": "get_investor_rank",
+    "also_ok": [
+      "get_foreign_holding"
+    ],
+    "trap": "streak가 두 tool에 있다 — 매매 기준 vs 보유·한도 기준"
+  },
+  "28": {
+    "tool": "get_foreign_holding",
+    "pre_ok": true
+  },
+  "29": {
+    "tool": "get_sector_flow"
+  },
+  "30": {
+    "tool": "get_market_index"
+  },
+  "31": {
+    "tool": "get_sector_price"
+  },
+  "32": {
+    "tool": "get_theme_stocks",
+    "also_ok": [
+      "get_theme_groups"
+    ],
+    "pre_ok": true
+  },
+  "33": {
+    "tool": "get_theme_groups"
+  },
+  "34": {
+    "tool": "get_etf_info",
+    "pre_ok": true
+  },
+  "35": {
+    "tool": "get_etf_rank"
+  },
+  "36": {
+    "tool": "get_etf_returns",
+    "pre_ok": true,
+    "note": "view=period가 기본이라 생략이 정상 — 기본값은 정답표에 박지 않는다"
+  },
+  "37": {
+    "tool": "get_gold_price"
+  },
+  "38": {
+    "tool": "get_broker_activity",
+    "param_check": {
+      "stock_code": "005930"
+    },
+    "pre_ok": true
+  },
+  "39": {
+    "tool": "get_broker_activity",
+    "param_check": {
+      "stock_code": "__ABSENT__"
+    }
+  },
+  "40": {
+    "tool": "get_program_trading",
+    "param_check": {
+      "view": "stock_intraday"
+    },
+    "pre_ok": true
+  },
+  "41": {
+    "tool": "get_account_balance"
+  },
+  "42": {
+    "tool": "get_account_holdings"
+  },
+  "43": {
+    "tool": "get_account_today"
+  },
+  "44": {
+    "tool": "get_trading_journal"
+  },
+  "45": {
+    "tool": "get_account_trend"
+  },
+  "46": {
+    "tool": "get_transactions"
+  },
+  "47": {
+    "tool": "get_pending_orders"
+  },
+  "48": {
+    "tool": "get_transactions",
+    "also_ok": [
+      "get_order_executions"
+    ],
+    "trap": "ka10076은 과거 일자 미제공(실측), kt00015는 결제일 D+2 기준 — 둘 다 '어제 체결가'를 못 준다. 두 description이 서로를 가리키는 고리라 문구를 정리하기 전까지 양쪽 다 정답"
+  },
+  "49": {
+    "tool": "get_account_balance",
+    "param_check": {
+      "view": "settlement"
+    }
+  },
+  "50": {
+    "tool": "get_watchlist_groups",
+    "also_ok": [
+      "get_watchlist"
+    ]
+  },
+  "51": {
+    "tool": "NONE",
+    "pre_ok": true,
+    "trap": "키움 REST에 배당 TR이 없다 — 없다고 답해야 한다"
+  },
+  "52": {
+    "tool": "NONE",
+    "trap": "읽기 전용 서버 — 주문 tool이 없다"
+  }
+}

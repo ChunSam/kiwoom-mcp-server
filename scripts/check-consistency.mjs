@@ -7,6 +7,8 @@
  * 3. README 2종에 tool이 문서화됐는지 — 한쪽만 고치고 넘어가기 쉬운 자리다
  * 4. tools/가 export한 register*Tool이 server.ts에서 다 불리는지
  * 5. 레이어 불변식 — 순환 0건, 하위→상위 import 금지, client.call은 api.ts 안에서만
+ * 6. description의 tool 상호참조가 실존하는지 — 모델이 tool을 고르는 근거다
+ * 7. 라우팅 시험(scripts/routing.py) 정답표가 실제 tool·파라미터를 가리키는지
  *
  * 1~4는 라운드마다 사람이 갱신해야 해서 조용히 어긋난다. 실제로 looseObject가
  * 83으로 적혀 있는 동안 코드에는 85개가 있었고, eb4bd47은 그 드리프트를 고치기만
@@ -284,6 +286,61 @@ if (danglingRefs.length === 0) {
   for (const [ref, files] of danglingRefs) {
     errors.push(`✗ 존재하지 않는 tool을 가리킵니다: ${ref} (src/tools/${[...files].join(", ")})`);
   }
+}
+
+// ── 7. 라우팅 시험 데이터가 코드와 붙어 있는지 ─────────────────────────
+// `scripts/routing.py`는 모델이 카탈로그만 보고 옳은 tool을 고르는지 잰다(2026-08-19 첫 측정).
+// 그 정답표(`scripts/routing/key.json`)는 tool 이름과 파라미터 이름을 **문자열로** 들고 있어
+// 개명 한 번에 조용히 낡는데, 시험 자체는 모델을 부르므로 CI에 없다 — 아무도 안 도는 동안
+// 낡는다. 낡은 정답표의 증상 둘은 성격이 다르다:
+//   - tool 이름이 낡으면 전 문항이 MISS로 쏟아져 **라우팅 회귀로 오독**된다.
+//   - param_check의 이름이 낡으면 `__ABSENT__` 검사가 **영원히 통과**한다(넘길 리 없는 이름이니까).
+//     q20의 `to_date`가 바로 그 자리다 — v0.52.3이 고친 회귀를 지키는 검사가 소리 없이 죽는다.
+// 질문 수와 정답표 수가 어긋나는 것도 같은 부류다(질문만 늘리면 그 문항이 채점에서 빠진다).
+const routingKey = JSON.parse(read("scripts/routing/key.json"));
+const routingQuestions = new Set(
+  read("scripts/routing/questions.md")
+    .split("\n")
+    .map((l) => l.trim().match(/^(\d+)\.\s+\S/))
+    .filter(Boolean)
+    .map((m) => m[1]),
+);
+
+// tool별 입력 파라미터 이름 — `inputSchema: {` 뒤의 `이름: z.`를 그 tool 블록 안에서만 줍는다.
+const paramsOf = new Map();
+for (const file of readdirSync(join(ROOT, "src/tools"))) {
+  if (!file.endsWith(".ts")) continue;
+  const text = read(join("src/tools", file));
+  const blocks = text.split(/server\.registerTool\(/).slice(1);
+  for (const block of blocks) {
+    const name = block.match(/^\s*"([a-z_]+)"/)?.[1];
+    if (!name) continue;
+    const schema = block.slice(block.indexOf("inputSchema:"));
+    // `view: z\n  .enum(...)`처럼 줄바꿈이 끼므로 `z.`이 아니라 `z` 경계까지만 요구한다.
+    paramsOf.set(name, new Set([...schema.matchAll(/^\s+(\w+):\s*z\b/gm)].map((m) => m[1])));
+  }
+}
+
+const routingProblems = [];
+const keyQuestions = new Set(Object.keys(routingKey));
+for (const q of keyQuestions) if (!routingQuestions.has(q)) routingProblems.push(`정답표에만 있는 문항 q${q}`);
+for (const q of routingQuestions) if (!keyQuestions.has(q)) routingProblems.push(`질문에만 있고 정답이 없는 문항 q${q} — 채점에서 통째로 빠집니다`);
+
+for (const [q, entry] of Object.entries(routingKey)) {
+  // "NONE"은 "이 서버로는 못 한다"가 정답이라는 뜻의 가짜 이름이라 실존하지 않는 게 정상이다.
+  for (const t of [entry.tool, ...(entry.also_ok ?? [])]) {
+    if (t !== "NONE" && !toolNames.has(t)) routingProblems.push(`q${q}가 없는 tool을 가리킵니다: ${t}`);
+  }
+  for (const p of Object.keys(entry.param_check ?? {})) {
+    const known = paramsOf.get(entry.tool);
+    if (known && !known.has(p)) routingProblems.push(`q${q} param_check의 ${p}는 ${entry.tool}의 파라미터가 아닙니다`);
+  }
+}
+
+if (routingProblems.length === 0) {
+  console.log(`✓ 라우팅 시험 데이터 — 질문 ${routingQuestions.size}개 · 정답표의 tool·파라미터 전부 실존`);
+} else {
+  for (const p of routingProblems) errors.push(`✗ 라우팅 정답표: ${p}`);
 }
 
 // ── 결과 ───────────────────────────────────────────────────────────────
