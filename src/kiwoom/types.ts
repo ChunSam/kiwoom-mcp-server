@@ -766,6 +766,9 @@ export type EtfInfoResponse = z.infer<typeof etfInfoResponseSchema>;
 // NOTE: cntr_prft_rt is the period return of the index selected by the
 // etfobjt_idex_cd REQUEST field (not validated against the ETF) — probed:
 // same code → same value regardless of stk_cd; bogus code → "0.00".
+// 실전에서도 같다 (2026-08-21, dt=3 1년): 069500·133690 양쪽에서 201→"+156.13",
+// 101→"+0.12", 999→"0.00"으로 stk_cd와 무관하게 지수코드만 따라갔다. 해외 추종
+// ETF(133690)의 자기 수익률은 "+24.72"였다 — 나란히 찍으면 추종 성과로 오독된다.
 
 export const etfReturnItemSchema = z.looseObject({
   etfprft_rt: str(), // ETF 기간 수익률(%)
