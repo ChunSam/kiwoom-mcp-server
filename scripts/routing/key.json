@@ -156,7 +156,7 @@
   "36": {
     "tool": "get_etf_returns",
     "pre_ok": true,
-    "note": "view=period가 기본이라 생략이 정상 — 기본값은 정답표에 박지 않는다"
+    "note": "view=period가 기본이라 생략이 정상 — 기본값은 정답표에 박지 않는다. 해외지수 추종 ETF라 비교지수는 맞출 수 없지만(benchmark_index_code는 국내 지수만) ETF 1년 수익률 자체는 이 tool이 준다 — NONE은 과잉 거부라 오답이다(v0.52.6이 그 사실을 description에 적었다)"
   },
   "37": {
     "tool": "get_gold_price"

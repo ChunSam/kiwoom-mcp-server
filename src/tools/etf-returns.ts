@@ -48,6 +48,7 @@ export function formatEtfReturns(
   etfName: string | null,
   stockCode: string,
   benchmarkCode: string,
+  trackingIndexName: string | null,
   modeLabel: string,
 ): string {
   const n = parseKiwoomNumber;
@@ -63,7 +64,7 @@ export function formatEtfReturns(
   const lines = [
     `[${modeLabel}] ${title} ETF 기간 수익률`,
     "",
-    "| 기간 | ETF 수익률 | 대상지수 수익률 | 외인 순매수량 | 기관 순매수량 |",
+    "| 기간 | ETF 수익률 | 비교지수 수익률 | 외인 순매수량 | 기관 순매수량 |",
     "|---|---:|---:|---:|---:|",
   ];
   for (const [i, period] of ETF_RETURN_PERIODS.entries()) {
@@ -73,10 +74,20 @@ export function formatEtfReturns(
         `${formatSigned(n(row?.for_netprps_qty), 0)} | ${formatSigned(n(row?.orgn_netprps_qty), 0)} |`,
     );
   }
+  // 컬럼을 "대상지수"라 부르던 시절엔 이 값이 **그 ETF의 추적지수** 수익률로 읽혔다
+  // (2026-08-21 라우팅 감사에서 세 모델이 전부 그 자리에 medium을 줬다). 실제로는
+  // 요청한 etfobjt_idex_cd의 수익률이 그대로 오고 ETF와 대조되지 않는다 — 모의·실전
+  // 양쪽 실측 2026-08-21: 133690(나스닥100 추종)의 1년 수익률 +24.72% 옆에 기본값
+  // 201이 준 +156.13%가 앉는다 (probe_ka40001_benchmark.py).
   lines.push(
     "",
-    `※ 대상지수: ${benchmarkCode} (${sectorLabel(benchmarkCode)}) — benchmark_index_code로 변경할 수 ` +
-      `있습니다 (get_market_index의 '코드' 값).`,
+    `※ 비교지수: ${benchmarkCode} (${sectorLabel(benchmarkCode)})` +
+      (trackingIndexName ? ` · 이 ETF의 추적지수: ${trackingIndexName}` : "") +
+      `. 비교지수는 benchmark_index_code로 고른 지수일 뿐 **ETF의 추적지수와 자동으로 맞춰지지 않습니다** — ` +
+      `키움 ka40001은 둘을 대조하지 않고 요청한 지수의 수익률을 그대로 채웁니다.`,
+    `※ 지정할 수 있는 코드는 get_market_index의 '코드' 값(국내 지수)뿐이라 ` +
+      `해외지수(나스닥100·S&P500 등)를 추종하는 ETF는 비교 지수를 맞출 수 없습니다 — ` +
+      `그 ETF가 자기 지수를 얼마나 잘 따라갔는지는 view=daily의 추적오차율로 보세요.`,
   );
   return lines.join("\n");
 }
@@ -178,9 +189,12 @@ export function registerEtfReturnsTool(server: McpServer): void {
       title: "ETF 수익률·NAV 추이 조회",
       description:
         "ETF의 성과를 세 각도로 조회합니다 (키움 ka40001/ka40003/ka40008). " +
-        "view=period(기본)는 기간별(1주/1개월/6개월/1년) 수익률을 대상지수 수익률과 나란히 보여줍니다 — " +
-        `대상지수는 benchmark_index_code로 지정하며 기본값은 ${DEFAULT_BENCHMARK}(KOSPI200)입니다 ` +
-        "(코드는 get_market_index의 '코드' 값: 001 코스피 종합, 101 코스닥 종합 등). " +
+        "view=period(기본)는 기간별(1주/1개월/6개월/1년) 수익률을 **비교지수** 수익률과 나란히 보여줍니다 — " +
+        "이 비교지수는 benchmark_index_code로 **직접 고르는 국내 지수**이고 " +
+        `**ETF의 추적지수와 자동으로 맞춰지지 않습니다**(지정하지 않으면 ${DEFAULT_BENCHMARK} KOSPI200이 그대로 들어갑니다). ` +
+        "코드는 get_market_index의 '코드' 값(001 코스피 종합, 101 코스닥 종합 등)이라 " +
+        "**해외지수(나스닥100·S&P500 등)를 추종하는 ETF는 비교 지수를 맞출 수 없습니다** — " +
+        "그때는 ETF 수익률만 읽고 지수 비교는 제공되지 않는다고 답하세요(추종 성과는 view=daily의 추적오차율). " +
         "view=daily는 일별 NAV와 괴리율·추적오차 추이입니다 — 'ETF가 제값에 거래되고 있나', " +
         "'지수를 잘 따라가고 있나'를 물을 때 씁니다(get_etf_info는 최신 1점만 보여줍니다). " +
         "view=investor는 일자별 외국인·기관 순매수량입니다(period는 기간 합계라 해상도가 다릅니다). " +
@@ -199,7 +213,8 @@ export function registerEtfReturnsTool(server: McpServer): void {
           .regex(/^\d{3}$/)
           .optional()
           .describe(
-            `비교할 지수 코드 3자리 (기본값 ${DEFAULT_BENCHMARK} KOSPI200 — get_market_index의 '코드' 값). view=period 전용`,
+            `비교할 지수 코드 3자리 (기본값 ${DEFAULT_BENCHMARK} KOSPI200 — get_market_index의 '코드' 값). ` +
+              `view=period 전용이며 ETF의 추적지수와 자동으로 맞춰지지 않습니다 — 국내 지수 코드만 받습니다`,
           ),
         days: z
           .number()
@@ -239,7 +254,14 @@ export function registerEtfReturnsTool(server: McpServer): void {
 
         const rows = await fetchEtfReturns(client, code, benchmark);
         return textResult(
-          formatEtfReturns(rows, etf?.stk_nm || null, code, benchmark, config.modeLabel),
+          formatEtfReturns(
+            rows,
+            etf?.stk_nm || null,
+            code,
+            benchmark,
+            etf?.etfobjt_idex_nm || null,
+            config.modeLabel,
+          ),
         );
       }),
   );

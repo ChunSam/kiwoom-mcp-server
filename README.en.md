@@ -52,7 +52,7 @@ allowance.
 | `get_foreign_intraday` | Intraday top net-buy/sell stocks by investor type — foreigners, institutions, insurance, trusts, pensions, other corporates (live provisional) | ka10063, ka10065 |
 | `get_broker_activity` | Per-stock top-5 buying/selling brokers (foreign desks flagged), the full 50-broker cumulative ranking (`view=broker_rank`), desks that dropped out of today's top ranks (`view=dropout`), or market-wide ranking by foreign-desk net trading | ka10002, ka10102, ka10037, ka10038, ka10053 |
 | `get_etf_info` | ETF tracking index / tax type / quote / NAV & disparity | ka40002, ka10001, ka40009 |
-| `get_etf_returns` | ETF period returns vs a benchmark index + daily NAV/disparity/tracking-error trend and daily foreign/institutional flow | ka40001, ka40003, ka40008 |
+| `get_etf_returns` | ETF period returns vs a caller-chosen domestic benchmark index (not auto-matched to the ETF’s own tracking index) + daily NAV/disparity/tracking-error trend and daily foreign/institutional flow | ka40001, ka40003, ka40008 |
 | `get_etf_rank` | Market-wide ETF screener — sort by disparity (premium/discount), change, volume or tracking error; filter by tax type, manager brand or tracked index | ka40004 |
 | `get_short_selling` | Per-stock daily short-selling trend (short volume / weight / avg price) | ka10014 |
 | `get_stock_lending` | Securities-lending trend (contracted / repaid / change / balance) — per stock or market-wide + top stocks by lending balance | ka10068, ka20068, ka90012 |
