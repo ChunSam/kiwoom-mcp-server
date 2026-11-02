@@ -2,6 +2,13 @@
 
 [한국어](README.md) · **English**
 
+> 🛑 **No longer maintained (2026-11-02)**
+>
+> This project is no longer maintained. The last release is **v0.52.6**; there will be no
+> new features, bug fixes, or dependency security updates. Changes on the Kiwoom REST API
+> side may break some tools without notice. If you want to keep using it, please fork the
+> repository and maintain it yourself (MIT license).
+
 A **read-only** MCP server that exposes the Kiwoom Securities REST API.
 From Claude Desktop / Claude Code you can query Korean stock quotes, charts,
 order books, indices, rankings, and investor trends in natural language, along
